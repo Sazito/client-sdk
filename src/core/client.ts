@@ -10,7 +10,6 @@ import { CredentialsManager } from '../utils/credentials-manager';
 // API modules
 import { ProductsAPI } from '../api/products';
 import { CategoriesAPI } from '../api/categories';
-import { TagsAPI } from '../api/tags';
 import { CartAPI } from '../api/cart';
 import { OrdersAPI } from '../api/orders';
 import { InvoicesAPI } from '../api/invoices';
@@ -25,6 +24,8 @@ import { ImagesAPI } from '../api/images';
 import { VisitsAPI } from '../api/visits';
 import { BookingAPI } from '../api/booking';
 import { EntityRoutesAPI } from '../api/entity-routes';
+import { MenuAPI } from '../api/menu';
+import { GeneralAPI } from '../api/general';
 
 export class SazitoClient {
   private http: HttpClient;
@@ -34,7 +35,6 @@ export class SazitoClient {
   // API modules (lazy-loaded)
   public readonly products: ProductsAPI;
   public readonly categories: CategoriesAPI;
-  public readonly tags: TagsAPI;
   public readonly cart: CartAPI;
   public readonly orders: OrdersAPI;
   public readonly invoices: InvoicesAPI;
@@ -49,6 +49,8 @@ export class SazitoClient {
   public readonly visits: VisitsAPI;
   public readonly booking: BookingAPI;
   public readonly entityRoutes: EntityRoutesAPI;
+  public readonly menu: MenuAPI;
+  public readonly general: GeneralAPI;
 
   constructor(config: SazitoConfig) {
     const mergedConfig = mergeConfig(config);
@@ -61,7 +63,6 @@ export class SazitoClient {
     // Initialize API modules
     this.products = new ProductsAPI(this.http);
     this.categories = new CategoriesAPI(this.http);
-    this.tags = new TagsAPI(this.http);
     this.cart = new CartAPI(this.http, this.credentialsManager);
     this.orders = new OrdersAPI(this.http);
     this.invoices = new InvoicesAPI(this.http, this.credentialsManager);
@@ -76,6 +77,8 @@ export class SazitoClient {
     this.visits = new VisitsAPI(this.http);
     this.booking = new BookingAPI(this.http);
     this.entityRoutes = new EntityRoutesAPI(this.http);
+    this.menu = new MenuAPI(this.http);
+    this.general = new GeneralAPI(this.http);
   }
 
   /**

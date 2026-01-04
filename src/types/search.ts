@@ -3,17 +3,27 @@
  */
 
 import { Product, ProductCategory } from './product';
-import { Image } from './common';
+import { Image, ProductAttribute } from './common';
+
+/**
+ * CMS Page types
+ */
+export type CMSPageType = 'normal' | 'blog';
 
 /**
  * Blog page entity from search results
  */
 export interface BlogPage {
-  id: number;
+  id?: number;  // Optional: removed in entity routes (available as entityId at root)
   name: string;
   url: string;
+  enabled?: boolean;
+  cmsPageType?: CMSPageType;
+  content?: string;
   summary?: string;
   image?: Image;
+  themeConfig?: any;
+  attributes?: ProductAttribute[];
   createdAt: string;
   updatedAt: string;
 }
@@ -22,11 +32,16 @@ export interface BlogPage {
  * CMS page entity from search results
  */
 export interface CmsPage {
-  id: number;
+  id?: number;  // Optional: removed in entity routes (available as entityId at root)
   name: string;
   url: string;
+  enabled?: boolean;
+  cmsPageType?: CMSPageType;
+  content?: string;
   summary?: string;
   image?: Image;
+  themeConfig?: any;
+  attributes?: ProductAttribute[];
   createdAt: string;
   updatedAt: string;
 }

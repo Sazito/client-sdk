@@ -50,6 +50,9 @@ const FIELD_NAME_MAP: Record<string, string> = {
   product_categories: 'categories',
   product_attributes: 'attributes',
   product_type: 'productType',
+
+  // CMS fields
+  title: 'name',  // CMS pages use 'title' field which we map to 'name'
   short_description: 'shortDescription',
   stock_quantity: 'stockQuantity',
   stock_number: 'stockQuantity',
@@ -167,7 +170,53 @@ const FIELD_NAME_MAP: Record<string, string> = {
 
   // Image fields
   alt: 'alt',
-  url: 'url'
+  url: 'url',
+
+  // Shop feature flags (General API)
+  activate_add_to_cart_alert: 'addToCardAlert',
+  activate_advanced_card_to_card: 'advancedCardToCard',
+  activate_ayria_payment_customization: 'ayriaPaymentGateway',
+  activate_azki_payment_customization: 'azkiPaymentGateway',
+  activate_bazar_payment_customization: 'bazarPaymentGateway',
+  activate_blog: 'shopBlog',
+  activate_card_to_card_payment: 'cardToCardPayment',
+  activate_checkout_dynamic_form: 'checkoutDynamicForm',
+  activate_different_register_customization: 'multiTypeRegister',
+  activate_digipay_payment: 'digipayPaymentGateway',
+  activate_digipay_payment_customization: 'digipayPaymentGateway',
+  activate_filter_products: 'productFilters',
+  activate_ghesta_payment_customization: 'ghestaPaymentGateway',
+  activate_mega_footer: 'megaFooter',
+  activate_mellat_payment_customization: 'mellatPaymentGateway',
+  activate_min_basket: 'checkoutMinimumAmount',
+  activate_novapay_payment_customization: 'novapayPaymentGateway',
+  activate_ozon_payment_customization: 'ozonPaymentGateway',
+  activate_payment_in_place: 'paymentInPlace',
+  activate_payping_payment: 'paypingPaymentGateway',
+  activate_pec_payment_customization: 'pecPaymentGateway',
+  activate_sabin_payment_customization: 'sabinPaymentGateway',
+  activate_sadad_payment_customization: 'sadadPaymentGateway',
+  activate_search: 'shopSearch',
+  activate_sep_payment_customization: 'sepPaymentGateway',
+  activate_shop_vat: 'shopVat',
+  activate_snapppay_payment_customization: 'snapppayPaymentGateway',
+  activate_tajrobe: 'tajrobe',
+  activate_tara_payment_customization: 'taraPaymentGateway',
+  activate_theme_config_settings: 'themeConfigSettings',
+  activate_toman_payment_customization: 'tomanPaymentGateway',
+  activate_torobpay_payment_customization: 'torobpayPaymentGateway',
+  activate_up_payment_customization: 'asanpardakhtPaymentGateway',
+  activate_vandar_payment_customization: 'vandarPaymentGateway',
+  activate_wallet: 'wallet',
+  activate_yourgate_payment_customization: 'yourgatePaymentGateway',
+  activate_zarinpal_payment: 'zarinpalPaymentGateway',
+  activate_zarinplus_payment_customization: 'zarinplusPaymentGateway',
+  activate_zibal_payment_customization: 'zibalPaymentGateway',
+  activate_zify_payment_customization: 'zifyPaymentGateway',
+  disable_ordering: 'disableOrdering',
+  pwa: 'progressiveWebApp',
+  remove_front_basket: 'hideCheckout',
+  remove_front_taint: 'sazitoBrandingRemoval'
 };
 
 /**
@@ -305,6 +354,27 @@ export function transformApiResponse<T = any>(response: any): T {
 }
 
 /**
+ * Specific transformer for general info response
+ * Merges 'general' and 'shop' fields into a single 'shop' field
+ */
+export function transformGeneralInfoResponse(data: any): any {
+  if (!data) return data;
+
+  const { general, shop, ...rest } = data;
+
+  // Merge general and shop into a single shop object
+  const mergedShop = {
+    ...general,
+    ...shop
+  };
+
+  return {
+    ...rest,
+    shop: mergedShop
+  };
+}
+
+/**
  * Specific transformer for cart responses
  * Handles the cart-specific data structure
  */
@@ -361,10 +431,6 @@ function cleanProduct(product: any): any {
   const {
     staticUrl,
     summary,
-    themeConfig,
-    dynamicFormId,
-    eventEntityId,
-    attributes,
     tags,
     slug,
     ...cleanedProduct
@@ -375,11 +441,9 @@ function cleanProduct(product: any): any {
     cleanedProduct.variants = cleanedProduct.variants.map((variant: any) => {
       const {
         title,
-        weight,
         product: nestedProduct,
         status,
         soldCount,
-        dynamicFormId,
         ...cleanedVariant
       } = variant;
       return cleanedVariant;
@@ -467,7 +531,7 @@ export function transformSearchResponse(data: any): any {
     }
   };
 
-  // Extract products
+  // Extract products (API returns as "products" but HTTP client converts to "items")
   if (data.items && Array.isArray(data.items)) {
     response.products.items = data.items.map((product: any) => cleanProduct(product));
     response.products.total = data.productsCount || 0;
@@ -477,7 +541,7 @@ export function transformSearchResponse(data: any): any {
 
   // Extract blog pages
   if (data.blogPages && Array.isArray(data.blogPages)) {
-    response.blogPages.items = data.blogPages;
+    response.blogPages.items = data.blogPages.map((page: any) => cleanCmsPage(page));
     response.blogPages.total = data.blogPagesCount || 0;
     response.blogPages.page = data.blogPagesPageNumber || 1;
     response.blogPages.pageSize = data.blogPagesPageSize || 20;
@@ -485,15 +549,15 @@ export function transformSearchResponse(data: any): any {
 
   // Extract CMS pages
   if (data.cmsPages && Array.isArray(data.cmsPages)) {
-    response.cmsPages.items = data.cmsPages;
+    response.cmsPages.items = data.cmsPages.map((page: any) => cleanCmsPage(page));
     response.cmsPages.total = data.cmsPagesCount || 0;
     response.cmsPages.page = data.cmsPagesPageNumber || 1;
     response.cmsPages.pageSize = data.cmsPagesPageSize || 20;
   }
 
-  // Extract product categories
-  if (data.productCategories && Array.isArray(data.productCategories)) {
-    response.productCategories.items = data.productCategories;
+  // Extract product categories (API returns as "product_categories" but HTTP client converts to "categories")
+  if (data.categories && Array.isArray(data.categories)) {
+    response.productCategories.items = data.categories.map((cat: any) => cleanCategory(cat));
     response.productCategories.total = data.productCategoriesCount || 0;
     response.productCategories.page = data.productCategoriesPageNumber || 1;
     response.productCategories.pageSize = data.productCategoriesPageSize || 20;
@@ -583,4 +647,273 @@ export function transformPaymentMethodsResponse(response: any): any {
   }
 
   return result;
+}
+
+/**
+ * Clean category object by removing unwanted fields
+ */
+function cleanCategory(category: any): any {
+  if (!category) return category;
+
+  // Fields to remove from category
+  const {
+    staticUrl,
+    products,
+    items,  // Always null in list responses
+    ...cleanedCategory
+  } = category;
+
+  return cleanedCategory;
+}
+
+/**
+ * Clean CMS/Blog page object by removing unwanted fields
+ */
+function cleanCmsPage(page: any): any {
+  if (!page) return page;
+
+  // Fields to remove from CMS/blog page
+  const {
+    staticUrl,
+    ...cleanedPage
+  } = page;
+
+  return cleanedPage;
+}
+
+/**
+ * Specific transformer for entity route responses
+ * Cleans entity data based on entity type
+ */
+export function transformEntityRouteResponse(response: any): any {
+  const transformed = transformApiResponse(response);
+
+  if (!transformed || !transformed.route) {
+    return transformed;
+  }
+
+  const route = transformed.route;
+
+  // Clean entity based on type
+  if (route.entity) {
+    switch (route.entityType) {
+      case 'product':
+        route.entity = cleanProduct(route.entity);
+        break;
+      case 'product_category':
+        route.entity = cleanCategory(route.entity);
+        break;
+      case 'cms_page':
+      case 'blog_page':
+        route.entity = cleanCmsPage(route.entity);
+        break;
+    }
+
+    // Remove duplicate id from entity since we have entityId at root
+    const { id, ...entityWithoutId } = route.entity;
+    route.entity = entityWithoutId;
+
+    // Add url field at root level from entity.url
+    if (!route.url && route.entity.url) {
+      route.url = route.entity.url;
+    }
+  }
+
+  return route;
+}
+
+/**
+ * Clean category tree node recursively
+ */
+function cleanCategoryTreeNode(node: any): any {
+  if (!node) return node;
+
+  const cleanedNode = { ...node };
+
+  // Clean the entity if it exists
+  if (cleanedNode.entity) {
+    cleanedNode.entity = cleanCategory(cleanedNode.entity);
+  }
+
+  // Recursively clean children
+  if (cleanedNode.children && Array.isArray(cleanedNode.children)) {
+    cleanedNode.children = cleanedNode.children.map(cleanCategoryTreeNode);
+  }
+
+  return cleanedNode;
+}
+
+/**
+ * Specific transformer for category list responses
+ * Cleans both the categories array and the tree structure
+ */
+export function transformCategoryListResponse(response: any): any {
+  const transformed = transformApiResponse(response);
+
+  if (!transformed) return transformed;
+
+  // Clean categories array
+  if (transformed.categories && Array.isArray(transformed.categories)) {
+    transformed.categories = transformed.categories.map(cleanCategory);
+  }
+
+  // Clean tree structure
+  if (transformed.tree && transformed.tree.treeStructure && transformed.tree.treeStructure.nodes) {
+    transformed.tree.treeStructure.nodes = transformed.tree.treeStructure.nodes.map(cleanCategoryTreeNode);
+  }
+
+  return transformed;
+}
+
+/**
+ * Specific transformer for single category responses
+ */
+export function transformCategoryResponse(response: any): any {
+  const transformed = transformApiResponse(response);
+
+  if (!transformed) return transformed;
+
+  // API returns { product_category: {...} } which becomes { productCategory: {...} }
+  // Extract the nested category object
+  const category = transformed.productCategory || transformed;
+
+  return cleanCategory(category);
+}
+
+/**
+ * Specific transformer for CMS pages list responses
+ * Cleans CMS page data
+ */
+export function transformCMSListResponse(response: any): any {
+  const transformed = transformApiResponse(response);
+
+  if (!transformed) return transformed;
+
+  // Backend returns: { cms_pages: [...], page_number: 1, page_size: 10, total_count: 50 }
+  // After transformApiResponse: { cmsPages: [...], page: 1, pageSize: 10, total: 50 }
+  // We need to convert to: { items: [...], page: 1, pageSize: 10, total: 50 }
+
+  if (transformed.cmsPages && Array.isArray(transformed.cmsPages)) {
+    return {
+      items: transformed.cmsPages.map(cleanCmsPage),
+      total: transformed.total || transformed.cmsPages.length,
+      page: transformed.page || transformed.pageNumber || 1,
+      pageSize: transformed.pageSize || transformed.cmsPages.length
+    };
+  }
+
+  // Fallback: if already has items array
+  if (transformed.items && Array.isArray(transformed.items)) {
+    return {
+      items: transformed.items.map((item: any) => cleanCmsPage(item)),
+      total: transformed.total || transformed.items.length,
+      page: transformed.page || 1,
+      pageSize: transformed.pageSize || transformed.items.length
+    };
+  }
+
+  return transformed;
+}
+
+/**
+ * Specific transformer for single CMS page response
+ */
+export function transformCMSPageResponse(response: any): any {
+  const transformed = transformApiResponse(response);
+
+  if (!transformed) return transformed;
+
+  // API returns { cms_page: {...} } which becomes { cmsPage: {...} }
+  // Extract the nested page object
+  const page = transformed.cmsPage || transformed;
+
+  return cleanCmsPage(page);
+}
+
+/**
+ * Transform CMS filters to backend format
+ * Backend expects: page_number, page_size, filters[] (JSON string)
+ */
+export function transformCMSFilters(filters?: any): any {
+  if (!filters) return {};
+
+  const transformed: any = {};
+
+  // Pagination
+  if (filters.page !== undefined) {
+    transformed.page_number = filters.page;
+  }
+  if (filters.pageSize !== undefined) {
+    transformed.page_size = filters.pageSize;
+  }
+
+  // CMS page type filter
+  // Backend expects: filters[]={ "name": "cms_page_types", "value": "blog" }
+  if (filters.cmsPageTypes) {
+    const pageType = Array.isArray(filters.cmsPageTypes)
+      ? filters.cmsPageTypes[0]
+      : filters.cmsPageTypes;
+
+    transformed['filters[]'] = JSON.stringify({
+      name: 'cms_page_types',
+      value: pageType
+    });
+  }
+
+  return transformed;
+}
+
+/**
+ * Clean menu node by removing unnecessary fields
+ * Recursively cleans nested children
+ */
+function cleanMenuNode(node: any): any {
+  if (!node) return node;
+
+  const cleaned: any = {};
+
+  // Keep only necessary fields
+  if (node.entityType) cleaned.entityType = node.entityType;
+  if (node.entityId !== undefined) cleaned.entityId = node.entityId;
+
+  // Clean entity (remove staticUrl, id)
+  if (node.entity) {
+    const { staticUrl, id, ...cleanedEntity } = node.entity;
+    if (Object.keys(cleanedEntity).length > 0) {
+      cleaned.entity = cleanedEntity;
+    }
+  }
+
+  // Keep details
+  if (node.details) {
+    cleaned.details = node.details;
+  }
+
+  // Recursively clean children
+  if (node.children && Array.isArray(node.children)) {
+    cleaned.children = node.children.map((child: any) => cleanMenuNode(child));
+  }
+
+  return cleaned;
+}
+
+/**
+ * Transform menu response
+ * Cleans menu tree structure recursively
+ */
+export function transformMenuResponse(response: any): any {
+  const transformed = transformApiResponse(response);
+
+  if (!transformed || !transformed.tree) {
+    return transformed;
+  }
+
+  const tree = transformed.tree;
+
+  // Clean the tree structure recursively
+  if (tree.treeStructure && tree.treeStructure.nodes) {
+    tree.treeStructure.nodes = tree.treeStructure.nodes.map((node: any) => cleanMenuNode(node));
+  }
+
+  return transformed;
 }

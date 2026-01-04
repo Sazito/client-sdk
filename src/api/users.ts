@@ -5,14 +5,19 @@
 import { HttpClient } from '../core/http-client';
 import { SazitoResponse, User, RequestOptions } from '../types';
 import { USERS_API, SESSIONS_API } from '../constants/endpoints';
+import { transformRequestKeys } from '../utils/transformers';
 
-
+/**
+ * Login input (SDK uses camelCase)
+ */
 export interface LoginInput {
   email: string;
   password: string;
-  recaptchaToken?: string;
 }
 
+/**
+ * Register input (SDK uses camelCase)
+ */
 export interface RegisterInput {
   email: string;
   password: string;
@@ -22,19 +27,31 @@ export interface RegisterInput {
   mobile?: string;
 }
 
+/**
+ * Mobile login input
+ */
 export interface MobileLoginInput {
   mobile: string;
 }
 
+/**
+ * Verify mobile OTP input (SDK uses camelCase)
+ */
 export interface VerifyMobileInput {
   mobile: string;
   verificationCode: string;
 }
 
+/**
+ * Forgot password input
+ */
 export interface ForgotPasswordInput {
   email: string;
 }
 
+/**
+ * Reset password input (SDK uses camelCase)
+ */
 export interface ResetPasswordInput {
   forgotPasswordToken: string;
   password: string;
@@ -51,12 +68,14 @@ export class UsersAPI {
 
   /**
    * Login with email and password
+   * Automatically transforms camelCase input to snake_case for API
    */
   async login(
     input: LoginInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<LoginResponse>> {
-    return this.http.post<LoginResponse>(`${SESSIONS_API}/login`, input, options);
+    const transformedInput = transformRequestKeys(input);
+    return this.http.post<LoginResponse>(`${SESSIONS_API}/login`, transformedInput, options);
   }
 
   /**
@@ -71,26 +90,30 @@ export class UsersAPI {
 
   /**
    * Verify mobile OTP
+   * Automatically transforms camelCase input to snake_case for API
    */
   async verifyMobileOTP(
     input: VerifyMobileInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<LoginResponse>> {
+    const transformedInput = transformRequestKeys(input);
     return this.http.post<LoginResponse>(
       `${SESSIONS_API}/login_request_verification`,
-      input,
+      transformedInput,
       options
     );
   }
 
   /**
    * Register new user
+   * Automatically transforms camelCase input to snake_case for API
    */
   async register(
     input: RegisterInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<User>> {
-    return this.http.post<User>(`${USERS_API}/register`, input, options);
+    const transformedInput = transformRequestKeys(input);
+    return this.http.post<User>(`${USERS_API}/register`, transformedInput, options);
   }
 
   /**
@@ -102,13 +125,15 @@ export class UsersAPI {
 
   /**
    * Update user profile (requires authentication)
+   * Automatically transforms camelCase input to snake_case for API
    */
   async updateProfile(
     userId: number,
     data: Partial<User>,
     options?: RequestOptions
   ): Promise<SazitoResponse<User>> {
-    return this.http.put<User>(`${USERS_API}/${userId}`, data, options);
+    const transformedData = transformRequestKeys(data);
+    return this.http.put<User>(`${USERS_API}/${userId}`, transformedData, options);
   }
 
   /**
@@ -123,12 +148,14 @@ export class UsersAPI {
 
   /**
    * Reset password with token
+   * Automatically transforms camelCase input to snake_case for API
    */
   async resetPassword(
     input: ResetPasswordInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<LoginResponse>> {
-    return this.http.post<LoginResponse>(`${USERS_API}/revive_password`, input, options);
+    const transformedInput = transformRequestKeys(input);
+    return this.http.post<LoginResponse>(`${USERS_API}/revive_password`, transformedInput, options);
   }
 
   /**

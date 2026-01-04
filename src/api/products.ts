@@ -12,7 +12,7 @@ import {
   SearchResponse
 } from '../types';
 import { PRODUCTS_API, SEARCH_API, ENTITY_ROUTE_API } from '../constants/endpoints';
-import { transformProductListResponse, transformSearchResponse } from '../utils/transformers';
+import { transformProductListResponse, transformSearchResponse, transformEntityRouteResponse } from '../utils/transformers';
 
 export class ProductsAPI {
   constructor(private http: HttpClient) {}
@@ -65,8 +65,24 @@ export class ProductsAPI {
       filterArray.push({ name: 'has_raw_price', value: true });
     }
 
+    // Similar products
+    if (filters.similarTo) {
+      filterArray.push({
+        name: 'similar_to',
+        value: {
+          entity_name: 'product',
+          entity_id: filters.similarTo
+        }
+      });
+    }
+
     if (filterArray.length > 0) {
       params['filters[]'] = JSON.stringify(filterArray);
+    }
+
+    // Pinned products
+    if (filters.pinnedIds && filters.pinnedIds.length > 0) {
+      params['pinned_ids'] = JSON.stringify(filters.pinnedIds);
     }
 
     // Handle sort mapping
@@ -100,35 +116,42 @@ export class ProductsAPI {
     options?: RequestOptions
   ): Promise<SazitoResponse<Product>> {
     // Ensure the path starts with /product/
-    const urlPart = slugOrPath.startsWith('/product/') 
-      ? slugOrPath 
+    const urlPart = slugOrPath.startsWith('/product/')
+      ? slugOrPath
       : `/product/${slugOrPath}`;
-    
+
     const response = await this.http.get<any>(ENTITY_ROUTE_API, {
       ...options,
       params: { url_part: urlPart }
     });
 
-    // Extract product from entity route response
-    // After transformation: route.entityType, route.entity
-    if (response.data?.route) {
-      const route = response.data.route;
-      if (route.entity && route.entityType === 'product') {
+    if (response.data) {
+      const route = transformEntityRouteResponse(response.data);
+
+      if (route.entityType === 'product' && route.entity) {
         return { data: route.entity };
       }
-    }
 
-    if (response.error) {
-      return response;
-    }
-
-    return {
-      error: {
-        message: 'Product not found or invalid entity type',
-        type: 'api',
-        status: 404
+      if (route.entityType === 'unknown') {
+        return {
+          error: {
+            message: 'Product not found',
+            type: 'api',
+            status: 404
+          }
+        };
       }
-    };
+
+      return {
+        error: {
+          message: `Invalid entity type: expected 'product', got '${route.entityType}'`,
+          type: 'api',
+          status: 400
+        }
+      };
+    }
+
+    return response;
   }
 
   /**

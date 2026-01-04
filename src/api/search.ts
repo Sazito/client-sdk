@@ -5,11 +5,11 @@
 import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
-  PaginatedResponse,
-  Product,
+  SearchResponse,
   RequestOptions
 } from '../types';
 import { SEARCH_API } from '../constants/endpoints';
+import { transformSearchResponse } from '../utils/transformers';
 
 export interface SearchFilters {
   q: string;           // Search query
@@ -24,19 +24,27 @@ export class SearchAPI {
   constructor(private http: HttpClient) {}
 
   /**
-   * Search products
+   * Search across multiple entity types (products, blog pages, CMS pages, categories)
    */
   async search(
     query: string,
     filters?: Omit<SearchFilters, 'q'>,
     options?: RequestOptions
-  ): Promise<SazitoResponse<PaginatedResponse<Product>>> {
-    return this.http.get<PaginatedResponse<Product>>(SEARCH_API, {
+  ): Promise<SazitoResponse<SearchResponse>> {
+    const response = await this.http.get<any>(SEARCH_API, {
       ...options,
       params: {
         q: query,
         ...filters
       }
     });
+
+    // Transform and clean the response
+    if (response.data) {
+      const transformed = transformSearchResponse(response.data);
+      return { data: transformed };
+    }
+
+    return response;
   }
 }

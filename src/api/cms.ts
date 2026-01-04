@@ -8,90 +8,186 @@ import {
   PaginatedResponse,
   RequestOptions
 } from '../types';
-import { CMS_PAGES_API, CMS_BLOG_API } from '../constants/endpoints';
+import { CmsPage, CMSPageType } from '../types/search';
+import { CMS_PAGES_API, ENTITY_ROUTE_API } from '../constants/endpoints';
+import {
+  transformCMSListResponse,
+  transformCMSFilters,
+  transformEntityRouteResponse
+} from '../utils/transformers';
 
-export interface CMSPage {
-  id: number;
-  title: string;
-  slug: string;
-  content: string;
-  meta_title?: string;
-  meta_description?: string;
-  published: boolean;
-  created_at: string;
-  updated_at: string;
-}
+/**
+ * CMS Page type (re-exported from search types for convenience)
+ * Both regular pages and blog posts use this structure
+ */
+export type CMSPage = CmsPage;
 
-export interface BlogPost {
-  id: number;
-  title: string;
-  slug: string;
-  excerpt?: string;
-  content: string;
-  featured_image?: {
-    url: string;
-  };
-  author?: {
-    id: number;
-    name: string;
-  };
-  published_at?: string;
-  created_at: string;
-  updated_at: string;
-}
+/**
+ * Re-export CMSPageType for convenience
+ */
+export type { CMSPageType };
 
+/**
+ * Filters for CMS pages list
+ * Backend uses: page_number, page_size, filters[]
+ */
 export interface CMSFilters {
   page?: number;
-  per_page?: number;
-  published?: boolean;
+  pageSize?: number;
+  cmsPageTypes?: CMSPageType | CMSPageType[];  // Filter by page type: 'normal' or 'blog'
 }
 
 export class CMSAPI {
   constructor(private http: HttpClient) {}
 
   /**
-   * Get CMS page by ID or slug
+   * Get CMS page by URL path
+   * Uses entity routes API (recommended approach)
+   * @param urlPath - Page URL path (e.g., '/about-us')
+   * @param options - Request options
    */
   async getPage(
-    idOrSlug: string | number,
+    urlPath: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<CMSPage>> {
-    return this.http.get<CMSPage>(`${CMS_PAGES_API}/${idOrSlug}`, options);
+    const response = await this.http.get<any>(
+      ENTITY_ROUTE_API,
+      {
+        ...options,
+        params: { url_part: urlPath }
+      }
+    );
+
+    // Transform entity route response and extract the entity
+    const transformed = transformEntityRouteResponse(response.data);
+
+    // Verify it's a CMS page (not blog, product, etc.)
+    if (transformed.entityType !== 'cms_page' || transformed.entity?.cmsPageType === 'blog') {
+      throw new Error(`Expected CMS page at ${urlPath}, but got ${transformed.entityType}`);
+    }
+
+    return {
+      ...response,
+      data: transformed.entity
+    };
   }
 
   /**
-   * List CMS pages
+   * List CMS pages (excludes blog posts)
+   * @param filters - Filter options (will automatically exclude blog type)
+   * @param options - Request options
    */
   async listPages(
     filters?: CMSFilters,
     options?: RequestOptions
   ): Promise<SazitoResponse<PaginatedResponse<CMSPage>>> {
-    return this.http.get<PaginatedResponse<CMSPage>>(CMS_PAGES_API, {
-      ...options,
-      params: filters
-    });
+    // Ensure we're only getting normal CMS pages, not blog posts
+    const cmsFilters = {
+      ...filters,
+      cmsPageTypes: 'normal' as CMSPageType
+    };
+
+    const transformedParams = transformCMSFilters(cmsFilters);
+
+    const response = await this.http.get<PaginatedResponse<CMSPage>>(
+      CMS_PAGES_API,
+      {
+        ...options,
+        params: transformedParams
+      }
+    );
+
+    return {
+      ...response,
+      data: transformCMSListResponse(response.data)
+    };
   }
 
   /**
-   * Get blog post by ID or slug
+   * Get blog post by URL path
+   * Uses entity routes API (recommended approach)
+   * @param urlPath - Blog post URL path (e.g., '/blog/my-post')
+   * @param options - Request options
    */
   async getBlogPost(
-    idOrSlug: string | number,
+    urlPath: string,
     options?: RequestOptions
-  ): Promise<SazitoResponse<BlogPost>> {
-    return this.http.get<BlogPost>(`${CMS_BLOG_API}/${idOrSlug}`, options);
+  ): Promise<SazitoResponse<CMSPage>> {
+    const response = await this.http.get<any>(
+      ENTITY_ROUTE_API,
+      {
+        ...options,
+        params: { url_part: urlPath }
+      }
+    );
+
+    // Transform entity route response and extract the entity
+    const transformed = transformEntityRouteResponse(response.data);
+
+    // Verify it's a blog post
+    if (transformed.entityType !== 'cms_page' || transformed.entity?.cmsPageType !== 'blog') {
+      throw new Error(`Expected blog post at ${urlPath}, but got ${transformed.entityType}`);
+    }
+
+    return {
+      ...response,
+      data: transformed.entity
+    };
   }
 
   /**
    * List blog posts
+   * @param filters - Filter options (will automatically filter for blog type)
+   * @param options - Request options
    */
   async listBlogPosts(
     filters?: CMSFilters,
     options?: RequestOptions
-  ): Promise<SazitoResponse<PaginatedResponse<BlogPost>>> {
-    return this.http.get<PaginatedResponse<BlogPost>>(CMS_BLOG_API, {
-      ...options,
-      params: filters
-    });
+  ): Promise<SazitoResponse<PaginatedResponse<CMSPage>>> {
+    // Ensure we're only getting blog posts, not normal CMS pages
+    const blogFilters = {
+      ...filters,
+      cmsPageTypes: 'blog' as CMSPageType
+    };
+
+    const transformedParams = transformCMSFilters(blogFilters);
+
+    const response = await this.http.get<PaginatedResponse<CMSPage>>(
+      CMS_PAGES_API,
+      {
+        ...options,
+        params: transformedParams
+      }
+    );
+
+    return {
+      ...response,
+      data: transformCMSListResponse(response.data)
+    };
+  }
+
+  /**
+   * List all CMS content (both pages and blog posts)
+   * @param filters - Filter options
+   * @param options - Request options
+   */
+  async listAll(
+    filters?: CMSFilters,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<PaginatedResponse<CMSPage>>> {
+    const transformedParams = transformCMSFilters(filters);
+
+    const response = await this.http.get<PaginatedResponse<CMSPage>>(
+      CMS_PAGES_API,
+      {
+        ...options,
+        params: transformedParams
+      }
+    );
+
+    return {
+      ...response,
+      data: transformCMSListResponse(response.data)
+    };
   }
 }

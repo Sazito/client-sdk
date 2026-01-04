@@ -5,19 +5,25 @@
 import { HttpClient } from '../core/http-client';
 import { SazitoResponse, RequestOptions } from '../types';
 import { VISITS_API } from '../constants/endpoints';
+import { transformRequestKeys } from '../utils/transformers';
 
-
+/**
+ * Visit tracking input (SDK uses camelCase)
+ */
 export interface VisitInput {
   url: string;
   referrer?: string;
-  user_agent?: string;
-  entity_type?: 'product' | 'category' | 'page';
-  entity_id?: number;
+  userAgent?: string;
+  entityType?: 'product' | 'category' | 'page';
+  entityId?: number;
 }
 
+/**
+ * Visit tracking response (auto-transformed to camelCase by HTTP client)
+ */
 export interface VisitResponse {
   id: number;
-  created_at: string;
+  createdAt: string;
 }
 
 export class VisitsAPI {
@@ -25,12 +31,15 @@ export class VisitsAPI {
 
   /**
    * Track page visit
+   * Automatically transforms camelCase input to snake_case for API
    */
   async track(
     input: VisitInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<VisitResponse>> {
-    return this.http.post<VisitResponse>(VISITS_API, input, options);
+    // Transform camelCase to snake_case for API request
+    const transformedInput = transformRequestKeys(input);
+    return this.http.post<VisitResponse>(VISITS_API, transformedInput, options);
   }
 
   /**
@@ -44,10 +53,10 @@ export class VisitsAPI {
     return this.track(
       {
         url,
-        entity_type: 'product',
-        entity_id: productId,
+        entityType: 'product',
+        entityId: productId,
         referrer: typeof document !== 'undefined' ? document.referrer : undefined,
-        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined
       },
       options
     );
@@ -64,10 +73,10 @@ export class VisitsAPI {
     return this.track(
       {
         url,
-        entity_type: 'category',
-        entity_id: categoryId,
+        entityType: 'category',
+        entityId: categoryId,
         referrer: typeof document !== 'undefined' ? document.referrer : undefined,
-        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined
       },
       options
     );

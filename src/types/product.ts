@@ -18,6 +18,8 @@ export interface ProductVariant {
   maxOrderQuantity: number;
   hasMaxOrder: boolean;
   minOrderQuantity: number;
+  weight?: number;
+  dynamicFormId?: number;
   sortIndex: number;
   imageId?: number;
   commercialFiles?: any[];
@@ -26,11 +28,15 @@ export interface ProductVariant {
 }
 
 export interface Product {
-  id: number;
+  id?: number;  // Optional: removed in entity routes (available as entityId at root)
   name: string;
   url: string;
   enabled: boolean;
   productType: string;
+  themeConfig?: any;
+  dynamicFormId?: number;
+  eventEntityId?: number;
+  attributes?: ProductAttribute[];
   images: Image[];
   variants: ProductVariant[];
   categories: ProductCategory[];
@@ -39,9 +45,16 @@ export interface Product {
 }
 
 export interface ProductCategory {
-  id: number;
+  id?: number;  // Optional: removed in entity routes (available as entityId at root)
   name: string;
   url: string;
+  enabled?: boolean;
+  description?: string;
+  productsCount?: number;
+  themeConfig?: any;
+  attributes?: ProductAttribute[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Tag {
@@ -76,4 +89,10 @@ export interface ProductFilters {
   // Availability filtering
   availableOnly?: boolean;    // Filter only in-stock products
   discountedOnly?: boolean;   // Filter only discounted products
+
+  // Pinned products
+  pinnedIds?: number[];        // Product IDs to pin at the top
+
+  // Similar products
+  similarTo?: number;          // Find products similar to this product ID
 }
