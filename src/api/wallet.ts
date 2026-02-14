@@ -27,7 +27,7 @@ export interface Wallet {
 
 export interface TransactionFilters {
   page?: number;
-  per_page?: number;
+  page_size?: number;
   type?: 'credit' | 'debit';
 }
 

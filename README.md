@@ -865,6 +865,28 @@ async function completeCheckout() {
 }
 ```
 
+## 🧪 Visual API Playground
+
+Run an interactive Node + browser playground that demonstrates SDK API calls with:
+- request method/path/query/body
+- SDK response data/error
+- transport metadata (HTTP status, headers, network errors)
+
+```bash
+npm run visual:apis
+```
+
+Open: `http://127.0.0.1:4173`
+
+Included demos:
+- `products.list`
+- `products.get`
+- `search.search`
+- `categories.list`
+- `categories.get`
+- `general.getInfo`
+- `visits.track` (POST body demo)
+
 ## 📚 Documentation
 
 ### Core Documentation
@@ -899,4 +921,3 @@ MIT © Sazito
 - 📖 [Documentation](docs/)
 - 🐛 [Report Issues](https://github.com/sazito/client-sdk/issues)
 - 💬 [Discussions](https://github.com/sazito/client-sdk/discussions)
-

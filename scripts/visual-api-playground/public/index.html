@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sazito API Visual Playground</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="noise-overlay" aria-hidden="true"></div>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Node Visual Lab</p>
+        <h1>Sazito API Playground</h1>
+        <p class="subtitle">
+          Interactive SDK demos for request params, request body, transformed response, and transport metadata.
+        </p>
+      </section>
+
+      <section class="workspace">
+        <article class="panel controls">
+          <div class="field-wrap">
+            <label for="domain">Store Domain</label>
+            <input id="domain" name="domain" value="noel-accessories.ir" autocomplete="off" />
+          </div>
+
+          <div class="field-wrap">
+            <label for="operation">API Demo</label>
+            <select id="operation" name="operation"></select>
+          </div>
+
+          <p id="operationDescription" class="operation-description"></p>
+
+          <div id="dynamicFields" class="dynamic-fields"></div>
+
+          <button id="executeButton" type="button">Run Request</button>
+          <p id="status" class="status">Ready.</p>
+        </article>
+
+        <article class="panel output">
+          <header class="tabs">
+            <div class="tab-list" role="tablist" aria-label="Output panels">
+              <button class="tab active" data-tab="request" type="button" role="tab" aria-selected="true">Request</button>
+              <button class="tab" data-tab="response" type="button" role="tab" aria-selected="false">Response</button>
+              <button class="tab" data-tab="transport" type="button" role="tab" aria-selected="false">Transport</button>
+            </div>
+            <div class="request-export">
+              <button id="expandAllButton" class="copy-button icon-button" type="button" aria-label="Expand all" title="Expand all">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M2.5 6.5V2.5H6.5" />
+                  <path d="M13.5 9.5V13.5H9.5" />
+                  <path d="M2.5 2.5L6.6 6.6" />
+                  <path d="M13.5 13.5L9.4 9.4" />
+                </svg>
+              </button>
+              <button id="collapseAllButton" class="copy-button icon-button" type="button" aria-label="Collapse all" title="Collapse all">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M2.5 6.5V2.5H6.5" />
+                  <path d="M13.5 9.5V13.5H9.5" />
+                  <path d="M6.6 2.5L2.5 6.6" />
+                  <path d="M9.4 13.5L13.5 9.4" />
+                </svg>
+              </button>
+              <button id="copyFetchButton" class="copy-button" type="button" disabled>Copy Fetch</button>
+              <button id="copyCurlButton" class="copy-button" type="button" disabled>Copy cURL</button>
+            </div>
+          </header>
+
+          <section class="tab-panel active" data-panel="request" role="tabpanel">
+            <div id="requestOutput" class="json-output" aria-live="polite"></div>
+          </section>
+
+          <section class="tab-panel" data-panel="response" role="tabpanel">
+            <div id="responseOutput" class="json-output" aria-live="polite"></div>
+          </section>
+
+          <section class="tab-panel" data-panel="transport" role="tabpanel">
+            <div id="transportOutput" class="json-output" aria-live="polite"></div>
+          </section>
+        </article>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

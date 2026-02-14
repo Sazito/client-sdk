@@ -22,6 +22,7 @@
   "scripts": {
     "build": "rollup -c",
     "dev": "rollup -c -w",
+    "visual:apis": "npm run build && node scripts/visual-docs-server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "validate": "npm run typecheck && npm run lint",

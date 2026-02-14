@@ -50,7 +50,7 @@ export interface EventFilters {
   end_date?: string;
   available_only?: boolean;
   page?: number;
-  per_page?: number;
+  page_size?: number;
 }
 
 export class BookingAPI {
