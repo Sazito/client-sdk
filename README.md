@@ -12,15 +12,13 @@ This SDK is built for application developers who want a typed, framework-agnosti
 ## Package
 
 - Name: `@sazito/client-sdk`
-- Version: see `package.json` / npm registry
+- Version: `1.0.0`
 - License: `MIT`
 
 ## Requirements
 
 - Node.js 18+ (recommended) or any runtime with `fetch`
 - Browser environments with `fetch`
-
-The SDK sends requests to `http://api.sazito.com:8080` and includes your store domain in the `x-forwarded-host` header.
 
 ## Install
 
