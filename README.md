@@ -12,7 +12,7 @@ This SDK is built for application developers who want a typed, framework-agnosti
 ## Package
 
 - Name: `@sazito/client-sdk`
-- Version: `1.0.1`
+- Version: `1.0.0`
 - License: `MIT`
 
 ## Requirements
@@ -366,10 +366,10 @@ Then open:
 - `http://127.0.0.1:4173`
 
 Files:
-- `/Users/rezamahmoudi/sazito-sdk/scripts/visual-docs-server.js`
-- `/Users/rezamahmoudi/sazito-sdk/scripts/visual-api-playground/public/index.html`
-- `/Users/rezamahmoudi/sazito-sdk/scripts/visual-api-playground/public/app.js`
-- `/Users/rezamahmoudi/sazito-sdk/scripts/visual-api-playground/public/styles.css`
+- `scripts/visual-docs-server.js`
+- `scripts/visual-api-playground/public/index.html`
+- `scripts/visual-api-playground/public/app.js`
+- `scripts/visual-api-playground/public/styles.css`
 
 ## Development
 
@@ -385,7 +385,7 @@ yarn validate       # typecheck + lint
 
 ## Fumadocs Documentation Site
 
-SDK docs are implemented as a separate Fumadocs app in `/Users/rezamahmoudi/sazito-sdk/docs`.
+SDK docs are implemented as a separate Fumadocs app in `docs/`.
 
 Run docs locally from the repository root:
 
@@ -402,10 +402,15 @@ yarn docs:start
 ```
 
 This docs app is tracked in GitHub, but it is not included in the published npm package.
-Publishing is controlled by the root `files` list in `/Users/rezamahmoudi/sazito-sdk/package.json`, which only ships:
+Publishing is controlled by the root `files` list in `package.json`, which only ships:
 - `dist/`
 - `README.md`
 - `LICENSE`
+
+Relevant docs routes:
+- `app/docs/[[...slug]]` for the rendered docs pages
+- `app/llms-docs/[[...slug]]` for markdown-friendly LLM exports (`/docs/*.mdx` rewrite target)
+- `app/llms.txt` and `app/llms-full.txt` for index/full LLM text exports
 
 Output formats:
 - `dist/index.js` (CJS)
