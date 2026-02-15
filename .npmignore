@@ -20,6 +20,7 @@ coverage/
 # Build and local artifacts
 node_modules/
 dist/
+dist/**/*.map
 .next/
 out/
 .source/

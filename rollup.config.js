@@ -5,6 +5,7 @@ import { terser } from 'rollup-plugin-terser';
 import dts from 'rollup-plugin-dts';
 
 const production = !process.env.ROLLUP_WATCH;
+const sourcemap = !production;
 
 export default [
   // ESM and CJS builds
@@ -14,12 +15,12 @@ export default [
       {
         file: 'dist/index.esm.js',
         format: 'esm',
-        sourcemap: true
+        sourcemap
       },
       {
         file: 'dist/index.js',
         format: 'cjs',
-        sourcemap: true,
+        sourcemap,
         exports: 'named'
       }
     ],
@@ -31,7 +32,12 @@ export default [
         tsconfig: './tsconfig.json',
         declaration: false
       }),
-      production && terser()
+      production &&
+        terser({
+          format: {
+            comments: false
+          }
+        })
     ]
   },
 
@@ -42,7 +48,7 @@ export default [
       file: 'dist/index.umd.js',
       format: 'umd',
       name: 'SazitoSDK',
-      sourcemap: true,
+      sourcemap,
       globals: {
         react: 'React',
         'react-dom': 'ReactDOM'
@@ -56,7 +62,12 @@ export default [
         tsconfig: './tsconfig.json',
         declaration: false
       }),
-      production && terser()
+      production &&
+        terser({
+          format: {
+            comments: false
+          }
+        })
     ]
   },
 
