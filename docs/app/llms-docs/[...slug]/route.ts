@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 export const revalidate = false;
 
-export async function GET(_req: Request, { params }: RouteContext<'/llms.mdx/docs/[[...slug]]'>) {
+export async function GET(_req: Request, { params }: RouteContext<'/llms-docs/[...slug]'>) {
   const { slug } = await params;
   const page = source.getPage(slug);
   if (!page) notFound();
@@ -16,5 +16,5 @@ export async function GET(_req: Request, { params }: RouteContext<'/llms.mdx/doc
 }
 
 export function generateStaticParams() {
-  return source.generateParams();
+  return source.generateParams().filter((param) => param.slug.length > 0);
 }
