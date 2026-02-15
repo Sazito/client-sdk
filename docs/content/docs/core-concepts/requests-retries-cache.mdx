@@ -1,0 +1,37 @@
+---
+title: Requests, Retries, Cache
+description: Transport behavior, retry policy, and cache invalidation mechanics.
+---
+
+## Transport defaults
+
+- Base URL: `http://api.sazito.com:8080`
+- Header: `x-forwarded-host: <domain>`
+- JSON request/response handling
+- Abort-based timeout control
+
+## Retry behavior
+
+Retries happen for `5xx` responses. Count and delay are configurable globally and per request.
+
+```ts
+const res = await client.orders.list(undefined, {
+  retries: 2,
+  timeout: 8000,
+});
+```
+
+## Cache behavior
+
+- GET responses may be cached per module.
+- Non-GET requests invalidate related GET cache keys.
+- Cache can be disabled per request with `cache: false`.
+
+```ts
+await client.products.list({ page: 1 }, { cache: true });
+await client.products.list({ page: 1 }, { cache: false });
+```
+
+<Callout type="warning">
+  Modules with highly dynamic state such as cart and orders are not cached by default.
+</Callout>

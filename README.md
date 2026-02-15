@@ -242,7 +242,7 @@ const list = await sazito.products.list({
   pageSize: 12
 });
 
-const search = await sazito.search.search('shoes', {
+const search = await sazito.search.query('shoes', {
   categoryId: 73,
   minPrice: 100000,
   maxPrice: 900000,
@@ -359,7 +359,7 @@ Notes:
 Run the local visual playground:
 
 ```bash
-npm run visual:apis
+yarn visual:apis
 ```
 
 Then open:
@@ -376,12 +376,36 @@ Files:
 Project scripts:
 
 ```bash
-npm run build       # Build dist outputs
-npm run dev         # Rollup watch mode
-npm run typecheck   # TypeScript check (no emit)
-npm run lint        # ESLint on src/
-npm run validate    # typecheck + lint
+yarn build          # Build dist outputs
+yarn dev            # Rollup watch mode
+yarn typecheck      # TypeScript check (no emit)
+yarn lint           # ESLint on src/
+yarn validate       # typecheck + lint
 ```
+
+## Fumadocs Documentation Site
+
+SDK docs are implemented as a separate Fumadocs app in `/Users/rezamahmoudi/sazito-sdk/docs`.
+
+Run docs locally from the repository root:
+
+```bash
+yarn docs:install
+yarn docs:dev
+```
+
+Build/start docs:
+
+```bash
+yarn docs:build
+yarn docs:start
+```
+
+This docs app is tracked in GitHub, but it is not included in the published npm package.
+Publishing is controlled by the root `files` list in `/Users/rezamahmoudi/sazito-sdk/package.json`, which only ships:
+- `dist/`
+- `README.md`
+- `LICENSE`
 
 Output formats:
 - `dist/index.js` (CJS)
@@ -401,6 +425,10 @@ src/
 scripts/
   visual-docs-server.js
   visual-api-playground/public/
+docs/
+  app/           Next.js routes and layouts
+  content/docs/  MDX documentation pages
+  lib/           Fumadocs source/layout config
 ```
 
 ## Troubleshooting

@@ -8,25 +8,30 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.esm.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./react": {
+      "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.esm.js",
-      "require": "./dist/react/index.js",
-      "types": "./dist/react/index.d.ts"
+      "require": "./dist/react/index.js"
     }
   },
   "sideEffects": false,
   "scripts": {
     "build": "rollup -c",
     "dev": "rollup -c -w",
-    "visual:apis": "npm run build && node scripts/visual-docs-server.js",
+    "visual:apis": "yarn build && node scripts/visual-docs-server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
-    "validate": "npm run typecheck && npm run lint",
-    "prepublishOnly": "npm run build && npm run validate",
+    "validate": "yarn typecheck && yarn lint",
+    "prepublishOnly": "yarn build && yarn validate",
+    "docs:install": "yarn --cwd docs install",
+    "docs:dev": "yarn --cwd docs dev",
+    "docs:build": "yarn --cwd docs build",
+    "docs:start": "yarn --cwd docs start",
+    "docs:typecheck": "yarn --cwd docs types:check",
     "publish:patch": "npm version patch && npm publish",
     "publish:minor": "npm version minor && npm publish",
     "publish:major": "npm version major && npm publish"

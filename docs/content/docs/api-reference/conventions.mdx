@@ -1,0 +1,42 @@
+---
+title: Reference Conventions
+description: How to read the API reference, including required fields and response contracts.
+---
+
+This reference follows a strict structure on every page:
+
+1. Method signature.
+2. Input fields with required/optional status.
+3. Return type with key fields.
+4. Known validation and API error cases.
+5. Request example.
+
+## Common request options
+
+All methods accept `RequestOptions` as the final parameter.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `retries` | `number` | Optional | Override retry count for this request. |
+| `timeout` | `number` | Optional | Override timeout in milliseconds. |
+| `cache` | `boolean` | Optional | Enable or disable cache usage for this request. |
+| `headers` | `Record<string, string>` | Optional | Additional HTTP headers. |
+| `signal` | `AbortSignal` | Optional | Abort and cancellation signal. |
+
+## Common response shape
+
+All methods return `SazitoResponse<T>`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | `T` | Optional | Present when request succeeds. |
+| `error.status` | `number` | Optional | HTTP status when available. |
+| `error.message` | `string` | Required if error | Human-readable error message. |
+| `error.type` | `'network' \| 'api' \| 'validation'` | Required if error | Error category. |
+| `error.details` | `any` | Optional | Raw error payload/details. |
+
+## Required vs Optional
+
+- `Required` means the SDK method needs the field to execute correctly.
+- `Optional` means the field may be omitted.
+- Methods can still return `validation` errors if prerequisite client state is missing (cart/invoice/payment credentials).

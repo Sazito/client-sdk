@@ -105,7 +105,7 @@ const OPERATIONS = [
     ]
   },
   {
-    id: 'search.search',
+    id: 'search.query',
     label: 'Search: Global',
     description: 'GET /api/v1/search with SDK filter mapping and pagination controls.',
     fields: [

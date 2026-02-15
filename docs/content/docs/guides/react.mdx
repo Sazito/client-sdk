@@ -1,0 +1,112 @@
+---
+title: React Guide
+description: Integrate Sazito SDK in React apps with stable client instances and predictable state handling.
+---
+
+## 1. Create a single SDK instance
+
+Avoid creating the client in render paths. Keep one shared instance.
+
+```ts
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+  timeout: 20000,
+  retry: {
+    enabled: true,
+    retries: 2,
+    retryDelay: 700,
+  },
+});
+```
+
+## 2. Fetch data with cancellation
+
+Use `AbortController` in effects to avoid race conditions on unmount.
+
+```tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+import type { Product } from '@sazito/client-sdk';
+
+export function ProductGrid() {
+  const [items, setItems] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function run() {
+      setLoading(true);
+      setError(null);
+
+      const res = await sazito.products.list(
+        { page: 1, pageSize: 12, sort: 'newest' },
+        { signal: controller.signal }
+      );
+
+      if (res.error) {
+        setError(res.error.message);
+      } else {
+        setItems(res.data?.items ?? []);
+      }
+
+      setLoading(false);
+    }
+
+    run();
+    return () => controller.abort();
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>{error}</p>;
+
+  return (
+    <ul>
+      {items.map((product) => (
+        <li key={product.url}>{product.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## 3. Authentication flow in React
+
+```ts
+const loginRes = await sazito.users.login({
+  email: 'dev@example.com',
+  password: 'strong-password',
+});
+
+if (loginRes.data?.jwt) {
+  sazito.setAuthToken(loginRes.data.jwt);
+}
+```
+
+After `setAuthToken`, authenticated module calls automatically include `Authorization`.
+
+## 4. Mutation pattern
+
+Always branch on `error` first.
+
+```ts
+const addRes = await sazito.cart.addItem(12345, 1);
+if (addRes.error) {
+  // show UI error
+  return;
+}
+
+// success path
+console.log(addRes.data);
+```
+
+## 5. Performance checklist
+
+- Keep one SDK instance per app runtime.
+- Use request-level `signal` and `timeout` for user-facing interactions.
+- Avoid request waterfalls for independent reads.
+- Disable cache (`cache: false`) on real-time checkout state views.

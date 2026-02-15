@@ -1,0 +1,128 @@
+---
+title: Products
+description: Product lookup, filtered listing, and cross-entity search.
+---
+
+## Methods
+
+### `products.get(slugOrPath, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slugOrPath` | `string` | Required | Product slug (`shoe-123`) or full path (`/product/shoe-123`). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<Product>`.
+
+### `products.list(filters?, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filters.page` | `number` | Optional | Page number. |
+| `filters.pageSize` | `number` | Optional | Items per page. |
+| `filters.sort` | `'newest' \| 'best-selling' \| 'availability' \| 'discount' \| '!price' \| 'price'` | Optional | Sort strategy. |
+| `filters.categories` | `number \| number[]` | Optional | Category filter(s). |
+| `filters.priceMin` | `number` | Optional | Minimum price. |
+| `filters.priceMax` | `number` | Optional | Maximum price. |
+| `filters.availableOnly` | `boolean` | Optional | Stock filter behavior. |
+| `filters.discountedOnly` | `boolean` | Optional | Discounted products only. |
+| `filters.pinnedIds` | `number[]` | Optional | Pin products on top. |
+| `filters.similarTo` | `number` | Optional | Similar-to product ID. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<PaginatedResponse<Product>>`.
+
+### `products.search(query, filters?, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `query` | `string` | Required | Search text. |
+| `filters` | `ProductFilters` | Optional | Search pagination/filter parameters. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<SearchResponse>`.
+
+## Response key fields
+
+### `Product`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Required | Product name. |
+| `url` | `string` | Required | Product URL path. |
+| `enabled` | `boolean` | Required | Enabled status. |
+| `variants` | `ProductVariant[]` | Required | Variant list. |
+| `images` | `Image[]` | Required | Product images. |
+| `categories` | `ProductCategory[]` | Required | Product categories. |
+| `attributes` | `ProductAttribute[]` | Optional | Additional attributes. |
+
+## Known errors
+
+| Type | When it happens |
+| --- | --- |
+| `api` | Resolved entity is not a product or product not found. |
+| `network` | Connectivity/timeout issues. |
+
+## Example
+
+```ts
+const res = await client.products.list({
+  categories: [73, 94],
+  discountedOnly: true,
+  sort: '!price',
+  page: 1,
+  pageSize: 20,
+});
+```
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { useEffect, useState } from 'react';
+import type { Product } from '@sazito/client-sdk';
+import { client } from '../lib/sazito';
+
+export function ProductList() {
+  const [items, setItems] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      const res = await client.products.list({ page: 1, pageSize: 12, sort: 'newest' });
+      if (!mounted || res.error) return;
+      setItems(res.data?.items ?? []);
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return <div>{items.map((p) => <p key={p.url}>{p.name}</p>)}</div>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```tsx
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default async function ProductsPage() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.products.list({ page: 1, pageSize: 12 });
+
+  if (res.error) return <div>Failed to load products.</div>;
+  return <div>{res.data?.items.map((p) => <p key={p.url}>{p.name}</p>)}</div>;
+}
+```
+
+</Tab>
+
+</Tabs>

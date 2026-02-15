@@ -1,0 +1,99 @@
+---
+title: Booking
+description: Scheduler events and booking management APIs.
+---
+
+## Methods
+
+### `booking.listEvents(filters?, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filters.start_date` | `string` | Optional | Start date filter. |
+| `filters.end_date` | `string` | Optional | End date filter. |
+| `filters.available_only` | `boolean` | Optional | Filter available events only. |
+| `filters.page` | `number` | Optional | Page number. |
+| `filters.page_size` | `number` | Optional | Page size. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<PaginatedResponse<Event>>`.
+
+### `booking.getEvent(eventId, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `eventId` | `number` | Required | Scheduler event ID. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `booking.createBooking(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.event_entity_id` | `number` | Required | Event entity ID to book. |
+| `input.timezone` | `string` | Required | Booking timezone. |
+| `input.attendee_name` | `string` | Required | Attendee full name. |
+| `input.attendee_email` | `string` | Optional | Attendee email. |
+| `input.attendee_phone` | `string` | Optional | Attendee phone. |
+
+### `booking.listBookings(options?)`
+
+Lists current user bookings.
+
+### `booking.cancelBooking(bookingId, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `bookingId` | `number` | Required | Booking ID. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+## `Event` key fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Event ID. |
+| `title` | `string` | Required | Event title. |
+| `start_time` | `string` | Required | Event start time. |
+| `end_time` | `string` | Required | Event end time. |
+| `capacity` | `number` | Required | Total capacity. |
+| `available_slots` | `number` | Required | Remaining slots. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { useEffect, useState } from 'react';
+import { client } from '../lib/sazito';
+
+export function Events() {
+  const [items, setItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    client.booking.listEvents({ page: 1, page_size: 10 }).then((res) => {
+      if (!res.error) setItems(res.data?.items ?? []);
+    });
+  }, []);
+
+  return <div>{items.map((e) => <p key={e.id}>{e.title}</p>)}</div>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function GET() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.booking.listEvents({ page: 1, page_size: 10 });
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

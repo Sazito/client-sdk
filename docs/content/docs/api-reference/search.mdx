@@ -1,0 +1,88 @@
+---
+title: Search
+description: Unified entity search across products, CMS pages, blog pages, and categories.
+---
+
+## Method
+
+### `search.query(query, filters?, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `query` | `string` | Required | Search query text. |
+| `filters.page` | `number` | Optional | Page number. |
+| `filters.pageSize` | `number` | Optional | Page size. |
+| `filters.categoryId` | `number` | Optional | Category filter. |
+| `filters.minPrice` | `number` | Optional | Minimum price. |
+| `filters.maxPrice` | `number` | Optional | Maximum price. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<SearchResponse>`.
+
+## `SearchResponse` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `products.items` | `Product[]` | Required | Product results. |
+| `blogPages.items` | `BlogPage[]` | Required | Blog page results. |
+| `cmsPages.items` | `CmsPage[]` | Required | CMS page results. |
+| `productCategories.items` | `ProductCategory[]` | Required | Category results. |
+| `*.total` | `number` | Required | Total items in result set. |
+| `*.page` | `number` | Required | Current page. |
+| `*.pageSize` | `number` | Required | Page size. |
+
+## Example
+
+```ts
+const res = await client.search.query('running shoes', {
+  categoryId: 73,
+  minPrice: 100000,
+  maxPrice: 900000,
+  page: 1,
+  pageSize: 20,
+});
+```
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { useState } from 'react';
+import { client } from '../lib/sazito';
+
+export function SearchBox() {
+  const [results, setResults] = useState<any>(null);
+
+  async function onSearch(query: string) {
+    const res = await client.search.query(query, { page: 1, pageSize: 10 });
+    if (!res.error) setResults(res.data);
+  }
+
+  return <button onClick={() => onSearch('shoe')}>Search</button>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get('q') || '';
+
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.search.query(query, { page: 1, pageSize: 10 });
+
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

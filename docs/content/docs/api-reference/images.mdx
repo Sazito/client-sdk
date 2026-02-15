@@ -1,0 +1,69 @@
+---
+title: Images
+description: Upload and delete media assets.
+---
+
+## Methods
+
+### `images.upload(file, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file` | `File \| Blob` | Required | File/blob payload. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<UploadImageResponse>`.
+
+### `images.delete(imageId, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `imageId` | `number` | Required | Uploaded image ID. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+## `UploadImageResponse` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Image ID. |
+| `url` | `string` | Required | Public image URL. |
+| `filename` | `string` | Required | File name. |
+| `size` | `number` | Required | File size in bytes. |
+| `mime_type` | `string` | Required | MIME type. |
+
+<Callout type="warning">
+  Do not set a manual <code>Content-Type</code> header for multipart uploads.
+</Callout>
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function uploadAvatar(file: File) {
+  return client.images.upload(file);
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function DELETE(request: Request) {
+  const imageId = Number(new URL(request.url).searchParams.get('id'));
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.images.delete(imageId);
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

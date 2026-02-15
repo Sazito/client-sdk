@@ -1,0 +1,33 @@
+---
+title: Troubleshooting
+description: Diagnose common SDK integration failures quickly.
+---
+
+## `error.type === 'validation'`
+
+Usually indicates missing local prerequisite state:
+
+- no cart credentials before invoice creation
+- no invoice credentials before payment actions
+- no shipping credentials before address retrieval
+
+## `error.type === 'network'`
+
+Check:
+
+- runtime has `fetch`
+- timeout is high enough
+- environment can reach `http://api.sazito.com:8080`
+
+## Authentication failures
+
+- Confirm `setAuthToken` has been called.
+- Ensure backend expects raw JWT in `Authorization` header.
+
+## CMS helper throws
+
+`cms.getPage` and `cms.getBlogPost` validate entity type and throw when URL resolves to a different entity. Wrap in `try/catch`.
+
+## Debug mode
+
+Enable `debug: true` to print request, response, and retry logs.

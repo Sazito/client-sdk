@@ -1,0 +1,82 @@
+---
+title: Orders
+description: Authenticated order listing and detail retrieval.
+---
+
+## Methods
+
+### `orders.list(filters?, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filters.status` | `OrderStatus` | Optional | Filter by order status. |
+| `filters.page` | `number` | Optional | Page number. |
+| `filters.pageSize` | `number` | Optional | Page size. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<PaginatedResponse<Order>>`.
+
+### `orders.get(orderId, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `orderId` | `number` | Required | Order ID. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<Order>`.
+
+## `Order` key fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Order ID. |
+| `orderNumber` | `string` | Required | Human-readable order number. |
+| `status` | `OrderStatus` | Required | Order status enum. |
+| `items` | `InvoiceItem[]` | Required | Purchased items. |
+| `total` | `number` | Required | Final amount. |
+| `trackingNumber` | `string` | Optional | Shipment tracking number. |
+
+## Known errors
+
+| Type | When it happens |
+| --- | --- |
+| `api` | Missing/invalid authentication token or inaccessible order. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function loadOrders() {
+  return client.orders.list({ page: 1, pageSize: 20 });
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { cookies } from 'next/headers';
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function GET() {
+  const token = (await cookies()).get('user_id_token')?.value;
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+
+  const res = await client.orders.list(
+    { page: 1, pageSize: 20 },
+    { headers: token ? { Authorization: token } : undefined }
+  );
+
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

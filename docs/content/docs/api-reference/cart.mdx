@@ -1,0 +1,109 @@
+---
+title: Cart
+description: Guest/authenticated cart creation and item mutation APIs.
+---
+
+## Methods
+
+### `cart.get(options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<Cart>`.
+
+### `cart.create(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.variants` | `AddToCartInput[]` | Required | Variants to initialize cart with. |
+| `input.coupon` | `string` | Optional | Initial coupon. |
+| `input.formAttributes` | `Record<string, any>` | Optional | Dynamic form values. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `cart.addItem(variantId, count, formAttributes?, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `variantId` | `number` | Required | Variant ID. |
+| `count` | `number` | Required | Quantity to add. |
+| `formAttributes` | `Record<string, any>` | Optional | Dynamic form attributes. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `cart.updateItem(cartProductId, count, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cartProductId` | `number` | Required | Existing cart-product row ID. |
+| `count` | `number` | Required | New quantity. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `cart.removeItem(cartProductId, variantId, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cartProductId` | `number` | Required | Existing cart-product row ID. |
+| `variantId` | `number` | Required | Variant ID to remove. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `cart.clearCart()`
+
+Clears persisted cart credentials only.
+
+## `Cart` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Cart ID. |
+| `identifier` | `string` | Required | Guest cart identifier. |
+| `items` | `CartProduct[]` | Required | Cart line items. |
+| `subtotal` | `number` | Required | Subtotal value. |
+| `total` | `number` | Required | Total after discounts. |
+| `needsShipping` | `boolean` | Required | Whether shipping step is required. |
+
+## Known errors
+
+| Type | When it happens |
+| --- | --- |
+| `validation` | Missing cart credentials for `get`/`updateItem`/`removeItem`. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export function AddToCartButton({ variantId }: { variantId: number }) {
+  async function onAdd() {
+    const res = await client.cart.addItem(variantId, 1);
+    if (res.error) alert(res.error.message);
+  }
+
+  return <button onClick={onAdd}>Add to cart</button>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function POST(request: Request) {
+  const { variantId, count } = await request.json();
+
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.cart.addItem(variantId, count);
+
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

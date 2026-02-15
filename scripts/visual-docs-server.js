@@ -243,12 +243,12 @@ async function executeOperation(payload) {
         sdkResponse = await client.products.get(slugOrPath);
         break;
       }
-      case 'search.search': {
+      case 'search.query': {
         const query = String(input.query || '').trim();
         const filters = input.filters || {};
-        sdkRequest.method = 'client.search.search';
+        sdkRequest.method = 'client.search.query';
         sdkRequest.params = { query, filters };
-        sdkResponse = await client.search.search(query, filters);
+        sdkResponse = await client.search.query(query, filters);
         break;
       }
       case 'categories.list': {

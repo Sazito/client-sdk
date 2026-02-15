@@ -1,0 +1,92 @@
+---
+title: CMS
+description: Resolve CMS pages/blog posts and list CMS entities.
+---
+
+## Methods
+
+### `cms.getPage(urlPath, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `urlPath` | `string` | Required | CMS page URL path, e.g. `/about-us`. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<CMSPage>`.
+
+Throws: when resolved route is not a non-blog CMS page.
+
+### `cms.listPages(filters?, options?)`
+
+### `cms.getBlogPost(urlPath, options?)`
+
+Returns blog page by URL path.
+
+Throws: when resolved route is not a blog page.
+
+### `cms.listBlogPosts(filters?, options?)`
+
+### `cms.listAll(filters?, options?)`
+
+For list methods, `filters` fields are:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filters.page` | `number` | Optional | Page number. |
+| `filters.pageSize` | `number` | Optional | Page size. |
+| `filters.cmsPageTypes` | `'normal' \| 'blog' \| Array<'normal' \| 'blog'>` | Optional | Explicit CMS type filtering. |
+
+## `CMSPage` key fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Required | Page name/title. |
+| `url` | `string` | Required | URL path. |
+| `cmsPageType` | `'normal' \| 'blog'` | Optional | Page type. |
+| `content` | `string` | Optional | Full page content. |
+| `summary` | `string` | Optional | Summary/excerpt. |
+| `image` | `Image` | Optional | Featured image. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { useEffect, useState } from 'react';
+import { client } from '../lib/sazito';
+
+export function CmsPage({ urlPath }: { urlPath: string }) {
+  const [page, setPage] = useState<any>(null);
+
+  useEffect(() => {
+    client.cms.getPage(urlPath).then((res) => {
+      if (!res.error) setPage(res.data);
+    });
+  }, [urlPath]);
+
+  return <article>{page?.name}</article>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```tsx
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default async function CmsRoute({ params }: { params: { slug: string[] } }) {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const urlPath = `/${params.slug.join('/')}`;
+  const res = await client.cms.getPage(urlPath);
+
+  if (res.error) return <div>Not found</div>;
+  return <article>{res.data?.name}</article>;
+}
+```
+
+</Tab>
+
+</Tabs>

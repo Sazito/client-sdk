@@ -1,0 +1,79 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+:root {
+  --color-fd-primary: #606cec;
+  --color-fd-primary-foreground: #f4f6ff;
+  --color-fd-background: #f6f8ff;
+  --color-fd-foreground: #171b34;
+  --color-fd-muted: #ecefff;
+  --color-fd-muted-foreground: #4e567f;
+  --color-fd-card: #ffffff;
+  --color-fd-card-foreground: #171b34;
+  --color-fd-border: #d9ddff;
+  --color-fd-secondary: #ecefff;
+  --color-fd-secondary-foreground: #171b34;
+  --color-fd-accent: #e2e6ff;
+  --color-fd-accent-foreground: #30397d;
+  --color-fd-ring: #606cec;
+  --sazito-code-line-height: 1.75;
+  --sazito-bg-glow-1: rgb(96 108 236 / 22%);
+  --sazito-bg-glow-2: rgb(122 132 255 / 14%);
+  --sazito-bg-glow-3: rgb(68 83 190 / 10%);
+}
+
+.dark {
+  --color-fd-primary: #7883ff;
+  --color-fd-primary-foreground: #0d1230;
+  --color-fd-background: #060910;
+  --color-fd-foreground: #eff2ff;
+  --color-fd-muted: #0b1224;
+  --color-fd-muted-foreground: #a8b1d9;
+  --color-fd-card: #0a1022;
+  --color-fd-card-foreground: #eff2ff;
+  --color-fd-border: #172042;
+  --color-fd-secondary: #0f1831;
+  --color-fd-secondary-foreground: #eff2ff;
+  --color-fd-accent: #152043;
+  --color-fd-accent-foreground: #eff2ff;
+  --color-fd-ring: #7883ff;
+  --sazito-bg-glow-1: rgb(96 108 236 / 28%);
+  --sazito-bg-glow-2: rgb(122 132 255 / 16%);
+  --sazito-bg-glow-3: rgb(68 83 190 / 18%);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-source-sans-3), sans-serif;
+  background:
+    radial-gradient(circle at 10% -10%, var(--sazito-bg-glow-1), transparent 34%),
+    radial-gradient(circle at 90% 8%, var(--sazito-bg-glow-2), transparent 30%),
+    radial-gradient(circle at 52% 120%, var(--sazito-bg-glow-3), transparent 45%),
+    var(--color-fd-background);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.home-title {
+  font-family: var(--font-sora), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+a {
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.shiki code,
+.prose pre code {
+  line-height: var(--sazito-code-line-height);
+}

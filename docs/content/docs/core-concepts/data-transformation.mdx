@@ -1,0 +1,30 @@
+---
+title: Data Transformation
+description: Automatic key mapping and payload normalization performed by the SDK.
+---
+
+The SDK transforms request and response keys so app code remains camelCase and consistent.
+
+## Common examples
+
+- `first_name` -> `firstName`
+- `postal_code` -> `postalCode`
+- `product_variant_id` -> `variantId`
+- `single_item_price` -> `unitPrice`
+
+## Impact
+
+- Request payloads are transformed before network send.
+- Response payloads are transformed before being returned.
+- Some responses are normalized into cleaner shapes.
+
+## Using transformers directly
+
+```ts
+import { transformRequestKeys, transformResponseKeys } from '@sazito/client-sdk';
+
+const outgoing = transformRequestKeys({ firstName: 'Sara' });
+const incoming = transformResponseKeys({ first_name: 'Sara' });
+```
+
+Use direct transformers only when integrating with custom pipelines outside SDK methods.

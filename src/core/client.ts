@@ -16,7 +16,7 @@ import { InvoicesAPI } from '../api/invoices';
 import { ShippingAPI } from '../api/shipping';
 import { PaymentsAPI } from '../api/payments';
 import { UsersAPI } from '../api/users';
-import { SearchAPI } from '../api/search';
+import { SearchAPI, type SearchFilters } from '../api/search';
 import { FeedbacksAPI } from '../api/feedbacks';
 import { WalletAPI } from '../api/wallet';
 import { CMSAPI } from '../api/cms';
@@ -26,6 +26,7 @@ import { BookingAPI } from '../api/booking';
 import { EntityRoutesAPI } from '../api/entity-routes';
 import { MenuAPI } from '../api/menu';
 import { GeneralAPI } from '../api/general';
+import type { RequestOptions, SazitoResponse, SearchResponse } from '../types';
 
 export class SazitoClient {
   private http: HttpClient;
@@ -130,6 +131,17 @@ export class SazitoClient {
     this.clearAuth();
     this.clearCache();
     this.clearCredentials();
+  }
+
+  /**
+   * Search helper for `client.search.query(...)`.
+   */
+  async searchQuery(
+    query: string,
+    filters?: SearchFilters,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<SearchResponse>> {
+    return this.search.query(query, filters, options);
   }
 }
 

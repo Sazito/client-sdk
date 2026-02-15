@@ -1,0 +1,52 @@
+---
+title: Response Model
+description: Understand the unified response contract used across all SDK calls.
+---
+
+All methods return the same envelope:
+
+```ts
+type SazitoResponse<T> = {
+  data?: T;
+  error?: {
+    status?: number;
+    message: string;
+    type: 'network' | 'api' | 'validation';
+    details?: any;
+  };
+};
+```
+
+## Handling strategy
+
+```ts
+const res = await client.categories.get(110);
+
+if (res.error) {
+  if (res.error.type === 'validation') {
+    // usually missing local checkout state
+  }
+
+  if (res.error.type === 'network') {
+    // timeout, offline, DNS, etc.
+  }
+
+  if (res.error.type === 'api') {
+    // backend rejected request
+  }
+
+  return;
+}
+
+console.log(res.data);
+```
+
+## Error type semantics
+
+- `validation`: local precondition failed before request execution.
+- `network`: transport/runtime failure.
+- `api`: request reached server and failed with non-2xx status.
+
+<Callout type="info">
+  This contract is designed for predictable UI state handling in large applications.
+</Callout>

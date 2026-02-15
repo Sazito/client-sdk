@@ -1,0 +1,75 @@
+---
+title: Visits
+description: Analytics visit tracking APIs.
+---
+
+## Methods
+
+### `visits.track(inputOrOptions?, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `inputOrOptions` | `VisitInput \| RequestOptions` | Optional | Visit input or direct request options. |
+| `options` | `RequestOptions` | Optional | Request options when first arg is visit input. |
+
+Returns: `SazitoResponse<VisitResponse>`.
+
+### `visits.trackProduct(productId, url, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `productId` | `number` | Required | Product ID (currently informational). |
+| `url` | `string` | Required | Product URL (currently informational). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `visits.trackCategory(categoryId, url, options?)`
+
+Same as `trackProduct` but for category context.
+
+## `VisitResponse` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Visit record ID. |
+| `createdAt` | `string` | Required | Creation timestamp. |
+
+## Notes
+
+Backend endpoint currently ignores payload body and only records visit call.
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { useEffect } from 'react';
+import { client } from '../lib/sazito';
+
+export function TrackProductVisit({ productId, path }: { productId: number; path: string }) {
+  useEffect(() => {
+    client.visits.trackProduct(productId, path);
+  }, [productId, path]);
+
+  return null;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function POST() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.visits.track();
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

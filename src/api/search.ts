@@ -37,10 +37,10 @@ export class SearchAPI {
   }
 
   /**
-   * Search across multiple entity types (products, blog pages, CMS pages, categories)
+   * Query across multiple entity types (products, blog pages, CMS pages, categories)
    */
-  async search(
-    query: string,
+  async query(
+    term: string,
     filters?: SearchFilters,
     options?: RequestOptions
   ): Promise<SazitoResponse<SearchResponse>> {
@@ -50,7 +50,7 @@ export class SearchAPI {
       ...options,
       params: {
         ...transformedFilters,
-        query,
+        query: term,
         page_number: transformedFilters.page_number ?? 1,
         page_size: transformedFilters.page_size ?? 20,
         search_direction: 'center'

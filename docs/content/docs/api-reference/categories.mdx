@@ -1,0 +1,81 @@
+---
+title: Categories
+description: Category lookup and hierarchical category tree retrieval.
+---
+
+## Methods
+
+### `categories.get(idOrSlug, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `idOrSlug` | `string \| number` | Required | Category ID or slug. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<ProductCategory>`.
+
+### `categories.list(filters?, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filters.page` | `number` | Optional | Page number. |
+| `filters.pageSize` | `number` | Optional | Page size. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<CategoryListResponse>`.
+
+## `CategoryListResponse` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `categories` | `ProductCategory[]` | Required | Flat category list. |
+| `tree` | `CategoryTree` | Required | Hierarchical category tree. |
+
+## Example
+
+```ts
+const list = await client.categories.list({ page: 1, pageSize: 100 });
+const category = await client.categories.get(110);
+```
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { useEffect, useState } from 'react';
+import { client } from '../lib/sazito';
+
+export function CategoryNav() {
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    client.categories.list({ page: 1, pageSize: 100 }).then((res) => {
+      if (!res.error) setCategories(res.data?.categories ?? []);
+    });
+  }, []);
+
+  return <div>{categories.map((c: any) => <p key={c.url}>{c.name}</p>)}</div>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```tsx
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default async function CategoriesPage() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.categories.list({ page: 1, pageSize: 100 });
+
+  return <pre>{JSON.stringify(res.data?.tree, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+</Tabs>

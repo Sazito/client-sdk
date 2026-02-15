@@ -11,6 +11,7 @@ export type { SazitoConfig, CacheConfig, RetryConfig } from './core/config';
 
 // Types
 export * from './types';
+export type { SearchFilters } from './api/search';
 
 // For advanced usage
 export { HttpClient } from './core/http-client';

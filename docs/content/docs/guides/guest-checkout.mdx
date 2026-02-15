@@ -1,0 +1,60 @@
+---
+title: Guest Checkout
+description: End-to-end guest checkout flow with shipping and payment setup.
+---
+
+## Checkout sequence
+
+1. Add item to cart.
+2. Create invoice from cart.
+3. Create shipping address.
+4. Attach shipping address to invoice.
+5. Assign shipping method.
+6. Create and initialize payment.
+
+```ts
+await client.cart.addItem(12345, 2);
+
+const invoiceRes = await client.invoices.create();
+if (invoiceRes.error) throw new Error(invoiceRes.error.message);
+
+const addressRes = await client.shipping.createAddress({
+  firstName: 'John',
+  lastName: 'Doe',
+  mobilePhone: '09123456789',
+  regionId: 1,
+  cityId: 10,
+  address: 'No. 10, Example St',
+  postalCode: '1234567890',
+});
+if (addressRes.error) throw new Error(addressRes.error.message);
+
+await client.invoices.addShippingAddress(addressRes.data.id, addressRes.data.identifier);
+
+const methodsRes = await client.invoices.getApplicableShippingMethods();
+if (methodsRes.error) throw new Error(methodsRes.error.message);
+
+const invoiceState = await client.invoices.get();
+const firstRate = methodsRes.data?.[0]?.rates?.[0];
+if (firstRate && invoiceState.data) {
+  await client.invoices.assignShippingMethod([
+    {
+      rateId: firstRate.id,
+      invoiceItemIds: invoiceState.data.items.map((item) => item.id),
+    },
+  ]);
+}
+
+const paymentMethods = await client.payments.getMethods();
+if (paymentMethods.data?.length) {
+  await client.payments.create(paymentMethods.data[0].id);
+  const action = await client.payments.initialize();
+  console.log(action.data);
+}
+```
+
+## Operational notes
+
+- Invoice creation depends on existing cart credentials.
+- Payment method fetch depends on invoice credentials.
+- `validation` errors usually mean a prior flow step was skipped.

@@ -1,0 +1,57 @@
+---
+title: Configuration
+description: Configure retries, timeout, cache policy, custom fetch, and debugging.
+---
+
+## Client configuration
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+const client = createSazitoClient({
+  domain: 'mystore.sazito.com',
+  timeout: 30000,
+  debug: false,
+  retry: {
+    enabled: true,
+    retries: 3,
+    retryDelay: 1000,
+  },
+  cache: {
+    products: { enabled: true, ttl: 600000 },
+    categories: { enabled: true, ttl: 600000 },
+    cart: { enabled: false },
+    orders: { enabled: false },
+    search: { enabled: true, ttl: 300000 },
+    cms: { enabled: true, ttl: 600000 },
+    tags: { enabled: true, ttl: 600000 },
+    entityRoutes: { enabled: true, ttl: 600000 },
+  },
+});
+```
+
+## Fields
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `domain` | `string` | Yes | Store domain without protocol |
+| `timeout` | `number` | No | Global request timeout in ms |
+| `retry` | `RetryConfig` | No | Retries used for 5xx responses |
+| `cache` | per-module map | No | Module-level cache configuration |
+| `customFetchApi` | `typeof fetch` | No | Override runtime fetch |
+| `debug` | `boolean` | No | Enables request logging |
+
+## Per-request overrides
+
+```ts
+await client.products.get('/product/running-shoe-pro', {
+  timeout: 5000,
+  retries: 1,
+  cache: false,
+  headers: {
+    'X-Request-ID': 'req-123',
+  },
+});
+```
+
+Supported override keys: `timeout`, `retries`, `cache`, `headers`, `signal`.

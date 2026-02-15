@@ -1,0 +1,78 @@
+---
+title: Client
+description: SazitoClient construction, lifecycle controls, and module access.
+---
+
+## Factory
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+const client = createSazitoClient({
+  domain: 'mystore.sazito.com',
+});
+```
+
+## `createSazitoClient(config)` input
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `domain` | `string` | Required | Store domain without protocol. |
+| `timeout` | `number` | Optional | Global request timeout. |
+| `retry` | `RetryConfig` | Optional | Retry policy for 5xx responses. |
+| `cache` | `Record<string, CacheConfig>` | Optional | Module-level cache policy. |
+| `customFetchApi` | `typeof fetch` | Optional | Custom fetch implementation. |
+| `debug` | `boolean` | Optional | SDK debug logs. |
+
+## Lifecycle methods
+
+### `setAuthToken(token: string): void`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `token` | `string` | Required | Raw JWT token stored in browser storage. |
+
+### `getAuthToken(): string | null`
+
+Returns currently stored token.
+
+### `clearAuth(): void`
+
+Removes persisted auth token.
+
+### `isAuthenticated(): boolean`
+
+Returns true when token exists.
+
+### `clearCache(): void`
+
+Clears SDK cache.
+
+### `clearCredentials(): void`
+
+Clears guest checkout credentials.
+
+### `clearAll(): void`
+
+Clears auth token, cache, and credentials.
+
+## Modules
+
+- `products`
+- `categories`
+- `cart`
+- `orders`
+- `invoices`
+- `shipping`
+- `payments`
+- `users`
+- `search`
+- `feedbacks`
+- `wallet`
+- `cms`
+- `images`
+- `visits`
+- `booking`
+- `entityRoutes`
+- `menu`
+- `general`

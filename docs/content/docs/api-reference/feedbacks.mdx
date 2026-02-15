@@ -1,0 +1,76 @@
+---
+title: Feedbacks
+description: Product feedback list/create/get endpoints.
+---
+
+## Methods
+
+### `feedbacks.list(filters?, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filters.productId` | `number` | Optional | Filter by product ID. |
+| `filters.page` | `number` | Optional | Page number. |
+| `filters.pageSize` | `number` | Optional | Page size. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<PaginatedResponse<Feedback>>`.
+
+### `feedbacks.create(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.comment` | `string` | Required | Feedback body. |
+| `input.productId` | `number` | Optional | Product ID. |
+| `input.rating` | `number` | Optional | Rating value (typically 1-5). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `feedbacks.get(feedbackId, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `feedbackId` | `number` | Required | Feedback ID. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+## `Feedback` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Feedback ID. |
+| `comment` | `string` | Required | Feedback text. |
+| `status` | `'pending' \| 'approved' \| 'rejected'` | Required | Moderation status. |
+| `rating` | `number` | Optional | Rating score. |
+| `productId` | `number` | Optional | Linked product ID. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function submitFeedback(productId: number, comment: string) {
+  return client.feedbacks.create({ productId, comment, rating: 5 });
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.feedbacks.create(body);
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

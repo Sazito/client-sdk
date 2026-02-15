@@ -1,0 +1,37 @@
+---
+title: Production Patterns
+description: Recommended architecture for scalable storefront implementations.
+---
+
+## Use one client factory
+
+Create a single shared client factory and apply environment-aware config.
+
+```ts
+export function createCommerceClient() {
+  return createSazitoClient({
+    domain: process.env.NEXT_PUBLIC_STORE_DOMAIN!,
+    timeout: 20000,
+    retry: { enabled: true, retries: 2, retryDelay: 700 },
+    debug: process.env.NODE_ENV !== 'production',
+  });
+}
+```
+
+## Normalize error handling
+
+Implement one utility that maps `SazitoResponse.error` to your UI or API error schema.
+
+## Use request-level controls for critical paths
+
+- Set lower timeout for page-critical requests.
+- Disable cache for real-time cart and payment state.
+- Attach request IDs through headers for tracing.
+
+## Separate public and authenticated clients
+
+For SSR or edge middleware, isolate token injection strategy by runtime context.
+
+## Keep checkout state clean
+
+Call credential cleanup APIs after completed/abandoned checkout to prevent stale state leakage.

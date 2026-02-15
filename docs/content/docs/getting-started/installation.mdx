@@ -1,0 +1,67 @@
+---
+title: Installation
+description: Install and initialize the Sazito SDK in JavaScript or TypeScript projects.
+---
+
+## Requirements
+
+- Node.js 18+ for server environments.
+- A runtime with `fetch` support.
+- A valid store domain.
+
+## Install
+
+<Tabs items={["npm", "pnpm", "yarn", "bun"]}>
+
+<Tab value="npm">
+
+```bash
+npm install @sazito/client-sdk
+```
+
+</Tab>
+
+<Tab value="pnpm">
+
+```bash
+pnpm add @sazito/client-sdk
+```
+
+</Tab>
+
+<Tab value="yarn">
+
+```bash
+yarn add @sazito/client-sdk
+```
+
+</Tab>
+
+<Tab value="bun">
+
+```bash
+bun add @sazito/client-sdk
+```
+
+</Tab>
+
+</Tabs>
+
+## Create a client
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: 'mystore.sazito.com',
+});
+```
+
+<Callout type="info">
+  Pass domain without protocol. Example: <code>mystore.sazito.com</code>.
+</Callout>
+
+## Next steps
+
+- Continue with [Quickstart](/docs/getting-started/quickstart).
+- Review [Configuration](/docs/getting-started/configuration).

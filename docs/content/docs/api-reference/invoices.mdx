@@ -1,0 +1,117 @@
+---
+title: Invoices
+description: Checkout invoice creation, updates, shipping assignment, and discount flows.
+---
+
+## Methods
+
+### `invoices.get(options?)`
+
+Returns current invoice from stored invoice credentials.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `invoices.create(options?)`
+
+Creates invoice from current cart credentials.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `invoices.refresh(options?)`
+
+Syncs invoice with cart state.
+
+### `invoices.addShippingAddress(shippingAddressId, shippingAddressIdentifier, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `shippingAddressId` | `number` | Required | Shipping address ID. |
+| `shippingAddressIdentifier` | `string` | Required | Shipping address identifier. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `invoices.addDiscountCode(code, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `code` | `string` | Required | Discount code (uppercased by SDK). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `invoices.assignShippingMethod(shippings, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `shippings[].rateId` | `number` | Required | Shipping rate ID. |
+| `shippings[].invoiceItemIds` | `string[]` | Required | Invoice item IDs covered by this rate. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `invoices.addDetails(comment, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `comment` | `string` | Required | Customer comment for invoice. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `invoices.getApplicableShippingMethods(options?)`
+
+Returns: `SazitoResponse<ShippingMethod[]>`.
+
+### `invoices.clearInvoice()`
+
+Clears persisted invoice credentials only.
+
+## `Invoice` key fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Invoice ID. |
+| `identifier` | `string` | Required | Invoice identifier token. |
+| `items` | `InvoiceItem[]` | Required | Invoice items. |
+| `shippingAddress` | `ShippingAddress` | Optional | Selected address. |
+| `shippingItems` | `ShippingItem[]` | Required | Shipping assignments. |
+| `subtotal` | `number` | Required | Pre-discount subtotal. |
+| `finalTotal` | `number` | Required | Final checkout total. |
+| `discountCode` | `string` | Optional | Applied discount code. |
+
+## Known errors
+
+| Type | When it happens |
+| --- | --- |
+| `validation` | Missing cart/invoice credentials for dependent steps. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function createInvoiceFromCurrentCart() {
+  const res = await client.invoices.create();
+  if (res.error) throw new Error(res.error.message);
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function POST() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.invoices.create();
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

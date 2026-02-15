@@ -1,0 +1,104 @@
+---
+title: Payments
+description: Payment method retrieval, payment creation, and gateway processing.
+---
+
+## Methods
+
+### `payments.getMethods(options?)`
+
+Returns available payment methods for current invoice credentials.
+
+### `payments.create(paymentTypeId, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `paymentTypeId` | `number` | Required | Payment method ID (`PaymentMethod.id`). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<Payment>`.
+
+### `payments.initialize(options?)`
+
+Initializes current payment and returns next action.
+
+Returns: `SazitoResponse<PaymentAction>`.
+
+### `payments.processStep(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.identifier` | `string` | Required | Payment identifier. |
+| `input.isFailed` | `string` | Optional | Mark payment failed (`"true"`). |
+| `input.imageUrl` | `string` | Optional | Uploaded payment proof URL. |
+| `input.code` | `string` | Optional | Verification code (e.g., card-to-card). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### `payments.clearPayment()`
+
+Clears persisted payment credentials.
+
+## Response key fields
+
+### `PaymentMethod`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Payment method ID. |
+| `code` | `PaymentGateway` | Required | Gateway code enum. |
+| `name` | `string` | Required | Method label. |
+| `enabled` | `boolean` | Required | Availability. |
+| `description.description` | `string` | Required | Display description. |
+| `description.cardNumber` | `string` | Optional | Card number for card-to-card flows. |
+
+### `PaymentAction`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `action` | `'POST' \| 'REDIRECT' \| 'UPLOAD' \| 'FAIL' \| 'StockViolated'` | Required | Next action type. |
+| `address` | `string` | Optional | Redirect/post URL. |
+| `payload` | `Record<string, any>` | Optional | POST payload for gateway. |
+| `time` | `number` | Optional | Upload deadline timestamp/seconds. |
+| `message` | `string` | Optional | Error/action message. |
+
+## Known errors
+
+| Type | When it happens |
+| --- | --- |
+| `validation` | Missing invoice/payment credentials. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function startPayment() {
+  const methods = await client.payments.getMethods();
+  if (methods.error || !methods.data?.length) return methods;
+
+  await client.payments.create(methods.data[0].id);
+  return client.payments.initialize();
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function POST() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const methods = await client.payments.getMethods();
+  return Response.json(methods);
+}
+```
+
+</Tab>
+
+</Tabs>

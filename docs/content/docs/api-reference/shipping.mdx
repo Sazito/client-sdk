@@ -1,0 +1,98 @@
+---
+title: Shipping
+description: Shipping address lifecycle and shipping method retrieval.
+---
+
+## Methods
+
+### `shipping.createAddress(address, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `address.firstName` | `string` | Required | Recipient first name. |
+| `address.lastName` | `string` | Required | Recipient last name. |
+| `address.mobilePhone` | `string` | Required | Recipient mobile phone. |
+| `address.regionId` | `number` | Required | Region ID. |
+| `address.cityId` | `number` | Required | City ID. |
+| `address.address` | `string` | Required | Street address. |
+| `address.phoneNumber` | `string` | Optional | Secondary phone number. |
+| `address.email` | `string` | Optional | Contact email. |
+| `address.postalCode` | `string` | Optional | Postal code. |
+| `address.latitude` | `number` | Optional | Geo latitude. |
+| `address.longitude` | `number` | Optional | Geo longitude. |
+| `address.userSetCoordinatesBefore` | `boolean` | Optional | Manual coordinate flag. |
+
+### `shipping.updateAddress(address, options?)`
+
+Same input schema as `createAddress`.
+
+### `shipping.getAddress(options?)`
+
+Returns: `SazitoResponse<ShippingAddress>`.
+
+### `shipping.getMethods(options?)`
+
+Returns: `SazitoResponse<ShippingMethod[]>`.
+
+### `shipping.clearAddress()`
+
+Clears persisted shipping credentials.
+
+## `ShippingMethod` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | Method ID. |
+| `code` | `string` | Required | Method code. |
+| `name` | `string` | Required | Method name. |
+| `description` | `string` | Required | Method description. |
+| `enabled` | `boolean` | Required | Availability flag. |
+| `isFree` | `boolean` | Required | Free-shipping flag. |
+| `isCourier` | `boolean` | Required | Courier flag. |
+| `isPost` | `boolean` | Required | Postal service flag. |
+
+## Known errors
+
+| Type | When it happens |
+| --- | --- |
+| `validation` | Missing shipping credentials for `getAddress`. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function saveAddress() {
+  return client.shipping.createAddress({
+    firstName: 'John',
+    lastName: 'Doe',
+    mobilePhone: '09123456789',
+    regionId: 1,
+    cityId: 10,
+    address: 'No. 10, Example St',
+    postalCode: '1234567890',
+  });
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function GET() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.shipping.getMethods();
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

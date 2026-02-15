@@ -1,0 +1,56 @@
+---
+title: Quickstart
+description: Fetch products, handle errors, and implement the first checkout calls.
+---
+
+## Basic read flow
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+const client = createSazitoClient({
+  domain: 'mystore.sazito.com',
+});
+
+const productsRes = await client.products.list({
+  page: 1,
+  pageSize: 12,
+  sort: 'newest',
+});
+
+if (productsRes.error) {
+  console.error(productsRes.error.message);
+} else {
+  console.log(productsRes.data.items);
+}
+```
+
+## Single product by URL path or slug
+
+```ts
+const byPath = await client.products.get('/product/running-shoe-pro');
+const bySlug = await client.products.get('running-shoe-pro');
+```
+
+## Minimal guest checkout bootstrap
+
+```ts
+await client.cart.addItem(12345, 1);
+
+const invoiceRes = await client.invoices.create();
+if (invoiceRes.error) throw new Error(invoiceRes.error.message);
+
+const methodsRes = await client.payments.getMethods();
+```
+
+## Authenticated profile call
+
+```ts
+client.setAuthToken('<jwt>');
+const me = await client.users.getCurrentUser();
+```
+
+<Callout type="tip">
+  Every SDK method returns a unified response object. Always branch on
+  <code>response.error</code> before reading <code>response.data</code>.
+</Callout>

@@ -1,0 +1,89 @@
+---
+title: Wallet
+description: Wallet balance, transaction history, and invoice credit operations.
+---
+
+## Methods
+
+### `wallet.getBalance(options?)`
+
+Returns: `SazitoResponse<Wallet>`.
+
+### `wallet.listTransactions(filters?, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filters.page_number` | `number` | Optional | Page number (default `1`). |
+| `filters.page_size` | `number` | Optional | Page size (default `100`). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<{ transactions: WalletTransaction[] }>`.
+
+### `wallet.applyCredit(invoiceId, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `invoiceId` | `number` | Required | Invoice ID (must be positive). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<Invoice>`.
+
+### `wallet.removeCredit(invoiceId, options?)`
+
+Same schema as `applyCredit`.
+
+## `Wallet` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `balance` | `number` | Required | Current credit balance. |
+| `enabled` | `boolean` | Required | Wallet feature availability. |
+| `currency` | `string` | Optional | Currency code/display text. |
+| `transactions` | `WalletTransaction[]` | Optional | Inlined transactions list. |
+
+## Known errors
+
+| Type | When it happens |
+| --- | --- |
+| `validation` | Invalid invoice ID for credit operations. |
+| `api` | Unauthorized wallet/invoice operation. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function loadWallet() {
+  const balance = await client.wallet.getBalance();
+  const tx = await client.wallet.listTransactions({ page_number: 1, page_size: 20 });
+  return { balance, tx };
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { cookies } from 'next/headers';
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function GET() {
+  const token = (await cookies()).get('user_id_token')?.value;
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+
+  const res = await client.wallet.getBalance({
+    headers: token ? { Authorization: token } : undefined,
+  });
+
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

@@ -1,0 +1,10 @@
+{
+  "title": "Guides",
+  "pages": [
+    "guest-checkout",
+    "react",
+    "nextjs",
+    "production-patterns",
+    "troubleshooting"
+  ]
+}

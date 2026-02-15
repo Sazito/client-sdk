@@ -1,0 +1,44 @@
+---
+title: Auth and State
+description: Token management and guest checkout credential lifecycle.
+---
+
+## Authentication token
+
+The SDK injects `Authorization` automatically if a token exists.
+
+```ts
+client.setAuthToken('<jwt>');
+
+const token = client.getAuthToken();
+const loggedIn = client.isAuthenticated();
+
+client.clearAuth();
+```
+
+Token storage uses `localStorage` with a cookie fallback strategy.
+
+## Guest checkout credentials
+
+Guest flows are backed by local identifiers stored by module:
+
+- cart credentials
+- invoice credentials
+- shipping credentials
+- payment credentials
+- discount code
+
+Methods that depend on missing state return `validation` errors instead of throwing.
+
+## Cleanup APIs
+
+```ts
+client.clearCache();
+client.clearCredentials();
+client.clearAll();
+
+client.cart.clearCart();
+client.invoices.clearInvoice();
+client.shipping.clearAddress();
+client.payments.clearPayment();
+```

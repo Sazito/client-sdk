@@ -1,0 +1,24 @@
+{
+  "title": "API Reference",
+  "pages": [
+    "client",
+    "products",
+    "categories",
+    "cart",
+    "orders",
+    "invoices",
+    "shipping",
+    "payments",
+    "users",
+    "search",
+    "feedbacks",
+    "wallet",
+    "cms",
+    "images",
+    "visits",
+    "booking",
+    "entity-routes",
+    "menu",
+    "general"
+  ]
+}

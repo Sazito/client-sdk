@@ -1,0 +1,71 @@
+---
+title: Menu
+description: Fetch and normalize storefront navigation trees.
+---
+
+## Method
+
+### `menu.getHeaderMenu(identifier?, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `identifier` | `string` | Optional | Menu identifier. Defaults to `headermenu`. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<MenuItem[]>`.
+
+## `MenuItem` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Required | Display label. |
+| `url` | `string` | Required | Navigation URL. |
+| `children` | `MenuItem[]` | Required | Child navigation items. |
+
+## Notes
+
+- Disabled entities are filtered out.
+- Nested nodes are recursively converted.
+- SDK normalizes multiple backend node types into one `MenuItem` shape.
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { useEffect, useState } from 'react';
+import { client } from '../lib/sazito';
+
+export function HeaderMenu() {
+  const [items, setItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    client.menu.getHeaderMenu().then((res) => {
+      if (!res.error) setItems(res.data ?? []);
+    });
+  }, []);
+
+  return <nav>{items.map((item) => <a key={item.url} href={item.url}>{item.name}</a>)}</nav>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```tsx
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default async function Header() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.menu.getHeaderMenu();
+
+  return <nav>{res.data?.map((item) => <a key={item.url} href={item.url}>{item.name}</a>)}</nav>;
+}
+```
+
+</Tab>
+
+</Tabs>

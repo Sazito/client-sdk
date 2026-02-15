@@ -1,0 +1,67 @@
+---
+title: Entity Routes
+description: Resolve URL paths to concrete storefront entities.
+---
+
+## Method
+
+### `entityRoutes.resolve(urlPart, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `urlPart` | `string` | Required | URL path (e.g. `/product/shoe-123`). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<EntityRouteResponse>`.
+
+## `EntityRouteResponse` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `entityType` | `'product' \| 'product_category' \| 'cms_page' \| 'blog_page' \| 'unknown'` | Required | Resolved entity type discriminator. |
+| `entityId` | `number` | Required | Resolved entity ID. |
+| `url` | `string` | Required | Resolved URL path. |
+| `entity` | `Product \| ProductCategory \| CmsPage \| BlogPage` | Optional | Present when `entityType` is not `unknown`. |
+
+## Example
+
+```ts
+const route = await client.entityRoutes.resolve('/product/running-shoe-pro');
+
+if (route.data?.entityType === 'product') {
+  console.log(route.data.entity?.name);
+}
+```
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function resolvePath(pathname: string) {
+  return client.entityRoutes.resolve(pathname);
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function GET(request: Request) {
+  const pathname = new URL(request.url).searchParams.get('path') || '/';
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const res = await client.entityRoutes.resolve(pathname);
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>

@@ -1,0 +1,10 @@
+{
+  "title": "Sazito SDK",
+  "pages": [
+    "index",
+    "getting-started",
+    "core-concepts",
+    "guides",
+    "api-reference"
+  ]
+}

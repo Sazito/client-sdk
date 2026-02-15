@@ -1,0 +1,108 @@
+---
+title: General
+description: Shop-wide info, features, checkout config, wallet config, and tajrobe config.
+---
+
+## Methods
+
+### `general.getInfo(options?)`
+
+Returns normalized `SazitoResponse<GeneralInfo>`.
+
+### `general.getFeatures(options?)`
+
+Returns `SazitoResponse<ShopFeatures>`.
+
+### `general.getCheckoutConfig(options?)`
+
+Returns `SazitoResponse<CheckoutConfig>`.
+
+### `general.getWalletConfig(options?)`
+
+Returns `SazitoResponse<WalletConfig>`.
+
+### `general.getTajrobeConfig(options?)`
+
+Returns `SazitoResponse<TajrobeConfig>`.
+
+## `GeneralInfo` key fields
+
+### `shop`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `shop.name` | `string` | Required | Shop display name. |
+| `shop.description` | `string` | Required | Shop description. |
+| `shop.city` | `City \| null` | Required | Shop city or null. |
+| `shop.domain.url` | `string` | Required | Primary shop domain URL. |
+| `shop.logo.main` | `string` | Required | Main logo URL. |
+
+### `settings`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `settings.checkout` | `CheckoutConfig` | Required | Checkout behavior config. |
+| `settings.features` | `ShopFeatures` | Required | Feature flags map. |
+| `settings.wallet` | `WalletConfig` | Required | Wallet rules. |
+| `settings.tajrobe` | `TajrobeConfig` | Required | Tajrobe settings. |
+| `settings.registerType` | `string` | Required | Registration strategy. |
+| `settings.showProductStockNumber` | `boolean` | Required | Stock number visibility flag. |
+
+## `CheckoutConfig` key fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `addToCartAlert` | `boolean` | Required | Show add-to-cart alert. |
+| `dynamicForm` | `boolean` | Required | Dynamic form enabled. |
+| `emailOptional` | `boolean` | Required | Email optional in checkout. |
+| `preventRedirect` | `boolean` | Required | Prevent redirect behavior. |
+| `miniCart` | `boolean` | Required | Mini-cart enabled. |
+| `postalCodeMandatory` | `boolean` | Required | Postal code requirement. |
+| `quickAddToCart` | `boolean` | Required | Quick add-to-cart enabled. |
+| `minBasket.enabled` | `boolean` | Required | Min basket rule active. |
+| `minBasket.minAmount` | `number` | Required | Minimum basket amount. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { useEffect, useState } from 'react';
+import { client } from '../lib/sazito';
+
+export function ShopInfo() {
+  const [info, setInfo] = useState<any>(null);
+
+  useEffect(() => {
+    client.general.getInfo().then((res) => {
+      if (!res.error) setInfo(res.data);
+    });
+  }, []);
+
+  return <div>{info?.shop?.name}</div>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```tsx
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default async function ShopConfigPage() {
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+  const [info, checkout] = await Promise.all([
+    client.general.getInfo(),
+    client.general.getCheckoutConfig(),
+  ]);
+
+  return <pre>{JSON.stringify({ info: info.data, checkout: checkout.data }, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+</Tabs>

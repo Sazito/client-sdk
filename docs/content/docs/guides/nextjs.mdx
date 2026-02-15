@@ -1,0 +1,101 @@
+---
+title: Next.js Guide
+description: App Router patterns for server and client usage of Sazito SDK.
+---
+
+## Runtime model
+
+- Use SDK directly in Server Components for public/read operations.
+- For authenticated server calls, pass `Authorization` explicitly via request options.
+- Keep browser token lifecycle (`setAuthToken`) in Client Components.
+
+## 1. Server-side client helper
+
+```ts
+// app/lib/sazito-server.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function createServerSazito() {
+  return createSazitoClient({
+    domain: process.env.SAZITO_STORE_DOMAIN!,
+    timeout: 15000,
+  });
+}
+```
+
+## 2. Parallel data fetching in Server Components
+
+```tsx
+// app/(store)/page.tsx
+import { createServerSazito } from '../lib/sazito-server';
+
+export default async function StorePage() {
+  const client = createServerSazito();
+
+  const [productsRes, categoriesRes] = await Promise.all([
+    client.products.list({ page: 1, pageSize: 12 }),
+    client.categories.list({ page: 1, pageSize: 50 }),
+  ]);
+
+  if (productsRes.error || categoriesRes.error) {
+    return <div>Failed to load storefront data.</div>;
+  }
+
+  return (
+    <div>
+      <h1>Store</h1>
+      <p>Products: {productsRes.data?.items.length ?? 0}</p>
+      <p>Categories: {categoriesRes.data?.categories.length ?? 0}</p>
+    </div>
+  );
+}
+```
+
+## 3. Authenticated server call with explicit headers
+
+`setAuthToken` is browser-oriented. In server contexts, read token from cookies and pass it in `headers`.
+
+```ts
+// app/api/orders/route.ts
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { createServerSazito } from '@/app/lib/sazito-server';
+
+export async function GET() {
+  const token = (await cookies()).get('user_id_token')?.value;
+  const client = createServerSazito();
+
+  const res = await client.orders.list(
+    { page: 1, pageSize: 20 },
+    {
+      headers: token ? { Authorization: token } : undefined,
+      cache: false,
+    }
+  );
+
+  if (res.error) {
+    return NextResponse.json({ error: res.error.message }, { status: res.error.status ?? 500 });
+  }
+
+  return NextResponse.json(res.data);
+}
+```
+
+## 4. Client Component usage
+
+```tsx
+'use client';
+
+import { createSazitoClient } from '@sazito/client-sdk';
+
+const client = createSazitoClient({ domain: process.env.NEXT_PUBLIC_STORE_DOMAIN! });
+```
+
+Use Client Components when you need browser token storage, checkout credential persistence, or user-driven mutations.
+
+## 5. Next.js checklist
+
+- Start independent requests in parallel with `Promise.all`.
+- Keep server responses small before sending to Client Components.
+- Use Route Handlers for authenticated orchestration.
+- Avoid creating SDK instances repeatedly in hot render paths.

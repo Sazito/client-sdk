@@ -1,0 +1,138 @@
+---
+title: Users
+description: Authentication, profile, phone, password, and merge operations.
+---
+
+## Methods
+
+### `users.login(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.email` | `string` | Required | Login email. |
+| `input.password` | `string` | Required | Login password. |
+
+Returns: `SazitoResponse<{ jwt: string; user?: User }>`.
+
+### `users.requestMobileOTP(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.mobilePhone` | `string` | Required | Mobile number for OTP request. |
+
+### `users.verifyMobileOTP(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.mobilePhone` | `string` | Required | Mobile number. |
+| `input.token` | `string` | Required | OTP token. |
+
+### `users.requestEmailLogin(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.email` | `string` | Required | Email for passwordless login request. |
+
+### `users.register(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.email` | `string` | Required | User email. |
+| `input.password` | `string` | Required | Password. |
+| `input.passwordConfirmation` | `string` | Required | Password confirmation. |
+| `input.firstName` | `string` | Optional | First name. |
+| `input.lastName` | `string` | Optional | Last name. |
+| `input.mobilePhone` | `string` | Optional | Mobile phone. |
+
+### `users.getCurrentUser(options?)`
+
+Returns current authenticated user.
+
+### `users.updateProfile(userId, data, options?)`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `userId` | `number` | Required | User ID. |
+| `data` | `UpdateProfileInput` | Required | Profile fields to update. |
+
+### `users.requestMobilePhoneUpdate(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.mobilePhone` | `string` | Required | New mobile phone. |
+
+### `users.verifyMobilePhoneUpdate(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.mobilePhone` | `string` | Required | New mobile phone. |
+| `input.token` | `string` | Required | Verification token. |
+
+### `users.forgotPassword(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.email` | `string` | Required | Email to send reset link/token. |
+
+### `users.revivePassword(input, options?)`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.forgotPasswordToken` | `string` | Required | Password reset token. |
+| `input.password` | `string` | Required | New password. |
+| `input.passwordConfirmation` | `string` | Required | Password confirmation. |
+
+### `users.mergeUser(options?)`
+
+Merges guest data into current authenticated user.
+
+## `User` fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `number` | Required | User ID. |
+| `email` | `string` | Optional | User email. |
+| `mobilePhone` | `string` | Optional | User mobile phone. |
+| `firstName` | `string` | Optional | First name. |
+| `lastName` | `string` | Optional | Last name. |
+| `birthDate` | `string` | Optional | Birth date. |
+
+## Examples
+
+<Tabs items={["React", "Next.js"]}>
+
+<Tab value="React">
+
+```tsx
+import { client } from '../lib/sazito';
+
+export async function login(email: string, password: string) {
+  const res = await client.users.login({ email, password });
+  if (res.data?.jwt) client.setAuthToken(res.data.jwt);
+  return res;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js">
+
+```ts
+import { cookies } from 'next/headers';
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export async function GET() {
+  const token = (await cookies()).get('user_id_token')?.value;
+  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+
+  const res = await client.users.getCurrentUser({
+    headers: token ? { Authorization: token } : undefined,
+  });
+
+  return Response.json(res);
+}
+```
+
+</Tab>
+
+</Tabs>
