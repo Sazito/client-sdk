@@ -55,9 +55,10 @@ export interface ShippingAddress {
 export interface User {
   id: number;
   email?: string;
-  mobile?: string;
+  mobilePhone?: string;
   firstName?: string;
   lastName?: string;
+  birthDate?: string;
 }
 
 export interface Invoice {

@@ -82,21 +82,21 @@ export class SazitoClient {
   }
 
   /**
-   * Set authentication token (stores in HTTP-only cookie)
+   * Set authentication token (stored in localStorage with cookie fallback)
    */
   setAuthToken(token: string): void {
     this.tokenStorage.set(token);
   }
 
   /**
-   * Get authentication token from cookie
+   * Get authentication token from storage
    */
   getAuthToken(): string | null {
     return this.tokenStorage.get();
   }
 
   /**
-   * Clear authentication (remove token cookie)
+   * Clear authentication token
    */
   clearAuth(): void {
     this.tokenStorage.remove();

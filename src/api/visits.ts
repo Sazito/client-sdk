@@ -5,7 +5,6 @@
 import { HttpClient } from '../core/http-client';
 import { SazitoResponse, RequestOptions } from '../types';
 import { VISITS_API } from '../constants/endpoints';
-import { transformRequestKeys } from '../utils/transformers';
 
 /**
  * Visit tracking input (SDK uses camelCase)
@@ -26,20 +25,31 @@ export interface VisitResponse {
   createdAt: string;
 }
 
+function isRequestOptions(input: unknown): input is RequestOptions {
+  if (!input || typeof input !== 'object') return false;
+  const candidate = input as Record<string, unknown>;
+  return (
+    'retries' in candidate ||
+    'timeout' in candidate ||
+    'cache' in candidate ||
+    'headers' in candidate ||
+    'signal' in candidate
+  );
+}
+
 export class VisitsAPI {
   constructor(private http: HttpClient) {}
 
   /**
-   * Track page visit
-   * Automatically transforms camelCase input to snake_case for API
+   * Track visit analytics event.
+   * Backend endpoint `/api/v1/visits/add` does not accept a payload.
    */
   async track(
-    input: VisitInput,
+    inputOrOptions?: VisitInput | RequestOptions,
     options?: RequestOptions
   ): Promise<SazitoResponse<VisitResponse>> {
-    // Transform camelCase to snake_case for API request
-    const transformedInput = transformRequestKeys(input);
-    return this.http.post<VisitResponse>(VISITS_API, transformedInput, options);
+    const resolvedOptions = options ?? (isRequestOptions(inputOrOptions) ? inputOrOptions : undefined);
+    return this.http.post<VisitResponse>(VISITS_API, undefined, resolvedOptions);
   }
 
   /**
@@ -50,16 +60,9 @@ export class VisitsAPI {
     url: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<VisitResponse>> {
-    return this.track(
-      {
-        url,
-        entityType: 'product',
-        entityId: productId,
-        referrer: typeof document !== 'undefined' ? document.referrer : undefined,
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined
-      },
-      options
-    );
+    void productId;
+    void url;
+    return this.track(options);
   }
 
   /**
@@ -70,15 +73,8 @@ export class VisitsAPI {
     url: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<VisitResponse>> {
-    return this.track(
-      {
-        url,
-        entityType: 'category',
-        entityId: categoryId,
-        referrer: typeof document !== 'undefined' ? document.referrer : undefined,
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined
-      },
-      options
-    );
+    void categoryId;
+    void url;
+    return this.track(options);
   }
 }

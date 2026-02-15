@@ -15,8 +15,8 @@ export interface ProductVariant {
   isStockManaged: boolean;
   isAvailable?: boolean;
   attributes: ProductAttribute[];
-  maxOrderQuantity: number;
   hasMaxOrder: boolean;
+  maxOrderQuantity: number;
   minOrderQuantity: number;
   weight?: number;
   dynamicFormId?: number;

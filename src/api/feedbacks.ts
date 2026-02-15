@@ -25,25 +25,15 @@ export interface Feedback {
 }
 
 export interface CreateFeedbackInput {
-  // SDK-friendly
   productId?: number;
-
-  // Backward-compatible raw key
-  product_id?: number;
-
   rating?: number;
   comment: string;
 }
 
 export interface FeedbackFilters {
-  // SDK-friendly
   productId?: number;
   page?: number;
   pageSize?: number;
-
-  // Backward-compatible raw keys
-  product_id?: number;
-  page_size?: number;
 }
 
 export class FeedbacksAPI {
@@ -53,24 +43,12 @@ export class FeedbacksAPI {
     if (!filters) return {};
 
     const params: Record<string, any> = {};
-    const productId = filters.productId ?? filters.product_id;
-    const pageSize = filters.pageSize ?? filters.page_size;
 
-    if (productId !== undefined) params.product_id = productId;
+    if (filters.productId !== undefined) params.product_id = filters.productId;
     if (filters.page !== undefined) params.page = filters.page;
-    if (pageSize !== undefined) params.page_size = pageSize;
+    if (filters.pageSize !== undefined) params.page_size = filters.pageSize;
 
     return params;
-  }
-
-  private transformCreateInput(input: CreateFeedbackInput): Record<string, any> {
-    const productId = input.productId ?? input.product_id;
-
-    return {
-      ...input,
-      productId,
-      product_id: undefined
-    };
   }
 
   /**
@@ -93,7 +71,7 @@ export class FeedbacksAPI {
     input: CreateFeedbackInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<Feedback>> {
-    return this.http.post<Feedback>(FEEDBACKS_API, this.transformCreateInput(input), options);
+    return this.http.post<Feedback>(FEEDBACKS_API, input, options);
   }
 
   /**

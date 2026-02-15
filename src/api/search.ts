@@ -12,18 +12,11 @@ import { SEARCH_API } from '../constants/endpoints';
 import { transformSearchResponse } from '../utils/transformers';
 
 export interface SearchFilters {
-  // SDK-friendly filters
   page?: number;
   pageSize?: number;
   categoryId?: number;
   minPrice?: number;
   maxPrice?: number;
-
-  // Backward-compatible raw API keys
-  page_size?: number;
-  category_id?: number;
-  min_price?: number;
-  max_price?: number;
 }
 
 export class SearchAPI {
@@ -34,29 +27,11 @@ export class SearchAPI {
 
     const params: Record<string, any> = {};
 
-    if (filters.page !== undefined) {
-      params.page = filters.page;
-    }
-
-    const pageSize = filters.pageSize ?? filters.page_size;
-    if (pageSize !== undefined) {
-      params.page_size = pageSize;
-    }
-
-    const categoryId = filters.categoryId ?? filters.category_id;
-    if (categoryId !== undefined) {
-      params.category_id = categoryId;
-    }
-
-    const minPrice = filters.minPrice ?? filters.min_price;
-    if (minPrice !== undefined) {
-      params.min_price = minPrice;
-    }
-
-    const maxPrice = filters.maxPrice ?? filters.max_price;
-    if (maxPrice !== undefined) {
-      params.max_price = maxPrice;
-    }
+    if (filters.page !== undefined) params.page_number = filters.page;
+    if (filters.pageSize !== undefined) params.page_size = filters.pageSize;
+    if (filters.categoryId !== undefined) params.category_id = filters.categoryId;
+    if (filters.minPrice !== undefined) params.min_price = filters.minPrice;
+    if (filters.maxPrice !== undefined) params.max_price = filters.maxPrice;
 
     return params;
   }
@@ -69,11 +44,16 @@ export class SearchAPI {
     filters?: SearchFilters,
     options?: RequestOptions
   ): Promise<SazitoResponse<SearchResponse>> {
+    const transformedFilters = this.transformFilters(filters);
+
     const response = await this.http.get<any>(SEARCH_API, {
       ...options,
       params: {
-        q: query,
-        ...this.transformFilters(filters)
+        ...transformedFilters,
+        query,
+        page_number: transformedFilters.page_number ?? 1,
+        page_size: transformedFilters.page_size ?? 20,
+        search_direction: 'center'
       }
     });
 

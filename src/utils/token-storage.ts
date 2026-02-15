@@ -1,57 +1,85 @@
 /**
- * Token Storage using HTTP-only cookies
- * Provides secure token storage with XSS protection
+ * Token storage for auth token persistence
+ * Primary storage: localStorage (user_id_token), with cookie fallback.
  */
 
 import { CookieOptions } from '../types';
 
 export class TokenStorage {
-  private cookieName = 'user_id_token';
+  private readonly tokenKey = 'user_id_token';
 
   /**
-   * Get token from cookie
+   * Get token from localStorage (fallback to cookie)
    */
   get(): string | null {
-    if (typeof document === 'undefined') {
-      // SSR environment - no access to cookies
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      // SSR environment - no access to browser storage
       return null;
     }
 
+    const storageToken = this.getFromLocalStorage();
+    if (storageToken) return storageToken;
+
     const cookies = this.parseCookies();
-    return cookies[this.cookieName] || null;
+    return cookies[this.tokenKey] || null;
   }
 
   /**
-   * Set token in HTTP-only cookie
+   * Set token in localStorage and cookie fallback
    */
   set(token: string, options?: CookieOptions): void {
-    if (typeof document === 'undefined') {
-      // SSR environment - cannot set cookies
-      console.warn('[Sazito SDK] Cannot set cookie in SSR environment');
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      // SSR environment - cannot set browser storage
+      console.warn('[Sazito SDK] Cannot set token in SSR environment');
       return;
     }
 
+    this.setInLocalStorage(token);
+
     const defaultOptions: CookieOptions = {
-      httpOnly: true,           // Prevents XSS attacks
-      secure: true,             // HTTPS only in production
-      sameSite: 'Lax',          // CSRF protection
-      maxAge: 30 * 24 * 60 * 60, // 30 days in seconds
+      secure: true,
+      sameSite: 'Lax',
+      maxAge: 30 * 24 * 60 * 60,
       path: '/',
       ...options
     };
-
-    this.setCookie(this.cookieName, token, defaultOptions);
+    this.setCookie(this.tokenKey, token, defaultOptions);
   }
 
   /**
-   * Remove token cookie
+   * Remove token from both localStorage and cookie
    */
   remove(): void {
-    if (typeof document === 'undefined') {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
       return;
     }
 
-    this.setCookie(this.cookieName, '', { maxAge: -1, path: '/' });
+    this.removeFromLocalStorage();
+    this.setCookie(this.tokenKey, '', { maxAge: -1, path: '/' });
+  }
+
+  private getFromLocalStorage(): string | null {
+    try {
+      return window.localStorage.getItem(this.tokenKey);
+    } catch {
+      return null;
+    }
+  }
+
+  private setInLocalStorage(token: string): void {
+    try {
+      window.localStorage.setItem(this.tokenKey, token);
+    } catch {
+      // Ignore storage exceptions (private mode/quota/security)
+    }
+  }
+
+  private removeFromLocalStorage(): void {
+    try {
+      window.localStorage.removeItem(this.tokenKey);
+    } catch {
+      // Ignore storage exceptions (private mode/quota/security)
+    }
   }
 
   /**

@@ -5,34 +5,71 @@
 import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
-  PaginatedResponse,
+  Invoice,
   RequestOptions
 } from '../types';
 import { WALLET_API, WALLET_TRANSACTIONS_API } from '../constants/endpoints';
 
+export type WalletTransactionReason =
+  | 'redeem'
+  | 'NthPurchase'
+  | 'merge-user'
+  | 'SimpleCashbackRule'
+  | 'BirthdateGift'
+  | 'TajrobehAppreciation'
+  | 'edit_order'
+  | 'cancel_order'
+  | 'edit_shipping_cost'
+  | 'edit_cashback'
+  | 'gift'
+  | 'others'
+  | 'Refund'
+  | 'Charge'
+  | 'Expired'
+  | `${string}:activity`;
+
 export interface WalletTransaction {
-  id: number;
+  id: string | number;
+  reason: WalletTransactionReason;
   amount: number;
-  type: 'credit' | 'debit';
-  description: string;
-  balance_after: number;
-  created_at: string;
+  createdAt: string;
+  metaData?: Record<string, unknown>;
 }
 
-export interface Wallet {
+export interface WalletBalance {
   balance: number;
-  currency: string;
-  transactions: WalletTransaction[];
+  enabled: boolean;
+}
+
+export interface Wallet extends WalletBalance {
+  currency?: string;
+  transactions?: WalletTransaction[];
 }
 
 export interface TransactionFilters {
-  page?: number;
+  page_number?: number;
   page_size?: number;
-  type?: 'credit' | 'debit';
+}
+
+export interface WalletTransactionsResponse {
+  transactions: WalletTransaction[];
 }
 
 export class WalletAPI {
   constructor(private http: HttpClient) {}
+
+  private validateInvoiceId(invoiceId: number): SazitoResponse<never> | null {
+    if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
+      return {
+        error: {
+          message: 'Invalid invoice ID',
+          type: 'validation'
+        }
+      };
+    }
+
+    return null;
+  }
 
   /**
    * Get wallet balance (requires authentication)
@@ -47,13 +84,53 @@ export class WalletAPI {
   async listTransactions(
     filters?: TransactionFilters,
     options?: RequestOptions
-  ): Promise<SazitoResponse<PaginatedResponse<WalletTransaction>>> {
-    return this.http.get<PaginatedResponse<WalletTransaction>>(
+  ): Promise<SazitoResponse<WalletTransactionsResponse>> {
+    const pageNumber = filters?.page_number ?? 1;
+    const pageSize = filters?.page_size ?? 100;
+
+    return this.http.get<WalletTransactionsResponse>(
       WALLET_TRANSACTIONS_API,
       {
         ...options,
-        params: filters
+        params: {
+          page_number: pageNumber,
+          page_size: pageSize
+        }
       }
+    );
+  }
+
+  /**
+   * Apply wallet credit on an invoice (requires authentication)
+   */
+  async applyCredit(
+    invoiceId: number,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<Invoice>> {
+    const validation = this.validateInvoiceId(invoiceId);
+    if (validation) return validation;
+
+    return this.http.post<Invoice>(
+      `/api/v1/invoices/${invoiceId}/add_credit`,
+      {},
+      options
+    );
+  }
+
+  /**
+   * Remove wallet credit from an invoice (requires authentication)
+   */
+  async removeCredit(
+    invoiceId: number,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<Invoice>> {
+    const validation = this.validateInvoiceId(invoiceId);
+    if (validation) return validation;
+
+    return this.http.post<Invoice>(
+      `/api/v1/invoices/${invoiceId}/remove_credit`,
+      {},
+      options
     );
   }
 }

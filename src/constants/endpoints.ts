@@ -27,14 +27,14 @@ export const FEEDBACKS_API = '/api/v1/feedbacks';
 export const CMS_PAGES_API = '/api/v1/cms_pages';
 
 // Wallet
-export const WALLET_API = '/api/v1/wallet';
+export const WALLET_API = '/api/v1/users/wallet/balance';
 export const WALLET_TRANSACTIONS_API = '/api/v1/wallet/transactions';
 
 // Media
 export const IMAGES_API = '/api/v1/images';
 
 // Analytics
-export const VISITS_API = '/api/v1/visits';
+export const VISITS_API = '/api/v1/visits/add';
 
 // Booking
 export const SCHEDULER_EVENTS_API = '/api/v1/scheduler/events';

@@ -102,7 +102,7 @@ export class ProductsAPI {
 
     // Pagination
     if (filters.page) params.page = filters.page;
-    if (filters.pageSize) params.pageSize = filters.pageSize;
+    if (filters.pageSize) params.page_size = filters.pageSize;
 
     return params;
   }

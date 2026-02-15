@@ -360,7 +360,20 @@ export function transformApiResponse<T = any>(response: any): T {
 export function transformGeneralInfoResponse(data: any): any {
   if (!data) return data;
 
-  const { general, shop, ...rest } = data;
+  const {
+    general,
+    shop,
+    checkout,
+    features,
+    wallet,
+    tajrobe,
+    domain,
+    enamad,
+    google,
+    logo,
+    social,
+    ...rest
+  } = data;
 
   // Merge general and shop into a single shop object
   const mergedShop = {
@@ -368,10 +381,338 @@ export function transformGeneralInfoResponse(data: any): any {
     ...shop
   };
 
-  return {
+  const {
+    registerType,
+    showProductStockNumber,
+    ...shopWithoutSettings
+  } = mergedShop || {};
+
+  let normalizedCheckout = checkout;
+  if (isPlainObject(checkout)) {
+    const checkoutCopy = { ...checkout };
+
+    if (checkoutCopy.preventRedirect === undefined && checkoutCopy.manual !== undefined) {
+      checkoutCopy.preventRedirect = checkoutCopy.manual;
+    }
+
+    delete checkoutCopy.manual;
+    normalizedCheckout = checkoutCopy;
+  }
+
+  const transformed = {
     ...rest,
-    shop: mergedShop
+    scripts: {
+      enamad,
+      google
+    },
+    shop: normalizeGeneralShop({
+      ...shopWithoutSettings,
+      domain,
+      logo,
+      social
+    }),
+    settings: {
+      checkout: normalizedCheckout,
+      features: normalizeGeneralFeatures(features),
+      wallet: normalizeGeneralWallet(wallet),
+      tajrobe: normalizeGeneralTajrobe(tajrobe),
+      registerType: normalizeGeneralRegisterType(registerType),
+      showProductStockNumber: normalizeGeneralShowProductStockNumber(showProductStockNumber)
+    }
   };
+
+  return transformed;
+}
+
+function normalizeGeneralRegisterType(registerType: any): string {
+  return typeof registerType === 'string' ? registerType : '';
+}
+
+function normalizeGeneralShowProductStockNumber(value: any): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (isPlainObject(value) && Object.prototype.hasOwnProperty.call(value, 'enabled')) {
+    return normalizeGeneralShowProductStockNumber((value as any).enabled);
+  }
+
+  if (value === 1 || value === '1' || value === 'true') {
+    return true;
+  }
+
+  if (value === 0 || value === '0' || value === 'false') {
+    return false;
+  }
+
+  return false;
+}
+
+function normalizeGeneralShop(shop: any): any {
+  if (!isPlainObject(shop)) {
+    return shop;
+  }
+
+  const normalizedShop = { ...shop };
+
+  if (isPlainObject(normalizedShop.city)) {
+    const {
+      createdAt: _cityCreatedAt,
+      updatedAt: _cityUpdatedAt,
+      region,
+      ...cityWithoutMeta
+    } = normalizedShop.city;
+
+    let cleanedRegion = region;
+    if (isPlainObject(region)) {
+      const {
+        createdAt: _regionCreatedAt,
+        updatedAt: _regionUpdatedAt,
+        cities: _regionCities,
+        ...regionWithoutMeta
+      } = region;
+      cleanedRegion = regionWithoutMeta;
+    }
+
+    normalizedShop.city = {
+      ...cityWithoutMeta,
+      region: cleanedRegion
+    };
+  }
+
+  return normalizedShop;
+}
+
+const FEATURE_FLAG_NAME_MAP: Record<string, string> = {
+  addToCardAlert: 'addToCartAlertEnabled',
+  addToCartAlert: 'addToCartAlertEnabled',
+  advancedCardToCard: 'advancedCardToCardEnabled',
+  cardToCardPayment: 'cardToCardPaymentEnabled',
+  checkoutDynamicForm: 'checkoutDynamicFormEnabled',
+  multiTypeRegister: 'multiTypeRegisterEnabled',
+  productFilters: 'productFiltersEnabled',
+  megaFooter: 'megaFooterEnabled',
+  checkoutMinimumAmount: 'checkoutMinimumAmountEnabled',
+  paymentInPlace: 'paymentInPlaceEnabled',
+  shopBlog: 'blogEnabled',
+  shopSearch: 'searchEnabled',
+  shopVat: 'shopVatEnabled',
+  tajrobe: 'tajrobeEnabled',
+  themeConfigSettings: 'themeConfigSettingsEnabled',
+  wallet: 'walletEnabled',
+  progressiveWebApp: 'progressiveWebAppEnabled',
+  disableOrdering: 'orderingDisabled',
+  hideCheckout: 'checkoutHidden',
+  sazitoBrandingRemoval: 'sazitoBrandingRemoved',
+  ayriaPaymentGateway: 'ayriaPaymentGatewayEnabled',
+  azkiPaymentGateway: 'azkiPaymentGatewayEnabled',
+  bazarPaymentGateway: 'bazarPaymentGatewayEnabled',
+  digipayPaymentGateway: 'digipayPaymentGatewayEnabled',
+  ghestaPaymentGateway: 'ghestaPaymentGatewayEnabled',
+  mellatPaymentGateway: 'mellatPaymentGatewayEnabled',
+  novapayPaymentGateway: 'novapayPaymentGatewayEnabled',
+  ozonPaymentGateway: 'ozonPaymentGatewayEnabled',
+  paypingPaymentGateway: 'paypingPaymentGatewayEnabled',
+  pecPaymentGateway: 'pecPaymentGatewayEnabled',
+  sabinPaymentGateway: 'sabinPaymentGatewayEnabled',
+  sadadPaymentGateway: 'sadadPaymentGatewayEnabled',
+  sepPaymentGateway: 'sepPaymentGatewayEnabled',
+  snapppayPaymentGateway: 'snapppayPaymentGatewayEnabled',
+  taraPaymentGateway: 'taraPaymentGatewayEnabled',
+  tomanPaymentGateway: 'tomanPaymentGatewayEnabled',
+  torobpayPaymentGateway: 'torobpayPaymentGatewayEnabled',
+  asanpardakhtPaymentGateway: 'asanpardakhtPaymentGatewayEnabled',
+  vandarPaymentGateway: 'vandarPaymentGatewayEnabled',
+  yourgatePaymentGateway: 'yourgatePaymentGatewayEnabled',
+  zarinpalPaymentGateway: 'zarinpalPaymentGatewayEnabled',
+  zarinplusPaymentGateway: 'zarinplusPaymentGatewayEnabled',
+  zibalPaymentGateway: 'zibalPaymentGatewayEnabled',
+  zifyPaymentGateway: 'zifyPaymentGatewayEnabled',
+  activateEditOrderCustomization: 'editOrderEnabled',
+  activateEditOrderCustomizationEnabled: 'editOrderEnabled'
+};
+
+const FEATURE_FLAG_BLOCKLIST = new Set([
+  'activateAlopeykAdvanced',
+  'activate_alopeyk_advanced'
+]);
+
+const FEATURE_FLAG_NAME_BLOCKLIST = new Set([
+  'auditLogEnabled',
+  'editOrderEnabled',
+  'rahkaranAccountingCustomizationEnabled',
+  'advancedThemeDesignerEnabled',
+  'checkoutHidden',
+  'eventPublisherEnabled',
+  'exportOrdersEnabled',
+  'exportProductsEnabled',
+  'exportUsersEnabled',
+  'fontCustomizationEnabled',
+  'forwardShippingEnabled',
+  'podroShippingEnabled',
+  'postexShippingEnabled',
+  'quotaNotificationsEnabled',
+  'recaptchaEnabled',
+  'rolePoliciesEnabled',
+  'sepidarAccountingCustomizationEnabled',
+  'shortUrlEnabled',
+  'skuSearchEnabled',
+  'snappShopCustomizationEnabled',
+  'snappboxShippingEnabled',
+  'stockAlertNotificationsEnabled',
+  'tapsipackShippingEnabled',
+  'themeConfigSettingsEnabled',
+  'advancedTextEditorEnabled',
+  'advancedShippingEnabled',
+  'bulkActionEnabled',
+  'discountBulkEnabled',
+  'discountCodeEnabled',
+  'orderBulkActionEnabled',
+  'importProductsEnabled',
+  'mahakAccountingCustomizationEnabled',
+  'millipayPaymentCustomizationEnabled',
+  'orderSmsNotificationsEnabled'
+]);
+
+function normalizeFeatureFlagName(rawKey: string): string {
+  const camelKey = rawKey.includes('_') ? snakeToCamel(rawKey) : rawKey;
+  const mapped = FEATURE_FLAG_NAME_MAP[camelKey];
+  if (mapped) return mapped;
+
+  // UX normalization: strip "activate" prefix from unknown flags.
+  const withoutActivatePrefix = camelKey.startsWith('activate') && camelKey.length > 'activate'.length
+    ? `${camelKey.charAt('activate'.length).toLowerCase()}${camelKey.slice('activate'.length + 1)}`
+    : camelKey;
+
+  if (
+    withoutActivatePrefix.endsWith('Enabled') ||
+    withoutActivatePrefix.endsWith('Disabled') ||
+    withoutActivatePrefix.endsWith('Hidden') ||
+    withoutActivatePrefix.endsWith('Removed')
+  ) {
+    return withoutActivatePrefix;
+  }
+
+  return `${withoutActivatePrefix}Enabled`;
+}
+
+function normalizeGeneralFeatures(features: any): any {
+  if (!isPlainObject(features)) {
+    return {};
+  }
+
+  const readBooleanish = (value: any): boolean | undefined => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') {
+      if (value === 1) return true;
+      if (value === 0) return false;
+      return undefined;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true' || normalized === '1') return true;
+      if (normalized === 'false' || normalized === '0') return false;
+      return undefined;
+    }
+    return undefined;
+  };
+
+  const rawFlags: Record<string, boolean> = {};
+  const pushFlag = (key: string, value: any) => {
+    if (FEATURE_FLAG_BLOCKLIST.has(key)) return;
+    const normalized = readBooleanish(value);
+    if (normalized === undefined) return;
+    rawFlags[key] = normalized;
+  };
+
+  if (isPlainObject(features.flags)) {
+    Object.entries(features.flags).forEach(([key, value]) => {
+      pushFlag(key, value);
+    });
+  }
+
+  if (isPlainObject((features as any).configurations)) {
+    Object.entries((features as any).configurations).forEach(([key, value]) => {
+      pushFlag(key, value);
+    });
+  }
+
+  Object.entries(features).forEach(([key, value]) => {
+    if (key === 'flags' || key === 'premium' || key === 'configurations') return;
+    if (isPlainObject(value) && Object.prototype.hasOwnProperty.call(value, 'enabled')) {
+      pushFlag(key, (value as any).enabled);
+      return;
+    }
+    pushFlag(key, value);
+  });
+
+  const flags: Record<string, boolean> = {};
+  Object.entries(rawFlags).forEach(([key, value]) => {
+    const normalizedName = normalizeFeatureFlagName(key);
+    if (FEATURE_FLAG_NAME_BLOCKLIST.has(normalizedName)) return;
+    flags[normalizedName] = value;
+  });
+
+  const normalized: any = { ...flags };
+  if (isPlainObject(features.premium)) {
+    normalized.premium = features.premium;
+  }
+
+  return normalized;
+}
+
+function normalizeGeneralWallet(wallet: any): any {
+  if (!isPlainObject(wallet)) {
+    return wallet;
+  }
+
+  const source = isPlainObject(wallet.configurations)
+    ? { ...wallet, ...wallet.configurations }
+    : { ...wallet };
+
+  const toBoolean = (value: any): boolean | undefined => {
+    if (typeof value === 'boolean') return value;
+    if (value === 1 || value === '1' || value === 'true') return true;
+    if (value === 0 || value === '0' || value === 'false') return false;
+    return undefined;
+  };
+
+  const toNumber = (value: any): number | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const enabled = toBoolean(source.enabled);
+  const useWithDiscount = toBoolean(source.useWithDiscount);
+  const minAmount = toNumber(source.minAmount ?? source.walletMinAmount);
+  const minAmountRequired = toBoolean(source.minAmountRequired ?? source.walletMinStatus);
+
+  return {
+    enabled: enabled ?? false,
+    useWithDiscount: useWithDiscount ?? false,
+    minAmount: minAmount ?? 0,
+    minAmountRequired: minAmountRequired ?? false
+  };
+}
+
+function normalizeGeneralTajrobe(tajrobe: any): any {
+  if (!isPlainObject(tajrobe)) {
+    return tajrobe;
+  }
+
+  const source = isPlainObject(tajrobe.configurations)
+    ? { ...tajrobe, ...tajrobe.configurations }
+    : { ...tajrobe };
+
+  let enabled: boolean = false;
+  if (typeof source.enabled === 'boolean') {
+    enabled = source.enabled;
+  } else if (source.enabled === 1 || source.enabled === '1' || source.enabled === 'true') {
+    enabled = true;
+  }
+
+  return { enabled };
 }
 
 /**
@@ -440,6 +781,7 @@ function cleanProduct(product: any): any {
   if (cleanedProduct.variants && Array.isArray(cleanedProduct.variants)) {
     cleanedProduct.variants = cleanedProduct.variants.map((variant: any) => {
       const {
+        name,
         title,
         product: nestedProduct,
         status,
@@ -475,6 +817,14 @@ function cleanProduct(product: any): any {
   return cleanedProduct;
 }
 
+function cleanProductListItem(product: any): any {
+  const cleaned = cleanProduct(product);
+  if (!cleaned) return cleaned;
+
+  const { themeConfig, ...withoutThemeConfig } = cleaned;
+  return withoutThemeConfig;
+}
+
 /**
  * Specific transformer for product list responses
  * Handles paginated product lists
@@ -485,7 +835,7 @@ export function transformProductListResponse(response: any): any {
   // Handle pagination structure
   if (transformed.items && Array.isArray(transformed.items)) {
     return {
-      items: transformed.items.map((item: any) => cleanProduct(item)),
+      items: transformed.items.map((item: any) => cleanProductListItem(item)),
       total: transformed.total || transformed.items.length,
       page: transformed.page || 1,
       pageSize: transformed.pageSize || transformed.items.length,
@@ -533,7 +883,7 @@ export function transformSearchResponse(data: any): any {
 
   // Extract products (API returns as "products" but HTTP client converts to "items")
   if (data.items && Array.isArray(data.items)) {
-    response.products.items = data.items.map((product: any) => cleanProduct(product));
+    response.products.items = data.items.map((product: any) => cleanProductListItem(product));
     response.products.total = data.productsCount || 0;
     response.products.page = data.productsPageNumber || 1;
     response.products.pageSize = data.productsPageSize || 20;
@@ -541,7 +891,7 @@ export function transformSearchResponse(data: any): any {
 
   // Extract blog pages
   if (data.blogPages && Array.isArray(data.blogPages)) {
-    response.blogPages.items = data.blogPages.map((page: any) => cleanCmsPage(page));
+    response.blogPages.items = data.blogPages.map((page: any) => cleanCmsPageListItem(page));
     response.blogPages.total = data.blogPagesCount || 0;
     response.blogPages.page = data.blogPagesPageNumber || 1;
     response.blogPages.pageSize = data.blogPagesPageSize || 20;
@@ -549,7 +899,7 @@ export function transformSearchResponse(data: any): any {
 
   // Extract CMS pages
   if (data.cmsPages && Array.isArray(data.cmsPages)) {
-    response.cmsPages.items = data.cmsPages.map((page: any) => cleanCmsPage(page));
+    response.cmsPages.items = data.cmsPages.map((page: any) => cleanCmsPageListItem(page));
     response.cmsPages.total = data.cmsPagesCount || 0;
     response.cmsPages.page = data.cmsPagesPageNumber || 1;
     response.cmsPages.pageSize = data.cmsPagesPageSize || 20;
@@ -557,7 +907,7 @@ export function transformSearchResponse(data: any): any {
 
   // Extract product categories (API returns as "product_categories" but HTTP client converts to "categories")
   if (data.categories && Array.isArray(data.categories)) {
-    response.productCategories.items = data.categories.map((cat: any) => cleanCategory(cat));
+    response.productCategories.items = data.categories.map((cat: any) => cleanCategoryListItem(cat));
     response.productCategories.total = data.productCategoriesCount || 0;
     response.productCategories.page = data.productCategoriesPageNumber || 1;
     response.productCategories.pageSize = data.productCategoriesPageSize || 20;
@@ -666,6 +1016,14 @@ function cleanCategory(category: any): any {
   return cleanedCategory;
 }
 
+function cleanCategoryListItem(category: any): any {
+  const cleaned = cleanCategory(category);
+  if (!cleaned) return cleaned;
+
+  const { themeConfig, ...withoutThemeConfig } = cleaned;
+  return withoutThemeConfig;
+}
+
 /**
  * Clean CMS/Blog page object by removing unwanted fields
  */
@@ -675,10 +1033,19 @@ function cleanCmsPage(page: any): any {
   // Fields to remove from CMS/blog page
   const {
     staticUrl,
+    urlKey,
     ...cleanedPage
   } = page;
 
   return cleanedPage;
+}
+
+function cleanCmsPageListItem(page: any): any {
+  const cleaned = cleanCmsPage(page);
+  if (!cleaned) return cleaned;
+
+  const { themeConfig, ...withoutThemeConfig } = cleaned;
+  return withoutThemeConfig;
 }
 
 /**
@@ -732,7 +1099,12 @@ function cleanCategoryTreeNode(node: any): any {
 
   // Clean the entity if it exists
   if (cleanedNode.entity) {
-    cleanedNode.entity = cleanCategory(cleanedNode.entity);
+    cleanedNode.entity = cleanCategoryListItem(cleanedNode.entity);
+    // Node already exposes `entityId`; drop duplicate `entity.id` from tree payload.
+    if (cleanedNode.entity && typeof cleanedNode.entity === 'object') {
+      const { id, ...entityWithoutId } = cleanedNode.entity;
+      cleanedNode.entity = entityWithoutId;
+    }
   }
 
   // Recursively clean children
@@ -754,7 +1126,7 @@ export function transformCategoryListResponse(response: any): any {
 
   // Clean categories array
   if (transformed.categories && Array.isArray(transformed.categories)) {
-    transformed.categories = transformed.categories.map(cleanCategory);
+    transformed.categories = transformed.categories.map(cleanCategoryListItem);
   }
 
   // Clean tree structure
@@ -795,7 +1167,7 @@ export function transformCMSListResponse(response: any): any {
 
   if (transformed.cmsPages && Array.isArray(transformed.cmsPages)) {
     return {
-      items: transformed.cmsPages.map(cleanCmsPage),
+      items: transformed.cmsPages.map(cleanCmsPageListItem),
       total: transformed.total || transformed.cmsPages.length,
       page: transformed.page || transformed.pageNumber || 1,
       pageSize: transformed.pageSize || transformed.cmsPages.length
@@ -805,7 +1177,7 @@ export function transformCMSListResponse(response: any): any {
   // Fallback: if already has items array
   if (transformed.items && Array.isArray(transformed.items)) {
     return {
-      items: transformed.items.map((item: any) => cleanCmsPage(item)),
+      items: transformed.items.map((item: any) => cleanCmsPageListItem(item)),
       total: transformed.total || transformed.items.length,
       page: transformed.page || 1,
       pageSize: transformed.pageSize || transformed.items.length
