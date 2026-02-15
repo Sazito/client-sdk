@@ -1,6 +1,6 @@
 {
   "name": "@sazito/client-sdk",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Official JavaScript/TypeScript SDK for Sazito e-commerce platform - Client Edition",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
