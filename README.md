@@ -12,7 +12,7 @@ This SDK is built for application developers who want a typed, framework-agnosti
 ## Package
 
 - Name: `@sazito/client-sdk`
-- Version: `1.0.0`
+- Version: See `package.json`
 - License: `MIT`
 
 ## Requirements
@@ -149,7 +149,7 @@ Supported request options:
 ## Authentication
 
 ```ts
-sazito.setAuthToken('<jwt>');
+sazito.setAuthToken('YOUR_JWT');
 
 const isLoggedIn = sazito.isAuthenticated();
 const token = sazito.getAuthToken();
