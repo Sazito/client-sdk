@@ -18,8 +18,8 @@ const OPERATIONS = [
         label: 'Category IDs',
         type: 'number-list',
         section: 'filters',
-        defaultValue: '73',
-        placeholder: '73, 94'
+        defaultValue: '',
+        placeholder: '73'
       },
       {
         key: 'filters.availableOnly',
@@ -195,6 +195,439 @@ const OPERATIONS = [
     ]
   },
   {
+    id: 'cms.listPages',
+    label: 'CMS: List Pages',
+    description: 'GET /api/v1/cms_pages filtered to regular CMS pages only.',
+    fields: [
+      {
+        key: 'filters.page',
+        label: 'Page',
+        type: 'number',
+        section: 'pagination',
+        defaultValue: 1,
+        min: 1
+      },
+      {
+        key: 'filters.pageSize',
+        label: 'Page Size',
+        type: 'number',
+        section: 'pagination',
+        defaultValue: 10,
+        min: 1
+      }
+    ]
+  },
+  {
+    id: 'cms.getPage',
+    label: 'CMS: Get Page',
+    description: 'GET /api/v1/entity_route/route?url_part=... resolved via cms.getPage().',
+    fields: [
+      {
+        key: 'urlPath',
+        label: 'CMS URL Path',
+        type: 'text',
+        section: 'request',
+        defaultValue: '/درباره-ما',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'cms.listBlogPosts',
+    label: 'CMS: List Blog Posts',
+    description: 'GET /api/v1/cms_pages filtered to blog posts only.',
+    fields: [
+      {
+        key: 'filters.page',
+        label: 'Page',
+        type: 'number',
+        section: 'pagination',
+        defaultValue: 1,
+        min: 1
+      },
+      {
+        key: 'filters.pageSize',
+        label: 'Page Size',
+        type: 'number',
+        section: 'pagination',
+        defaultValue: 10,
+        min: 1
+      }
+    ]
+  },
+  {
+    id: 'cms.getBlogPost',
+    label: 'CMS: Get Blog Post',
+    description: 'GET /api/v1/entity_route/route?url_part=... resolved via cms.getBlogPost().',
+    fields: [
+      {
+        key: 'urlPath',
+        label: 'Blog URL Path',
+        type: 'text',
+        section: 'request',
+        defaultValue: '/blog/how-to-buy',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'menu.getHeaderMenu',
+    label: 'Menu: Header Menu',
+    description: 'GET /api/v1/trees/fetch_single via menu.getHeaderMenu().',
+    fields: [
+      {
+        key: 'identifier',
+        label: 'Menu Identifier',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'headermenu'
+      }
+    ]
+  },
+  {
+    id: 'users.login',
+    label: 'Users: Login (Email/Password)',
+    description: 'POST /api/v1/sessions/login via users.login().',
+    fields: [
+      {
+        key: 'email',
+        label: 'Email',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'dev@example.com',
+        required: true
+      },
+      {
+        key: 'password',
+        label: 'Password',
+        type: 'text',
+        section: 'request',
+        defaultValue: '123456',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'users.register',
+    label: 'Users: Register',
+    description: 'POST /api/v1/users/register via users.register().',
+    fields: [
+      {
+        key: 'email',
+        label: 'Email',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'new-user@example.com',
+        required: true
+      },
+      {
+        key: 'password',
+        label: 'Password',
+        type: 'text',
+        section: 'request',
+        defaultValue: '123456',
+        required: true
+      },
+      {
+        key: 'passwordConfirmation',
+        label: 'Password Confirmation',
+        type: 'text',
+        section: 'request',
+        defaultValue: '123456',
+        required: true
+      },
+      {
+        key: 'firstName',
+        label: 'First Name',
+        type: 'text',
+        section: 'request',
+        placeholder: 'Reza'
+      },
+      {
+        key: 'lastName',
+        label: 'Last Name',
+        type: 'text',
+        section: 'request',
+        placeholder: 'Mahmoudi'
+      },
+      {
+        key: 'mobilePhone',
+        label: 'Mobile Phone',
+        type: 'text',
+        section: 'request',
+        placeholder: '09123456789'
+      }
+    ]
+  },
+  {
+    id: 'users.requestMobileOTP',
+    label: 'Users: Mobile OTP Request',
+    description: 'POST /api/v1/sessions/login_request via users.requestMobileOTP().',
+    fields: [
+      {
+        key: 'mobilePhone',
+        label: 'Mobile Phone',
+        type: 'text',
+        section: 'request',
+        defaultValue: '09123456789',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'users.verifyMobileOTP',
+    label: 'Users: Mobile OTP Verify',
+    description: 'POST /api/v1/sessions/login_request_verification via users.verifyMobileOTP().',
+    fields: [
+      {
+        key: 'mobilePhone',
+        label: 'Mobile Phone',
+        type: 'text',
+        section: 'request',
+        defaultValue: '09123456789',
+        required: true
+      },
+      {
+        key: 'token',
+        label: 'Verification Token',
+        type: 'text',
+        section: 'request',
+        defaultValue: '123456',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'users.requestEmailLogin',
+    label: 'Users: Passwordless Email Request',
+    description: 'POST /api/v1/users/email_login_request via users.requestEmailLogin().',
+    fields: [
+      {
+        key: 'email',
+        label: 'Email',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'dev@example.com',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'users.forgotPassword',
+    label: 'Users: Forgot Password',
+    description: 'POST /api/v1/users/forgot_password via users.forgotPassword().',
+    fields: [
+      {
+        key: 'email',
+        label: 'Email',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'dev@example.com',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'users.revivePassword',
+    label: 'Users: Revive Password',
+    description: 'POST /api/v1/users/revive_password via users.revivePassword().',
+    fields: [
+      {
+        key: 'forgotPasswordToken',
+        label: 'Forgot Password Token',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'token-here',
+        required: true
+      },
+      {
+        key: 'password',
+        label: 'Password',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'new-123456',
+        required: true
+      },
+      {
+        key: 'passwordConfirmation',
+        label: 'Password Confirmation',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'new-123456',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'users.getCurrentUser',
+    label: 'Users: Current User',
+    description: 'GET /api/v1/users/current (requires auth token for successful result).',
+    fields: []
+  },
+  {
+    id: 'users.updateProfile',
+    label: 'Users: Update Profile',
+    description: 'PUT /api/v1/users/{userId} via users.updateProfile().',
+    fields: [
+      {
+        key: 'userId',
+        label: 'User ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'profile.firstName',
+        label: 'First Name',
+        type: 'text',
+        section: 'request',
+        placeholder: 'Reza'
+      },
+      {
+        key: 'profile.lastName',
+        label: 'Last Name',
+        type: 'text',
+        section: 'request',
+        placeholder: 'Mahmoudi'
+      },
+      {
+        key: 'profile.email',
+        label: 'Email',
+        type: 'text',
+        section: 'request',
+        placeholder: 'dev@example.com'
+      },
+      {
+        key: 'profile.password',
+        label: 'Password',
+        type: 'text',
+        section: 'request',
+        placeholder: 'new-password'
+      },
+      {
+        key: 'profile.passwordConfirmation',
+        label: 'Password Confirmation',
+        type: 'text',
+        section: 'request',
+        placeholder: 'new-password'
+      },
+      {
+        key: 'profile.birthDate',
+        label: 'Birth Date',
+        type: 'text',
+        section: 'request',
+        placeholder: '1990-01-01'
+      }
+    ]
+  },
+  {
+    id: 'users.requestMobilePhoneUpdate',
+    label: 'Users: Update Phone Request',
+    description: 'POST /api/v1/users/update_mobile_phone_request via users.requestMobilePhoneUpdate().',
+    fields: [
+      {
+        key: 'mobilePhone',
+        label: 'New Mobile Phone',
+        type: 'text',
+        section: 'request',
+        defaultValue: '09123456789',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'users.verifyMobilePhoneUpdate',
+    label: 'Users: Update Phone Verify',
+    description: 'POST /api/v1/users/update_mobile_phone_verification via users.verifyMobilePhoneUpdate().',
+    fields: [
+      {
+        key: 'mobilePhone',
+        label: 'New Mobile Phone',
+        type: 'text',
+        section: 'request',
+        defaultValue: '09123456789',
+        required: true
+      },
+      {
+        key: 'token',
+        label: 'Verification Token',
+        type: 'text',
+        section: 'request',
+        defaultValue: '123456',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'users.mergeUser',
+    label: 'Users: Merge Accounts',
+    description: 'POST /api/v1/users/merge_user via users.mergeUser().',
+    fields: []
+  },
+  {
+    id: 'wallet.getBalance',
+    label: 'Wallet: Get Balance',
+    description: 'GET /api/v1/users/wallet/balance (requires auth token for successful result).',
+    fields: []
+  },
+  {
+    id: 'wallet.applyCredit',
+    label: 'Wallet: Apply Credit',
+    description: 'POST /api/v1/invoices/{id}/add_credit (requires auth token for successful result).',
+    fields: [
+      {
+        key: 'invoiceId',
+        label: 'Invoice ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'wallet.removeCredit',
+    label: 'Wallet: Remove Credit',
+    description: 'POST /api/v1/invoices/{id}/remove_credit (requires auth token for successful result).',
+    fields: [
+      {
+        key: 'invoiceId',
+        label: 'Invoice ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'wallet.listTransactions',
+    label: 'Wallet: List Transactions',
+    description: 'GET /api/v1/wallet/transactions with page_number/page_size (requires auth token).',
+    fields: [
+      {
+        key: 'filters.page_number',
+        label: 'Page Number',
+        type: 'number',
+        section: 'pagination',
+        defaultValue: 1,
+        min: 1
+      },
+      {
+        key: 'filters.page_size',
+        label: 'Page Size',
+        type: 'number',
+        section: 'pagination',
+        defaultValue: 100,
+        min: 1
+      }
+    ]
+  },
+  {
     id: 'general.getInfo',
     label: 'General: Shop Info',
     description: 'GET /api/v2/general/info for store-level settings and feature flags.',
@@ -203,22 +636,8 @@ const OPERATIONS = [
   {
     id: 'visits.track',
     label: 'Visits: Track (POST)',
-    description: 'POST /api/v1/visits to demonstrate request body transformation and response.',
-    fields: [
-      {
-        key: 'visit',
-        label: 'Visit Body JSON',
-        type: 'json',
-        section: 'request',
-        defaultValue: {
-          url: '/product/demo-item',
-          referrer: 'visual-playground',
-          userAgent: 'node-playground',
-          entityType: 'product',
-          entityId: 123
-        }
-      }
-    ]
+    description: 'POST /api/v1/visits/add with no request payload.',
+    fields: []
   }
 ];
 
@@ -229,6 +648,8 @@ const SECTION_LABELS = {
   pagination: 'Pagination'
 };
 
+const JWT_STORAGE_KEY = 'sazito.visual-playground.global-jwt';
+const jwtInput = document.getElementById('jwt');
 const domainInput = document.getElementById('domain');
 const operationSelect = document.getElementById('operation');
 const operationDescription = document.getElementById('operationDescription');
@@ -243,6 +664,31 @@ const requestOutput = document.getElementById('requestOutput');
 const responseOutput = document.getElementById('responseOutput');
 const transportOutput = document.getElementById('transportOutput');
 let lastCapturedRequest = null;
+
+function loadStoredJwt() {
+  if (typeof window === 'undefined') return '';
+
+  try {
+    return window.localStorage.getItem(JWT_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function persistJwt(value) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    if (value) {
+      window.localStorage.setItem(JWT_STORAGE_KEY, value);
+      return;
+    }
+
+    window.localStorage.removeItem(JWT_STORAGE_KEY);
+  } catch {
+    // Ignore localStorage access errors (private mode/security policies)
+  }
+}
 
 function pretty(value) {
   return JSON.stringify(value, null, 2);
@@ -282,12 +728,6 @@ function appendKey(target, key) {
   target.appendChild(colon);
 }
 
-function buildSummaryLabel(value, isArray) {
-  const size = isArray ? value.length : Object.keys(value).length;
-  if (size === 0) return 'empty';
-  return `${size} ${isArray ? 'items' : 'keys'}`;
-}
-
 function createPrimitiveLine(value, depth, key, isLast) {
   const line = document.createElement('div');
   line.className = 'json-line';
@@ -314,6 +754,7 @@ function createContainerNode(value, depth, key, isLast, isArray) {
   const openToken = isArray ? '[' : '{';
   const closeToken = isArray ? ']' : '}';
   const entries = isArray ? value.map((item, index) => [index, item]) : Object.entries(value);
+  const hasEntries = entries.length > 0;
 
   const details = document.createElement('details');
   details.className = 'json-details';
@@ -327,17 +768,12 @@ function createContainerNode(value, depth, key, isLast, isArray) {
 
   const openBracket = document.createElement('span');
   openBracket.className = 'json-bracket';
-  openBracket.textContent = `${openToken} `;
+  openBracket.textContent = openToken;
   summary.appendChild(openBracket);
-
-  const meta = document.createElement('span');
-  meta.className = 'json-meta';
-  meta.textContent = buildSummaryLabel(value, isArray);
-  summary.appendChild(meta);
 
   const closeBracket = document.createElement('span');
   closeBracket.className = 'json-bracket';
-  closeBracket.textContent = ` ${closeToken}`;
+  closeBracket.textContent = hasEntries ? '' : closeToken;
   summary.appendChild(closeBracket);
 
   details.appendChild(summary);
@@ -355,23 +791,25 @@ function createContainerNode(value, depth, key, isLast, isArray) {
 
   details.appendChild(children);
 
-  const closing = document.createElement('div');
-  closing.className = 'json-line';
-  closing.style.setProperty('--depth', String(depth));
+  if (hasEntries) {
+    const closing = document.createElement('div');
+    closing.className = 'json-line';
+    closing.style.setProperty('--depth', String(depth));
 
-  const close = document.createElement('span');
-  close.className = 'json-bracket';
-  close.textContent = closeToken;
-  closing.appendChild(close);
+    const close = document.createElement('span');
+    close.className = 'json-bracket';
+    close.textContent = closeToken;
+    closing.appendChild(close);
 
-  if (!isLast) {
-    const comma = document.createElement('span');
-    comma.className = 'json-punctuation';
-    comma.textContent = ',';
-    closing.appendChild(comma);
+    if (!isLast) {
+      const comma = document.createElement('span');
+      comma.className = 'json-punctuation';
+      comma.textContent = ',';
+      closing.appendChild(comma);
+    }
+
+    details.appendChild(closing);
   }
-
-  details.appendChild(closing);
   return details;
 }
 
@@ -787,6 +1225,7 @@ async function execute() {
   const payload = {
     operation: operationSelect.value,
     domain: domainInput.value.trim(),
+    jwt: jwtInput.value.trim(),
     input
   };
 
@@ -852,6 +1291,13 @@ function setupTabs() {
 }
 
 function bootstrap() {
+  if (jwtInput) {
+    jwtInput.value = loadStoredJwt();
+    jwtInput.addEventListener('input', () => {
+      persistJwt(jwtInput.value.trim());
+    });
+  }
+
   for (const operation of OPERATIONS) {
     const option = document.createElement('option');
     option.value = operation.id;

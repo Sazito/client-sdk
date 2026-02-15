@@ -88,6 +88,13 @@ body {
   box-shadow: var(--shadow);
 }
 
+.top-auth {
+  border-radius: 20px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  animation: rise 500ms ease both;
+}
+
 .controls {
   border-radius: 24px;
   padding: 1.1rem;

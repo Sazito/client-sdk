@@ -69,6 +69,30 @@ function sanitizeDomain(input) {
   return value.replace(/^https?:\/\//i, '').replace(/\/$/, '');
 }
 
+function sanitizeAuthToken(input) {
+  if (typeof input !== 'string') return null;
+  const value = input.trim().replace(/^Bearer\s+/i, '');
+  return value || null;
+}
+
+function toHeaderObject(headers) {
+  if (!headers) return {};
+
+  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+    return Object.fromEntries(headers.entries());
+  }
+
+  if (Array.isArray(headers)) {
+    return Object.fromEntries(headers);
+  }
+
+  if (typeof headers === 'object') {
+    return { ...headers };
+  }
+
+  return {};
+}
+
 function serializeError(error) {
   if (!error) return null;
   const details = {
@@ -140,6 +164,7 @@ async function executeOperation(payload) {
 
   const operation = payload.operation;
   const domain = sanitizeDomain(payload.domain) || 'noel-accessories.ir';
+  const jwt = sanitizeAuthToken(payload.jwt);
   const input = payload.input || {};
 
   if (!operation || typeof operation !== 'string') {
@@ -160,13 +185,23 @@ async function executeOperation(payload) {
   };
 
   const customFetchApi = async (url, options = {}) => {
+    const requestHeaders = toHeaderObject(options.headers);
+    if (jwt && !requestHeaders.Authorization && !requestHeaders.authorization) {
+      requestHeaders.Authorization = jwt;
+    }
+
+    const finalOptions = {
+      ...options,
+      headers: requestHeaders
+    };
+
     capture.method = options.method || 'GET';
     capture.url = String(url);
-    capture.headers = options.headers || {};
+    capture.headers = requestHeaders;
     capture.body = parseRequestBody(options.body);
 
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, finalOptions);
       capture.status = response.status;
       capture.responseHeaders = Object.fromEntries(response.headers.entries());
       return response;
@@ -181,6 +216,9 @@ async function executeOperation(payload) {
     debug: false,
     customFetchApi
   });
+  if (jwt) {
+    client.setAuthToken(jwt);
+  }
 
   const startedAt = new Date();
   let sdkResponse;
@@ -227,16 +265,185 @@ async function executeOperation(payload) {
         sdkResponse = await client.categories.get(idOrSlug);
         break;
       }
+      case 'cms.listPages': {
+        const filters = input.filters || {};
+        sdkRequest.method = 'client.cms.listPages';
+        sdkRequest.params = { filters };
+        sdkResponse = await client.cms.listPages(filters);
+        break;
+      }
+      case 'cms.getPage': {
+        const urlPath = String(input.urlPath || '').trim();
+        sdkRequest.method = 'client.cms.getPage';
+        sdkRequest.params = { urlPath };
+        sdkResponse = await client.cms.getPage(urlPath);
+        break;
+      }
+      case 'cms.listBlogPosts': {
+        const filters = input.filters || {};
+        sdkRequest.method = 'client.cms.listBlogPosts';
+        sdkRequest.params = { filters };
+        sdkResponse = await client.cms.listBlogPosts(filters);
+        break;
+      }
+      case 'cms.getBlogPost': {
+        const urlPath = String(input.urlPath || '').trim();
+        sdkRequest.method = 'client.cms.getBlogPost';
+        sdkRequest.params = { urlPath };
+        sdkResponse = await client.cms.getBlogPost(urlPath);
+        break;
+      }
+      case 'menu.getHeaderMenu': {
+        const identifier = String(input.identifier || '').trim() || 'headermenu';
+        sdkRequest.method = 'client.menu.getHeaderMenu';
+        sdkRequest.params = { identifier };
+        sdkResponse = await client.menu.getHeaderMenu(identifier);
+        break;
+      }
+      case 'users.login': {
+        const payload = {
+          email: String(input.email || '').trim(),
+          password: String(input.password || '')
+        };
+        sdkRequest.method = 'client.users.login';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.login(payload);
+        break;
+      }
+      case 'users.register': {
+        const payload = {
+          email: String(input.email || '').trim(),
+          password: String(input.password || ''),
+          passwordConfirmation: String(input.passwordConfirmation || ''),
+          firstName: input.firstName ? String(input.firstName).trim() : undefined,
+          lastName: input.lastName ? String(input.lastName).trim() : undefined,
+          mobilePhone: input.mobilePhone ? String(input.mobilePhone).trim() : undefined
+        };
+        sdkRequest.method = 'client.users.register';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.register(payload);
+        break;
+      }
+      case 'users.requestMobileOTP': {
+        const payload = {
+          mobilePhone: String(input.mobilePhone || '').trim()
+        };
+        sdkRequest.method = 'client.users.requestMobileOTP';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.requestMobileOTP(payload);
+        break;
+      }
+      case 'users.verifyMobileOTP': {
+        const payload = {
+          mobilePhone: String(input.mobilePhone || '').trim(),
+          token: String(input.token || '').trim()
+        };
+        sdkRequest.method = 'client.users.verifyMobileOTP';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.verifyMobileOTP(payload);
+        break;
+      }
+      case 'users.requestEmailLogin': {
+        const payload = {
+          email: String(input.email || '').trim()
+        };
+        sdkRequest.method = 'client.users.requestEmailLogin';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.requestEmailLogin(payload);
+        break;
+      }
+      case 'users.forgotPassword': {
+        const payload = {
+          email: String(input.email || '').trim()
+        };
+        sdkRequest.method = 'client.users.forgotPassword';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.forgotPassword(payload);
+        break;
+      }
+      case 'users.revivePassword': {
+        const payload = {
+          forgotPasswordToken: String(input.forgotPasswordToken || '').trim(),
+          password: String(input.password || ''),
+          passwordConfirmation: String(input.passwordConfirmation || '')
+        };
+        sdkRequest.method = 'client.users.revivePassword';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.revivePassword(payload);
+        break;
+      }
+      case 'users.getCurrentUser':
+        sdkRequest.method = 'client.users.getCurrentUser';
+        sdkRequest.params = {};
+        sdkResponse = await client.users.getCurrentUser();
+        break;
+      case 'users.updateProfile': {
+        const userId = Number(input.userId);
+        const profile = input.profile || {};
+        sdkRequest.method = 'client.users.updateProfile';
+        sdkRequest.params = { userId, profile };
+        sdkResponse = await client.users.updateProfile(userId, profile);
+        break;
+      }
+      case 'users.requestMobilePhoneUpdate': {
+        const payload = {
+          mobilePhone: String(input.mobilePhone || '').trim()
+        };
+        sdkRequest.method = 'client.users.requestMobilePhoneUpdate';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.requestMobilePhoneUpdate(payload);
+        break;
+      }
+      case 'users.verifyMobilePhoneUpdate': {
+        const payload = {
+          mobilePhone: String(input.mobilePhone || '').trim(),
+          token: String(input.token || '').trim()
+        };
+        sdkRequest.method = 'client.users.verifyMobilePhoneUpdate';
+        sdkRequest.params = payload;
+        sdkResponse = await client.users.verifyMobilePhoneUpdate(payload);
+        break;
+      }
+      case 'users.mergeUser':
+        sdkRequest.method = 'client.users.mergeUser';
+        sdkRequest.params = {};
+        sdkResponse = await client.users.mergeUser();
+        break;
+      case 'wallet.getBalance':
+        sdkRequest.method = 'client.wallet.getBalance';
+        sdkRequest.params = {};
+        sdkResponse = await client.wallet.getBalance();
+        break;
+      case 'wallet.applyCredit': {
+        const invoiceId = Number(input.invoiceId);
+        sdkRequest.method = 'client.wallet.applyCredit';
+        sdkRequest.params = { invoiceId };
+        sdkResponse = await client.wallet.applyCredit(invoiceId);
+        break;
+      }
+      case 'wallet.removeCredit': {
+        const invoiceId = Number(input.invoiceId);
+        sdkRequest.method = 'client.wallet.removeCredit';
+        sdkRequest.params = { invoiceId };
+        sdkResponse = await client.wallet.removeCredit(invoiceId);
+        break;
+      }
+      case 'wallet.listTransactions': {
+        const filters = input.filters || {};
+        sdkRequest.method = 'client.wallet.listTransactions';
+        sdkRequest.params = { filters };
+        sdkResponse = await client.wallet.listTransactions(filters);
+        break;
+      }
       case 'general.getInfo':
         sdkRequest.method = 'client.general.getInfo';
         sdkRequest.params = {};
         sdkResponse = await client.general.getInfo();
         break;
       case 'visits.track': {
-        const visit = input.visit || {};
         sdkRequest.method = 'client.visits.track';
-        sdkRequest.params = { visit };
-        sdkResponse = await client.visits.track(visit);
+        sdkRequest.params = {};
+        sdkResponse = await client.visits.track();
         break;
       }
       default:
@@ -287,6 +494,7 @@ async function executeOperation(payload) {
       meta: {
         operation,
         domain,
+        jwtProvided: Boolean(jwt),
         startedAt: startedAt.toISOString(),
         endedAt: endedAt.toISOString(),
         durationMs: endedAt.getTime() - startedAt.getTime()
