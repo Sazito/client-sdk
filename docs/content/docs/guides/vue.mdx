@@ -1,0 +1,71 @@
+---
+title: Vue Guide
+description: Integrate Sazito SDK in Vue apps with composables and direct module imports.
+---
+
+## 1. Create a shared module setup
+
+```ts
+// src/lib/sazito.ts
+import { products, cart, users } from '@sazito/client-sdk';
+
+const config = {
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+  timeout: 20000,
+};
+
+export const productsApi = products(config);
+export const cartApi = cart(config);
+export const usersApi = users(config);
+```
+
+## 2. Fetch products in a component
+
+```vue
+<script setup lang="ts">
+import { onMounted, ref } from 'vue';
+import type { Product } from '@sazito/client-sdk';
+import { productsApi } from '@/lib/sazito';
+
+const items = ref<Product[]>([]);
+const loading = ref(true);
+const error = ref<string | null>(null);
+
+onMounted(async () => {
+  const res = await productsApi.list({ page: 1, pageSize: 12, sort: 'newest' });
+
+  if (res.error) {
+    error.value = res.error.message;
+  } else {
+    items.value = res.data?.items ?? [];
+  }
+
+  loading.value = false;
+});
+</script>
+
+<template>
+  <p v-if="loading">Loading...</p>
+  <p v-else-if="error">{{ error }}</p>
+  <ul v-else>
+    <li v-for="item in items" :key="item.url">{{ item.name }}</li>
+  </ul>
+</template>
+```
+
+## 3. Mutation example
+
+```ts
+import { cartApi } from '@/lib/sazito';
+
+const addRes = await cartApi.addItem(12345, 1);
+if (addRes.error) {
+  console.error(addRes.error.message);
+}
+```
+
+## 4. Vue checklist
+
+- Create SDK modules once and reuse them across composables/components.
+- Run independent requests in parallel with `Promise.all`.
+- Check `response.error` before reading `response.data`.

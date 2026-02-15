@@ -3,6 +3,7 @@
   "pages": [
     "guest-checkout",
     "react",
+    "vue",
     "nextjs",
     "production-patterns",
     "troubleshooting"

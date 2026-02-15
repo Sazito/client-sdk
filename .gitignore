@@ -37,3 +37,4 @@ coverage/
 *.tmp
 .cache/
 .yarn/
+.npm-cache/

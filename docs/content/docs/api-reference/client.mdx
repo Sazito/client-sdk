@@ -76,3 +76,21 @@ Clears auth token, cache, and credentials.
 - `entityRoutes`
 - `menu`
 - `general`
+
+## Direct module factory exports
+
+You can import module factories directly from the package root when you do not
+need a full client instance.
+
+```ts
+import { products, categories, cart } from '@sazito/client-sdk';
+
+const productsApi = products({ domain: 'mystore.sazito.com' });
+const categoriesApi = categories({ domain: 'mystore.sazito.com' });
+const cartApi = cart({ domain: 'mystore.sazito.com' });
+```
+
+All available aliases:
+`products`, `categories`, `cart`, `orders`, `invoices`, `shipping`,
+`payments`, `users`, `search`, `feedbacks`, `wallet`, `cms`, `images`,
+`visits`, `booking`, `entityRoutes`, `menu`, `general`.

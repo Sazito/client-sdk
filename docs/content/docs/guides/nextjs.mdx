@@ -99,3 +99,59 @@ Use Client Components when you need browser token storage, checkout credential p
 - Keep server responses small before sending to Client Components.
 - Use Route Handlers for authenticated orchestration.
 - Avoid creating SDK instances repeatedly in hot render paths.
+
+## 6. Direct module exports (Server Component)
+
+```tsx
+// app/(store)/page.tsx
+import { products, categories } from '@sazito/client-sdk';
+
+const config = { domain: process.env.SAZITO_STORE_DOMAIN!, timeout: 15000 };
+const productsApi = products(config);
+const categoriesApi = categories(config);
+
+export default async function StorePage() {
+  const [productsRes, categoriesRes] = await Promise.all([
+    productsApi.list({ page: 1, pageSize: 12 }),
+    categoriesApi.list({ page: 1, pageSize: 30 }),
+  ]);
+
+  if (productsRes.error || categoriesRes.error) {
+    return <p>Failed to load data.</p>;
+  }
+
+  return <p>Loaded {productsRes.data?.items.length ?? 0} products.</p>;
+}
+```
+
+## 7. Direct module exports (Client Component)
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { products } from '@sazito/client-sdk';
+import type { Product } from '@sazito/client-sdk';
+
+const productsApi = products({ domain: process.env.NEXT_PUBLIC_STORE_DOMAIN! });
+
+export function FeaturedProducts() {
+  const [items, setItems] = useState<Product[]>([]);
+
+  useEffect(() => {
+    async function run() {
+      const res = await productsApi.list({ page: 1, pageSize: 6, sort: 'newest' });
+      if (!res.error) setItems(res.data?.items ?? []);
+    }
+    run();
+  }, []);
+
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.url}>{item.name}</li>
+      ))}
+    </ul>
+  );
+}
+```

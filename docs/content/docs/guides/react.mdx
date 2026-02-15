@@ -110,3 +110,54 @@ console.log(addRes.data);
 - Use request-level `signal` and `timeout` for user-facing interactions.
 - Avoid request waterfalls for independent reads.
 - Disable cache (`cache: false`) on real-time checkout state views.
+
+## 6. Direct module exports example
+
+Use this when you only need selected modules and want to skip creating a full
+`SazitoClient` instance.
+
+```ts
+// src/lib/sazito-modules.ts
+import { products, cart } from '@sazito/client-sdk';
+
+const config = {
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+  timeout: 20000,
+};
+
+export const productsApi = products(config);
+export const cartApi = cart(config);
+```
+
+```tsx
+import { useEffect, useState } from 'react';
+import type { Product } from '@sazito/client-sdk';
+import { productsApi } from '../lib/sazito-modules';
+
+export function ProductList() {
+  const [items, setItems] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function run() {
+      const res = await productsApi.list({ page: 1, pageSize: 8 });
+      if (!active || res.error) return;
+      setItems(res.data?.items ?? []);
+    }
+
+    run();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <ul>
+      {items.map((product) => (
+        <li key={product.url}>{product.name}</li>
+      ))}
+    </ul>
+  );
+}
+```

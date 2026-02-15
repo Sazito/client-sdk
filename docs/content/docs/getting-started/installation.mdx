@@ -61,6 +61,25 @@ export const sazito = createSazitoClient({
   Pass domain without protocol. Example: <code>mystore.sazito.com</code>.
 </Callout>
 
+## Import entity APIs directly
+
+```ts
+import { products, cart, orders } from '@sazito/client-sdk';
+
+const productsApi = products({ domain: 'mystore.sazito.com' });
+const cartApi = cart({ domain: 'mystore.sazito.com' });
+const ordersApi = orders({ domain: 'mystore.sazito.com' });
+```
+
+Each alias maps to the same module surface available on
+<code>createSazitoClient(...)</code>:
+<code>products</code>, <code>categories</code>, <code>cart</code>,
+<code>orders</code>, <code>invoices</code>, <code>shipping</code>,
+<code>payments</code>, <code>users</code>, <code>search</code>,
+<code>feedbacks</code>, <code>wallet</code>, <code>cms</code>,
+<code>images</code>, <code>visits</code>, <code>booking</code>,
+<code>entityRoutes</code>, <code>menu</code>, and <code>general</code>.
+
 ## Next steps
 
 - Continue with [Quickstart](/docs/getting-started/quickstart).
