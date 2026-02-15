@@ -62,7 +62,7 @@ export class MenuAPI {
     // Filter out disabled items
     return output
       .filter(item => !item.shouldBeDropped)
-      .map(({ shouldBeDropped, ...item }) => item);
+      .map(({ shouldBeDropped: _shouldBeDropped, ...item }) => item);
   }
 
   /**

@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+.next/
+out/
 *.tsbuildinfo
 
 # Logs
@@ -38,3 +40,6 @@ coverage/
 .cache/
 .yarn/
 .npm-cache/
+.npm/
+.pnpm-store/
+*.tgz

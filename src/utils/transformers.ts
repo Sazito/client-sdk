@@ -255,6 +255,14 @@ function isPlainObject(value: any): boolean {
   return value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);
 }
 
+function removeKeys<T extends Record<string, any>>(obj: T, keys: string[]): Partial<T> {
+  const cleaned = { ...obj };
+  for (const key of keys) {
+    delete (cleaned as Record<string, any>)[key];
+  }
+  return cleaned;
+}
+
 /**
  * Transform object keys from snake_case to camelCase with field name beautification
  * @param obj - Object to transform
@@ -456,28 +464,15 @@ function normalizeGeneralShop(shop: any): any {
   const normalizedShop = { ...shop };
 
   if (isPlainObject(normalizedShop.city)) {
-    const {
-      createdAt: _cityCreatedAt,
-      updatedAt: _cityUpdatedAt,
-      region,
-      ...cityWithoutMeta
-    } = normalizedShop.city;
+    const cityWithoutMeta = removeKeys(normalizedShop.city, ['createdAt', 'updatedAt']) as any;
 
-    let cleanedRegion = region;
-    if (isPlainObject(region)) {
-      const {
-        createdAt: _regionCreatedAt,
-        updatedAt: _regionUpdatedAt,
-        cities: _regionCities,
-        ...regionWithoutMeta
-      } = region;
-      cleanedRegion = regionWithoutMeta;
+    let cleanedRegion = cityWithoutMeta.region;
+    if (isPlainObject(cleanedRegion)) {
+      cleanedRegion = removeKeys(cleanedRegion, ['createdAt', 'updatedAt', 'cities']);
     }
 
-    normalizedShop.city = {
-      ...cityWithoutMeta,
-      region: cleanedRegion
-    };
+    cityWithoutMeta.region = cleanedRegion;
+    normalizedShop.city = cityWithoutMeta;
   }
 
   return normalizedShop;
@@ -769,27 +764,13 @@ function cleanProduct(product: any): any {
   if (!product) return product;
 
   // Fields to remove from product
-  const {
-    staticUrl,
-    summary,
-    tags,
-    slug,
-    ...cleanedProduct
-  } = product;
+  const cleanedProduct = removeKeys(product, ['staticUrl', 'summary', 'tags', 'slug']) as any;
 
   // Clean variants
   if (cleanedProduct.variants && Array.isArray(cleanedProduct.variants)) {
-    cleanedProduct.variants = cleanedProduct.variants.map((variant: any) => {
-      const {
-        name,
-        title,
-        product: nestedProduct,
-        status,
-        soldCount,
-        ...cleanedVariant
-      } = variant;
-      return cleanedVariant;
-    });
+    cleanedProduct.variants = cleanedProduct.variants.map((variant: any) =>
+      removeKeys(variant, ['name', 'title', 'product', 'status', 'soldCount'])
+    );
   }
 
   // Clean categories - keep only id, name, url
@@ -803,15 +784,9 @@ function cleanProduct(product: any): any {
 
   // Clean images - remove widthRatio, heightRatio, thumb
   if (cleanedProduct.images && Array.isArray(cleanedProduct.images)) {
-    cleanedProduct.images = cleanedProduct.images.map((image: any) => {
-      const {
-        widthRatio,
-        heightRatio,
-        thumb,
-        ...cleanedImage
-      } = image;
-      return cleanedImage;
-    });
+    cleanedProduct.images = cleanedProduct.images.map((image: any) =>
+      removeKeys(image, ['widthRatio', 'heightRatio', 'thumb'])
+    );
   }
 
   return cleanedProduct;
@@ -821,8 +796,7 @@ function cleanProductListItem(product: any): any {
   const cleaned = cleanProduct(product);
   if (!cleaned) return cleaned;
 
-  const { themeConfig, ...withoutThemeConfig } = cleaned;
-  return withoutThemeConfig;
+  return removeKeys(cleaned, ['themeConfig']);
 }
 
 /**
@@ -1006,22 +980,14 @@ function cleanCategory(category: any): any {
   if (!category) return category;
 
   // Fields to remove from category
-  const {
-    staticUrl,
-    products,
-    items,  // Always null in list responses
-    ...cleanedCategory
-  } = category;
-
-  return cleanedCategory;
+  return removeKeys(category, ['staticUrl', 'products', 'items']); // items is always null in list responses
 }
 
 function cleanCategoryListItem(category: any): any {
   const cleaned = cleanCategory(category);
   if (!cleaned) return cleaned;
 
-  const { themeConfig, ...withoutThemeConfig } = cleaned;
-  return withoutThemeConfig;
+  return removeKeys(cleaned, ['themeConfig']);
 }
 
 /**
@@ -1031,21 +997,14 @@ function cleanCmsPage(page: any): any {
   if (!page) return page;
 
   // Fields to remove from CMS/blog page
-  const {
-    staticUrl,
-    urlKey,
-    ...cleanedPage
-  } = page;
-
-  return cleanedPage;
+  return removeKeys(page, ['staticUrl', 'urlKey']);
 }
 
 function cleanCmsPageListItem(page: any): any {
   const cleaned = cleanCmsPage(page);
   if (!cleaned) return cleaned;
 
-  const { themeConfig, ...withoutThemeConfig } = cleaned;
-  return withoutThemeConfig;
+  return removeKeys(cleaned, ['themeConfig']);
 }
 
 /**
@@ -1077,8 +1036,7 @@ export function transformEntityRouteResponse(response: any): any {
     }
 
     // Remove duplicate id from entity since we have entityId at root
-    const { id, ...entityWithoutId } = route.entity;
-    route.entity = entityWithoutId;
+    route.entity = removeKeys(route.entity, ['id']);
 
     // Add url field at root level from entity.url
     if (!route.url && route.entity.url) {
@@ -1102,8 +1060,7 @@ function cleanCategoryTreeNode(node: any): any {
     cleanedNode.entity = cleanCategoryListItem(cleanedNode.entity);
     // Node already exposes `entityId`; drop duplicate `entity.id` from tree payload.
     if (cleanedNode.entity && typeof cleanedNode.entity === 'object') {
-      const { id, ...entityWithoutId } = cleanedNode.entity;
-      cleanedNode.entity = entityWithoutId;
+      cleanedNode.entity = removeKeys(cleanedNode.entity, ['id']);
     }
   }
 
@@ -1250,7 +1207,7 @@ function cleanMenuNode(node: any): any {
 
   // Clean entity (remove staticUrl, id)
   if (node.entity) {
-    const { staticUrl, id, ...cleanedEntity } = node.entity;
+    const cleanedEntity = removeKeys(node.entity, ['staticUrl', 'id']);
     if (Object.keys(cleanedEntity).length > 0) {
       cleaned.entity = cleanedEntity;
     }
