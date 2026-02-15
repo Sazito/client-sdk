@@ -3,44 +3,44 @@
 @import 'fumadocs-ui/css/preset.css';
 
 :root {
-  --color-fd-primary: #606cec;
-  --color-fd-primary-foreground: #f4f6ff;
-  --color-fd-background: #f6f8ff;
-  --color-fd-foreground: #171b34;
-  --color-fd-muted: #ecefff;
-  --color-fd-muted-foreground: #4e567f;
+  --color-fd-primary: #5e6ad2;
+  --color-fd-primary-foreground: #ffffff;
+  --color-fd-background: #fcfcfd;
+  --color-fd-foreground: #111113;
+  --color-fd-muted: #f4f4f5;
+  --color-fd-muted-foreground: #6f6f76;
   --color-fd-card: #ffffff;
-  --color-fd-card-foreground: #171b34;
-  --color-fd-border: #d9ddff;
-  --color-fd-secondary: #ecefff;
-  --color-fd-secondary-foreground: #171b34;
-  --color-fd-accent: #e2e6ff;
-  --color-fd-accent-foreground: #30397d;
-  --color-fd-ring: #606cec;
+  --color-fd-card-foreground: #111113;
+  --color-fd-border: #e4e4e7;
+  --color-fd-secondary: #f4f4f5;
+  --color-fd-secondary-foreground: #1f1f22;
+  --color-fd-accent: #eef1ff;
+  --color-fd-accent-foreground: #3f4baa;
+  --color-fd-ring: #5e6ad2;
   --sazito-code-line-height: 1.75;
-  --sazito-bg-glow-1: rgb(96 108 236 / 22%);
-  --sazito-bg-glow-2: rgb(122 132 255 / 14%);
-  --sazito-bg-glow-3: rgb(68 83 190 / 10%);
+  --sazito-bg-glow-1: rgb(94 106 210 / 12%);
+  --sazito-bg-glow-2: rgb(94 106 210 / 8%);
+  --sazito-bg-glow-3: rgb(94 106 210 / 6%);
 }
 
 .dark {
-  --color-fd-primary: #7883ff;
-  --color-fd-primary-foreground: #0d1230;
-  --color-fd-background: #060910;
-  --color-fd-foreground: #eff2ff;
-  --color-fd-muted: #0b1224;
-  --color-fd-muted-foreground: #a8b1d9;
-  --color-fd-card: #0a1022;
-  --color-fd-card-foreground: #eff2ff;
-  --color-fd-border: #172042;
-  --color-fd-secondary: #0f1831;
-  --color-fd-secondary-foreground: #eff2ff;
-  --color-fd-accent: #152043;
-  --color-fd-accent-foreground: #eff2ff;
-  --color-fd-ring: #7883ff;
-  --sazito-bg-glow-1: rgb(96 108 236 / 28%);
-  --sazito-bg-glow-2: rgb(122 132 255 / 16%);
-  --sazito-bg-glow-3: rgb(68 83 190 / 18%);
+  --color-fd-primary: #7d89e8;
+  --color-fd-primary-foreground: #0f1020;
+  --color-fd-background: #0f1012;
+  --color-fd-foreground: #f4f4f5;
+  --color-fd-muted: #18191d;
+  --color-fd-muted-foreground: #a1a1aa;
+  --color-fd-card: #131417;
+  --color-fd-card-foreground: #f4f4f5;
+  --color-fd-border: #27282d;
+  --color-fd-secondary: #1a1c20;
+  --color-fd-secondary-foreground: #e4e4e7;
+  --color-fd-accent: #202333;
+  --color-fd-accent-foreground: #d9ddff;
+  --color-fd-ring: #7d89e8;
+  --sazito-bg-glow-1: rgb(125 137 232 / 18%);
+  --sazito-bg-glow-2: rgb(125 137 232 / 11%);
+  --sazito-bg-glow-3: rgb(125 137 232 / 8%);
 }
 
 html,
@@ -49,7 +49,7 @@ body {
 }
 
 body {
-  font-family: var(--font-source-sans-3), sans-serif;
+  font-family: var(--font-inter), sans-serif;
   background:
     radial-gradient(circle at 10% -10%, var(--sazito-bg-glow-1), transparent 34%),
     radial-gradient(circle at 90% 8%, var(--sazito-bg-glow-2), transparent 30%),
@@ -64,7 +64,7 @@ h4,
 h5,
 h6,
 .home-title {
-  font-family: var(--font-sora), sans-serif;
+  font-family: var(--font-inter), sans-serif;
   letter-spacing: -0.02em;
 }
 

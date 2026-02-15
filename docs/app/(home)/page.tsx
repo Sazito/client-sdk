@@ -21,9 +21,9 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-16 md:px-10 md:py-24">
-      <section className="relative overflow-hidden rounded-3xl border border-fd-border bg-fd-card p-8 shadow-[0_18px_80px_-35px_rgba(96,108,236,0.45)] md:p-12">
-        <div className="pointer-events-none absolute -right-14 -top-14 h-44 w-44 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(127,136,255,0.75),rgba(127,136,255,0))]" />
-        <div className="pointer-events-none absolute -bottom-16 -left-8 h-52 w-52 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(96,108,236,0.35),rgba(96,108,236,0))]" />
+      <section className="relative overflow-hidden rounded-3xl border border-fd-border bg-fd-card p-8 shadow-[0_18px_80px_-35px_rgba(94,106,210,0.28)] md:p-12">
+        <div className="pointer-events-none absolute -right-14 -top-14 h-44 w-44 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(94,106,210,0.5),rgba(94,106,210,0))]" />
+        <div className="pointer-events-none absolute -bottom-16 -left-8 h-52 w-52 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(94,106,210,0.2),rgba(94,106,210,0))]" />
 
         <p className="mb-4 inline-flex rounded-full border border-fd-border bg-fd-muted px-4 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-fd-muted-foreground">
           Sazito Client SDK
@@ -56,7 +56,7 @@ export default function HomePage() {
           <Link
             key={item.href}
             href={item.href}
-            className="group rounded-2xl border border-fd-border bg-fd-card p-5 transition hover:-translate-y-0.5 hover:border-fd-primary/45 hover:shadow-[0_14px_40px_-30px_rgba(96,108,236,0.55)]"
+            className="group rounded-2xl border border-fd-border bg-fd-card p-5 transition hover:-translate-y-0.5 hover:border-fd-primary/45 hover:shadow-[0_14px_40px_-30px_rgba(94,106,210,0.35)]"
           >
             <h2 className="home-title text-lg font-semibold text-fd-foreground group-hover:text-fd-primary">
               {item.title}
