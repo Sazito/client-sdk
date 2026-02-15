@@ -1,6 +1,6 @@
 {
   "name": "@sazito/client-sdk",
-  "version": "1.0.0",
+  "version": "1.1.2",
   "description": "Official JavaScript/TypeScript SDK for Sazito e-commerce platform - Client Edition",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -56,6 +56,9 @@
     "url": "https://github.com/sazito/client-sdk/issues"
   },
   "homepage": "https://github.com/sazito/client-sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist",
     "README.md",

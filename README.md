@@ -12,7 +12,7 @@ This SDK is built for application developers who want a typed, framework-agnosti
 ## Package
 
 - Name: `@sazito/client-sdk`
-- Version: `1.0.0`
+- Version: see `package.json` / npm registry
 - License: `MIT`
 
 ## Requirements
