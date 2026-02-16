@@ -5,7 +5,9 @@ description: Analytics visit tracking APIs.
 
 ## Methods
 
-### `visits.track(inputOrOptions?, options?)`
+### Track
+
+Use: `visits.track(inputOrOptions?, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -14,7 +16,9 @@ description: Analytics visit tracking APIs.
 
 Returns: `SazitoResponse<VisitResponse>`.
 
-### `visits.trackProduct(productId, url, options?)`
+### Track Product
+
+Use: `visits.trackProduct(productId, url, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -22,7 +26,9 @@ Returns: `SazitoResponse<VisitResponse>`.
 | `url` | `string` | Required | Product URL (currently informational). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `visits.trackCategory(categoryId, url, options?)`
+### Track Category
+
+Use: `visits.trackCategory(categoryId, url, options?)`.
 
 Same as `trackProduct` but for category context.
 
@@ -39,37 +45,215 @@ Backend endpoint currently ignores payload body and only records visit call.
 
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { useEffect } from 'react';
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export function TrackProductVisit({ productId, path }: { productId: number; path: string }) {
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
+
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
+
   useEffect(() => {
-    client.visits.trackProduct(productId, path);
-  }, [productId, path]);
+    sazito.visits.track().then((res) => setData(res.data ?? null));
+  }, []);
 
-  return null;
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
-```ts
+```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function POST() {
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const res = await client.visits.track();
-  return Response.json(res);
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.visits.track();
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.visits.track().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.visits.track();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.visits.track();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.visits.track();
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### VisitInput
+
+Source: `src/api/visits.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `url` | `string` | Required |
+| `referrer` | `string` | Optional |
+| `userAgent` | `string` | Optional |
+| `entityType` | `'product' \| 'category' \| 'page'` | Optional |
+| `entityId` | `number` | Optional |
+
+#### VisitResponse
+
+Source: `src/api/visits.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `createdAt` | `string` | Required |
+{/* AUTO_FIELDS_END */}
+

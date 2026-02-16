@@ -49,16 +49,73 @@ bun add @sazito/client-sdk
 
 ## Create a client
 
+<Tabs items={["Next.js", "Nuxt", "React", "Vue"]}>
+
+<Tab value="Next.js">
+
 ```ts
+// app/lib/sazito-client.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
 export const sazito = createSazitoClient({
-  domain: 'mystore.sazito.com',
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
 });
 ```
 
+</Tab>
+
+<Tab value="Nuxt">
+
+```ts
+// plugins/sazito.client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({
+    domain: config.public.sazitoDomain,
+  });
+
+  return { provide: { sazito } };
+});
+```
+
+</Tab>
+
+<Tab value="React">
+
+```ts
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```ts
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+</Tab>
+
+</Tabs>
+
 <Callout type="info">
   Pass domain without protocol. Example: <code>mystore.sazito.com</code>.
+</Callout>
+
+<Callout type="warning">
+  Use your store subdomain on <code>sazito.com</code>. Do not pass <code>https://</code>, and do not pass root <code>sazito.com</code>.
 </Callout>
 
 ## Import entity APIs directly

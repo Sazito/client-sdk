@@ -5,29 +5,39 @@ description: Shop-wide info, features, checkout config, wallet config, and tajro
 
 ## Methods
 
-### `general.getInfo(options?)`
+### Get Info
+
+Use: `general.getInfo(options?)`.
 
 Returns normalized `SazitoResponse<GeneralInfo>`.
 
-### `general.getFeatures(options?)`
+### Get Features
+
+Use: `general.getFeatures(options?)`.
 
 Returns `SazitoResponse<ShopFeatures>`.
 
-### `general.getCheckoutConfig(options?)`
+### Get Checkout Config
+
+Use: `general.getCheckoutConfig(options?)`.
 
 Returns `SazitoResponse<CheckoutConfig>`.
 
-### `general.getWalletConfig(options?)`
+### Get Wallet Config
+
+Use: `general.getWalletConfig(options?)`.
 
 Returns `SazitoResponse<WalletConfig>`.
 
-### `general.getTajrobeConfig(options?)`
+### Get Tajrobe Config
+
+Use: `general.getTajrobeConfig(options?)`.
 
 Returns `SazitoResponse<TajrobeConfig>`.
 
 ## `GeneralInfo` key fields
 
-### `shop`
+### Shop
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -37,7 +47,7 @@ Returns `SazitoResponse<TajrobeConfig>`.
 | `shop.domain.url` | `string` | Required | Primary shop domain URL. |
 | `shop.logo.main` | `string` | Required | Main logo URL. |
 
-### `settings`
+### Settings
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -64,45 +74,375 @@ Returns `SazitoResponse<TajrobeConfig>`.
 
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { useEffect, useState } from 'react';
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export function ShopInfo() {
-  const [info, setInfo] = useState<any>(null);
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
+
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    client.general.getInfo().then((res) => {
-      if (!res.error) setInfo(res.data);
-    });
+    sazito.general.getInfo().then((res) => setData(res.data ?? null));
   }, []);
 
-  return <div>{info?.shop?.name}</div>;
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
 ```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export default async function ShopConfigPage() {
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const [info, checkout] = await Promise.all([
-    client.general.getInfo(),
-    client.general.getCheckoutConfig(),
-  ]);
-
-  return <pre>{JSON.stringify({ info: info.data, checkout: checkout.data }, null, 2)}</pre>;
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.general.getInfo();
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.general.getInfo().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.general.getInfo();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.general.getInfo();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.general.getInfo();
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### GeneralInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `shop` | `ShopInfo` | Required |
+| `settings` | `SettingsInfo` | Required |
+| `scripts` | `ScriptsInfo` | Required |
+
+#### ShopInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | `string` | Required |
+| `description` | `string` | Required |
+| `city` | `City \| null` | Required |
+| `domain` | `DomainInfo` | Required |
+| `logo` | `LogoInfo` | Required |
+| `social` | `SocialInfo` | Required |
+
+#### SettingsInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `checkout` | `CheckoutConfig` | Required |
+| `features` | `ShopFeatures` | Required |
+| `wallet` | `WalletConfig` | Required |
+| `tajrobe` | `TajrobeConfig` | Required |
+| `registerType` | `string` | Required |
+| `showProductStockNumber` | `boolean` | Required |
+
+#### ScriptsInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `enamad` | `EnamadInfo` | Required |
+| `google` | `GoogleInfo` | Required |
+
+#### CheckoutConfig
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `addToCartAlert` | `boolean` | Required |
+| `dynamicForm` | `boolean` | Required |
+| `emailOptional` | `boolean` | Required |
+| `preventRedirect` | `boolean` | Required |
+| `minBasket` | `{     enabled: boolean;     minAmount: number;   }` | Required |
+| `minBasket.enabled` | `boolean` | Required |
+| `minBasket.minAmount` | `number` | Required |
+| `miniCart` | `boolean` | Required |
+| `postalCodeMandatory` | `boolean` | Required |
+| `quickAddToCart` | `boolean` | Required |
+
+#### WalletConfig
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `enabled` | `boolean` | Required |
+| `useWithDiscount` | `boolean` | Required |
+| `minAmount` | `number` | Required |
+| `minAmountRequired` | `boolean` | Required |
+
+#### TajrobeConfig
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `enabled` | `boolean` | Required |
+
+#### ShopFeatures
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `[featureName: string]` | `boolean \| PremiumInfo \| undefined` | N/A |
+| `premium` | `PremiumInfo` | Optional |
+
+#### PremiumInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `enabled` | `boolean` | Required |
+| `nextRenewal` | `string` | Required |
+| `subscriptionSubtype` | `string` | Required |
+
+#### City
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `name` | `string` | Required |
+| `latitude` | `number` | Required |
+| `longitude` | `number` | Required |
+| `region` | `Region` | Required |
+
+#### Region
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `name` | `string` | Required |
+| `latitude` | `number` | Required |
+| `longitude` | `number` | Required |
+
+#### GoogleInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `analyticsCode` | `GoogleAnalyticsCode` | Required |
+| `analyticsId` | `GoogleAnalyticsCode` | Required |
+| `tagManager` | `GoogleAnalyticsCode` | Required |
+
+#### GoogleAnalyticsCode
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `code` | `string` | Required |
+| `enabled` | `boolean` | Required |
+
+#### LogoInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `favicon` | `string` | Required |
+| `main` | `string` | Required |
+
+#### SocialInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `facebook` | `string` | Required |
+| `instagram` | `string` | Required |
+| `phone1` | `string` | Required |
+| `phone2` | `string` | Required |
+| `telegram` | `string` | Required |
+| `twitter` | `string` | Required |
+| `whatsapp` | `string` | Required |
+
+#### DomainInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `url` | `string` | Required |
+
+#### EnamadInfo
+
+Source: `src/api/general.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `code` | `string` | Required |
+{/* AUTO_FIELDS_END */}
+

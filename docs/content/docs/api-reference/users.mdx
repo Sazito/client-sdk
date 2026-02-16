@@ -5,7 +5,9 @@ description: Authentication, profile, phone, password, and merge operations.
 
 ## Methods
 
-### `users.login(input, options?)`
+### Login
+
+Use: `users.login(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -14,26 +16,34 @@ description: Authentication, profile, phone, password, and merge operations.
 
 Returns: `SazitoResponse<{ jwt: string; user?: User }>`.
 
-### `users.requestMobileOTP(input, options?)`
+### Request Mobile OTP
+
+Use: `users.requestMobileOTP(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `input.mobilePhone` | `string` | Required | Mobile number for OTP request. |
 
-### `users.verifyMobileOTP(input, options?)`
+### Verify Mobile OTP
+
+Use: `users.verifyMobileOTP(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `input.mobilePhone` | `string` | Required | Mobile number. |
 | `input.token` | `string` | Required | OTP token. |
 
-### `users.requestEmailLogin(input, options?)`
+### Request Email Login
+
+Use: `users.requestEmailLogin(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `input.email` | `string` | Required | Email for passwordless login request. |
 
-### `users.register(input, options?)`
+### Register
+
+Use: `users.register(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -44,37 +54,49 @@ Returns: `SazitoResponse<{ jwt: string; user?: User }>`.
 | `input.lastName` | `string` | Optional | Last name. |
 | `input.mobilePhone` | `string` | Optional | Mobile phone. |
 
-### `users.getCurrentUser(options?)`
+### Get Current User
+
+Use: `users.getCurrentUser(options?)`.
 
 Returns current authenticated user.
 
-### `users.updateProfile(userId, data, options?)`
+### Update Profile
+
+Use: `users.updateProfile(userId, data, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `userId` | `number` | Required | User ID. |
 | `data` | `UpdateProfileInput` | Required | Profile fields to update. |
 
-### `users.requestMobilePhoneUpdate(input, options?)`
+### Request Mobile Phone Update
+
+Use: `users.requestMobilePhoneUpdate(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `input.mobilePhone` | `string` | Required | New mobile phone. |
 
-### `users.verifyMobilePhoneUpdate(input, options?)`
+### Verify Mobile Phone Update
+
+Use: `users.verifyMobilePhoneUpdate(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `input.mobilePhone` | `string` | Required | New mobile phone. |
 | `input.token` | `string` | Required | Verification token. |
 
-### `users.forgotPassword(input, options?)`
+### Forgot Password
+
+Use: `users.forgotPassword(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `input.email` | `string` | Required | Email to send reset link/token. |
 
-### `users.revivePassword(input, options?)`
+### Revive Password
+
+Use: `users.revivePassword(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -82,7 +104,9 @@ Returns current authenticated user.
 | `input.password` | `string` | Required | New password. |
 | `input.passwordConfirmation` | `string` | Required | Password confirmation. |
 
-### `users.mergeUser(options?)`
+### Merge User
+
+Use: `users.mergeUser(options?)`.
 
 Merges guest data into current authenticated user.
 
@@ -99,40 +123,311 @@ Merges guest data into current authenticated user.
 
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function login(email: string, password: string) {
-  const res = await client.users.login({ email, password });
-  if (res.data?.jwt) client.setAuthToken(res.data.jwt);
-  return res;
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
+
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.users.getCurrentUser().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
-```ts
-import { cookies } from 'next/headers';
+```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function GET() {
-  const token = (await cookies()).get('user_id_token')?.value;
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-
-  const res = await client.users.getCurrentUser({
-    headers: token ? { Authorization: token } : undefined,
-  });
-
-  return Response.json(res);
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.users.getCurrentUser();
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.users.getCurrentUser().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.users.getCurrentUser();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.users.getCurrentUser();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.users.getCurrentUser();
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### LoginInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `email` | `string` | Required |
+| `password` | `string` | Required |
+
+#### RegisterInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `email` | `string` | Required |
+| `password` | `string` | Required |
+| `passwordConfirmation` | `string` | Required |
+| `firstName` | `string` | Optional |
+| `lastName` | `string` | Optional |
+| `mobilePhone` | `string` | Optional |
+
+#### MobileLoginInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `mobilePhone` | `string` | Required |
+
+#### VerifyMobileInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `mobilePhone` | `string` | Required |
+| `token` | `string` | Required |
+
+#### EmailLoginRequestInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `email` | `string` | Required |
+
+#### ForgotPasswordInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `email` | `string` | Required |
+
+#### ResetPasswordInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `forgotPasswordToken` | `string` | Required |
+| `password` | `string` | Required |
+| `passwordConfirmation` | `string` | Required |
+
+#### UpdateProfileInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `firstName` | `string` | Optional |
+| `lastName` | `string` | Optional |
+| `email` | `string` | Optional |
+| `password` | `string` | Optional |
+| `passwordConfirmation` | `string` | Optional |
+| `birthDate` | `string` | Optional |
+
+#### UpdateMobilePhoneRequestInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `mobilePhone` | `string` | Required |
+
+#### UpdateMobilePhoneVerificationInput
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `mobilePhone` | `string` | Required |
+| `token` | `string` | Required |
+
+#### LoginResponse
+
+Source: `src/api/users.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `jwt` | `string` | Required |
+| `user` | `User` | Optional |
+
+#### User
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `email` | `string` | Optional |
+| `mobilePhone` | `string` | Optional |
+| `firstName` | `string` | Optional |
+| `lastName` | `string` | Optional |
+| `birthDate` | `string` | Optional |
+{/* AUTO_FIELDS_END */}
+

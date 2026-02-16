@@ -1,5 +1,5 @@
 /**
- * Booking API (Event scheduling and appointments)
+ * Booking API (Scheduler and appointments)
  */
 
 import { HttpClient } from '../core/http-client';
@@ -8,56 +8,127 @@ import {
   PaginatedResponse,
   RequestOptions
 } from '../types';
-import { SCHEDULER_EVENTS_API, SCHEDULER_BOOKINGS_API } from '../constants/endpoints';
+import {
+  SCHEDULER_EVENTS_API,
+  SCHEDULER_BOOKINGS_API,
+  SCHEDULER_AVAILABILITIES_API
+} from '../constants/endpoints';
 
+/**
+ * Legacy event shape returned by some scheduler list endpoints.
+ */
 export interface Event {
   id: number;
   title: string;
   description?: string;
-  start_time: string;
-  end_time: string;
-  capacity: number;
-  booked_count: number;
-  available_slots: number;
+  startTime?: string;
+  endTime?: string;
+  capacity?: number;
+  bookedCount?: number;
+  availableSlots?: number;
   price?: number;
   location?: string;
-  created_at: string;
+  createdAt?: string;
+}
+
+/**
+ * Event details used in product booking flow.
+ */
+export interface SchedulerEvent {
+  entityId: number;
+  title: string;
+  description: string;
+  durationsMinute: number[];
+}
+
+export interface BookingTimeSlot {
+  startTimeLocal: string;   // HH:mm
+  endTimeLocal: string;     // HH:mm
+  isAvailable: boolean;
+  remainingCapacity: number;
+}
+
+export interface BookingAvailableDay {
+  date: string;             // YYYY-MM-DD
+  timeSlots: BookingTimeSlot[];
+}
+
+export interface EventAvailabilitiesResponse {
+  availableDays: BookingAvailableDay[];
+}
+
+export interface EventAvailabilityFilters {
+  eventEntityId: number;
+  duration: number;
+  fromDate: string;
+  toDate: string;
+  timezone?: string;
+}
+
+export interface CreateBookingInput {
+  eventEntityId?: number;
+  event_entity_id?: number;   // legacy support
+  timezone: string;
+  attendeeName?: string;
+  attendee_name?: string;     // legacy support
+  attendeeEmail?: string;
+  attendee_email?: string;    // legacy support
+  attendeePhone?: string;
+  attendee_phone?: string;    // legacy support
 }
 
 export interface Booking {
   id: number;
-  event_id: number;
+  eventId: number;
   event: Event;
-  user_id?: number;
-  attendee_name: string;
-  attendee_email?: string;
-  attendee_phone?: string;
+  userId?: number;
+  attendeeName: string;
+  attendeeEmail?: string;
+  attendeePhone?: string;
   status: 'pending' | 'confirmed' | 'cancelled';
-  booking_time: string;
-  created_at: string;
-}
-
-export interface CreateBookingInput {
-  event_entity_id: number;
-  timezone: string;
-  attendee_name: string;
-  attendee_email?: string;
-  attendee_phone?: string;
+  bookingTime: string;
+  createdAt: string;
 }
 
 export interface EventFilters {
-  start_date?: string;
-  end_date?: string;
-  available_only?: boolean;
+  startDate?: string;
+  start_date?: string;        // legacy support
+  endDate?: string;
+  end_date?: string;          // legacy support
+  availableOnly?: boolean;
+  available_only?: boolean;   // legacy support
   page?: number;
-  page_size?: number;
+  pageSize?: number;
+  page_size?: number;         // legacy support
 }
 
 export class BookingAPI {
   constructor(private http: HttpClient) {}
 
+  private transformEventFilters(filters?: EventFilters): Record<string, any> {
+    if (!filters) return {};
+
+    const params: Record<string, any> = {};
+
+    if (filters.startDate !== undefined || filters.start_date !== undefined) {
+      params.start_date = filters.startDate ?? filters.start_date;
+    }
+    if (filters.endDate !== undefined || filters.end_date !== undefined) {
+      params.end_date = filters.endDate ?? filters.end_date;
+    }
+    if (filters.availableOnly !== undefined || filters.available_only !== undefined) {
+      params.available_only = filters.availableOnly ?? filters.available_only;
+    }
+    if (filters.page !== undefined) params.page = filters.page;
+    if (filters.pageSize !== undefined || filters.page_size !== undefined) {
+      params.page_size = filters.pageSize ?? filters.page_size;
+    }
+
+    return params;
+  }
+
   /**
-   * List available events
+   * List available events (legacy scheduler listing).
    */
   async listEvents(
     filters?: EventFilters,
@@ -65,22 +136,55 @@ export class BookingAPI {
   ): Promise<SazitoResponse<PaginatedResponse<Event>>> {
     return this.http.get<PaginatedResponse<Event>>(SCHEDULER_EVENTS_API, {
       ...options,
-      params: filters
+      params: this.transformEventFilters(filters)
     });
   }
 
   /**
-   * Get single event
+   * Get event details used for booking (durations, title, description).
    */
   async getEvent(
-    eventId: number,
+    entityId: number,
     options?: RequestOptions
-  ): Promise<SazitoResponse<Event>> {
-    return this.http.get<Event>(`${SCHEDULER_EVENTS_API}/${eventId}`, options);
+  ): Promise<SazitoResponse<SchedulerEvent>> {
+    const response = await this.http.get<any>(`${SCHEDULER_EVENTS_API}/${entityId}`, options);
+
+    if (response.data) {
+      const eventData = response.data.event || response.data;
+      return { data: eventData as SchedulerEvent };
+    }
+
+    return response;
   }
 
   /**
-   * Create booking
+   * Get available days and time slots for an event.
+   */
+  async getEventAvailabilities(
+    filters: EventAvailabilityFilters,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<EventAvailabilitiesResponse>> {
+    const response = await this.http.get<any>(SCHEDULER_AVAILABILITIES_API, {
+      ...options,
+      params: {
+        eventEntityId: filters.eventEntityId,
+        duration: filters.duration,
+        fromDate: filters.fromDate,
+        toDate: filters.toDate,
+        timezone: filters.timezone
+      }
+    });
+
+    if (response.data) {
+      const availableDays = response.data.availableDays || response.data.data?.availableDays || [];
+      return { data: { availableDays } };
+    }
+
+    return response;
+  }
+
+  /**
+   * Create booking (legacy endpoint kept for backward compatibility).
    */
   async createBooking(
     input: CreateBookingInput,
@@ -90,7 +194,7 @@ export class BookingAPI {
   }
 
   /**
-   * List user bookings (requires authentication)
+   * List user bookings (requires authentication).
    */
   async listBookings(
     options?: RequestOptions
@@ -102,7 +206,7 @@ export class BookingAPI {
   }
 
   /**
-   * Cancel booking
+   * Cancel booking.
    */
   async cancelBooking(
     bookingId: number,

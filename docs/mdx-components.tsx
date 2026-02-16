@@ -5,6 +5,7 @@ import {
   CodeBlockTabsList,
   CodeBlockTabsTrigger,
 } from 'fumadocs-ui/components/codeblock';
+import { File, Files, Folder } from 'fumadocs-ui/components/files';
 import type { MDXComponents } from 'mdx/types';
 import type { ReactNode } from 'react';
 
@@ -48,6 +49,9 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ...defaultMdxComponents,
     Tabs,
     Tab,
+    Files,
+    Folder,
+    File,
     ...components,
   };
 }

@@ -2,9 +2,10 @@
   "title": "Guides",
   "pages": [
     "guest-checkout",
+    "nextjs",
+    "nuxt",
     "react",
     "vue",
-    "nextjs",
     "production-patterns",
     "troubleshooting"
   ]

@@ -14,13 +14,13 @@ const FIELD_NAME_MAP: Record<string, string> = {
   // Price fields
   single_item_price: 'unitPrice',
   total_items_price: 'lineTotal',
-  items_total_raw_price: 'totalOriginalPrice',
-  items_discount: 'totalDiscount',
-  customer_profit: 'savings',
-  customer_profit_percentage: 'savingsPercentage',
+  items_total_raw_price: 'itemsTotalRawPrice',
+  items_discount: 'itemsDiscount',
+  customer_profit: 'customerProfit',
+  customer_profit_percentage: 'customerProfitPercentage',
   total_amount: 'totalAmount',
-  net_total: 'subtotal',
-  gross_total: 'total',
+  net_total: 'netTotal',
+  gross_total: 'grossTotal',
   final_total: 'finalTotal',
   discount_total: 'discountTotal',
   shipping_total: 'shippingTotal',
@@ -38,7 +38,7 @@ const FIELD_NAME_MAP: Record<string, string> = {
   mobile_phone: 'mobilePhone',
   phone_number: 'phoneNumber',
   postal_code: 'postalCode',
-  user_comment: 'comment',
+  user_comment: 'userComment',
 
   // Product fields
   product_id: 'productId',
@@ -52,7 +52,6 @@ const FIELD_NAME_MAP: Record<string, string> = {
   product_type: 'productType',
 
   // CMS fields
-  title: 'name',  // CMS pages use 'title' field which we map to 'name'
   short_description: 'shortDescription',
   stock_quantity: 'stockQuantity',
   stock_number: 'stockQuantity',
@@ -75,6 +74,7 @@ const FIELD_NAME_MAP: Record<string, string> = {
   // Cart fields
   cart_products: 'items',
   cart_product_id: 'cartProductId',
+  min_basket_limit_violated: 'minBasketLimitViolated',
 
   // Invoice fields
   invoice_items: 'items',
@@ -94,7 +94,8 @@ const FIELD_NAME_MAP: Record<string, string> = {
 
   // Payment fields
   payment_type: 'paymentType',
-  payment_types: 'methods',
+  payment_types: 'paymentTypes',
+  payment_amount: 'amount',
   reference_code: 'code',
   is_default: 'isDefault',
 
@@ -164,9 +165,13 @@ const FIELD_NAME_MAP: Record<string, string> = {
 
   // Coupon fields
   coupon: 'coupon',
+  discount_usages: 'discountUsages',
 
   // Coordinates fields
   user_set_coordinates_before: 'userSetCoordinatesBefore',
+
+  // Payment action fields
+  show_order: 'showOrder',
 
   // Image fields
   alt: 'alt',
@@ -222,11 +227,19 @@ const FIELD_NAME_MAP: Record<string, string> = {
 /**
  * Reverse mapping for request transformation
  */
+const FIELD_VALUE_COUNTS: Record<string, number> = Object.values(FIELD_NAME_MAP).reduce(
+  (acc, value) => {
+    acc[value] = (acc[value] || 0) + 1;
+    return acc;
+  },
+  {} as Record<string, number>
+);
+
 const REVERSE_FIELD_NAME_MAP: Record<string, string> = Object.entries(FIELD_NAME_MAP).reduce(
   (acc, [key, value]) => {
-    // Only add to reverse map if the value doesn't already exist
-    // This prevents conflicts (e.g., both cart_products and invoice_items → items)
-    if (!acc[value]) {
+    // Only include values that map to exactly one backend key.
+    // Ambiguous values (e.g., identifier, items, name) fall back to camelToSnake.
+    if (FIELD_VALUE_COUNTS[value] === 1) {
       acc[value] = key;
     }
     return acc;
@@ -716,26 +729,23 @@ function normalizeGeneralTajrobe(tajrobe: any): any {
  */
 export function transformCartResponse(response: any): any {
   const cart = transformApiResponse(response);
-
-  // Additional cart-specific transformations
-  if (cart.items && Array.isArray(cart.items)) {
-    cart.items = cart.items.map((item: any) => ({
-      ...item,
-      // Flatten product variant structure
-      product: {
-        variantId: item.variant?.id || item.product?.variantId,
-        productId: item.variant?.product?.id || item.product?.productId,
-        name: item.name || item.product?.name,
-        image: item.image || item.product?.image,
-        attributes: item.attributes || item.product?.attributes || [],
-        hasMaxOrder: item.product?.hasMaxOrder || false,
-        maxOrderQuantity: item.product?.maxOrderQuantity,
-        minOrderQuantity: item.product?.minOrderQuantity
-      }
-    }));
+  if (!isPlainObject(cart)) {
+    return cart;
   }
 
-  return cart;
+  const items = Array.isArray(cart.items)
+    ? cart.items.map((item: any) => transformCartItem(item))
+    : [];
+
+  return {
+    ...cart,
+    items,
+    netTotal: toNumber(cart.netTotal) ?? 0,
+    grossTotal: toNumber(cart.grossTotal),
+    needsShipping: Boolean(cart.needsShipping),
+    minBasketLimitViolated: Boolean(cart.minBasketLimitViolated),
+    deleteCoupon: cart.deleteCoupon === undefined ? undefined : Boolean(cart.deleteCoupon)
+  };
 }
 
 /**
@@ -744,17 +754,131 @@ export function transformCartResponse(response: any): any {
  */
 export function transformInvoiceResponse(response: any): any {
   const invoice = transformApiResponse(response);
-
-  // Additional invoice-specific transformations
-  if (invoice.items && Array.isArray(invoice.items)) {
-    invoice.items = invoice.items.map((item: any) => ({
-      ...item,
-      // Calculate discount from original price if not present
-      discount: item.discount || (item.originalPrice ? item.originalPrice - item.unitPrice : 0)
-    }));
+  if (!isPlainObject(invoice)) {
+    return invoice;
   }
 
-  return invoice;
+  const items = Array.isArray(invoice.items)
+    ? invoice.items.map((item: any) => transformInvoiceItem(item))
+    : [];
+
+  const discountCode = invoice.discountUsages?.[0]?.discountCode?.code;
+
+  return {
+    ...invoice,
+    items,
+    shippingItems: Array.isArray(invoice.shippingItems)
+      ? invoice.shippingItems.map((item: any) => transformInvoiceShippingItem(item))
+      : [],
+    discountUsages: Array.isArray(invoice.discountUsages) ? invoice.discountUsages : [],
+    netTotal: toNumber(invoice.netTotal) ?? 0,
+    finalTotal: toNumber(invoice.finalTotal) ?? 0,
+    vat: toNumber(invoice.vat) ?? 0,
+    vatPercent: toNumber(invoice.vatPercent) ?? 0,
+    itemsDiscount: toNumber(invoice.itemsDiscount) ?? 0,
+    discountTotal: toNumber(invoice.discountTotal) ?? 0,
+    customerProfit: toNumber(invoice.customerProfit) ?? 0,
+    customerProfitPercentage: toNumber(invoice.customerProfitPercentage) ?? 0,
+    itemsTotalRawPrice: toNumber(invoice.itemsTotalRawPrice) ?? 0,
+    couponTotal: toNumber(invoice.couponTotal) ?? 0,
+    shippingTotal: toNumber(invoice.shippingTotal) ?? 0,
+    creditTotal: toNumber(invoice.creditTotal) ?? 0,
+    needsShipping: Boolean(invoice.needsShipping),
+    userComment: typeof invoice.userComment === 'string' ? invoice.userComment : undefined,
+    discountCode
+  };
+}
+
+function transformInvoiceShippingItem(item: any): any {
+  if (!isPlainObject(item)) {
+    return item;
+  }
+
+  return {
+    invoiceItemIds: Array.isArray(item.invoiceItemIds)
+      ? item.invoiceItemIds.map((id: any) => toNumber(id) ?? 0)
+      : [],
+    rate: normalizeShippingRate(item.rate)
+  };
+}
+
+function toNumber(value: any): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function transformCartItem(item: any): any {
+  if (!isPlainObject(item)) {
+    return item;
+  }
+
+  const product = transformCheckoutProduct(item);
+  const productVariantId = toNumber(item.productVariantId ?? product.variantId) ?? product.variantId;
+
+  return {
+    id: toNumber(item.id) ?? 0,
+    productVariantId,
+    quantity: toNumber(item.quantity) ?? 0,
+    unitPrice: toNumber(item.unitPrice) ?? 0,
+    lineTotal: toNumber(item.lineTotal) ?? 0,
+    product,
+    formAttributes: item.formAttributes,
+    formFields: item.formFields,
+    bookingAttributes: item.bookingAttributes
+  };
+}
+
+function transformInvoiceItem(item: any): any {
+  if (!isPlainObject(item)) {
+    return item;
+  }
+
+  const product = transformCheckoutProduct(item);
+  const productVariantId = toNumber(item.productVariantId ?? product.variantId) ?? product.variantId;
+
+  return {
+    id: toNumber(item.id) ?? 0,
+    productVariantId,
+    name: item.name || product.name,
+    quantity: toNumber(item.quantity) ?? 0,
+    unitPrice: toNumber(item.unitPrice) ?? 0,
+    lineTotal: toNumber(item.lineTotal) ?? 0,
+    rawPrice: toNumber(item.rawPrice ?? item.originalPrice) ?? 0,
+    customerProfit: toNumber(item.customerProfit) ?? 0,
+    image: item.image || product.image,
+    product,
+    commercialFiles: item.commercialFiles,
+    formAttributes: item.formAttributes,
+    bookingAttributes: item.bookingAttributes,
+    formFields: item.formFields
+  };
+}
+
+function transformCheckoutProduct(source: any): any {
+  const variant = isPlainObject(source.variant) ? source.variant : undefined;
+  const variantProduct = isPlainObject(variant?.product) ? variant.product : undefined;
+  const product = isPlainObject(source.product) ? source.product : undefined;
+
+  const variantId = toNumber(product?.variantId ?? variant?.id ?? source.productVariantId ?? source.variantId) ?? 0;
+  const attributes = Array.isArray(product?.attributes)
+    ? product.attributes
+    : Array.isArray(variant?.attributes)
+      ? variant.attributes
+      : [];
+
+  return {
+    variantId,
+    productId: toNumber(product?.productId ?? variantProduct?.id),
+    name: product?.name || source.name || '',
+    url: product?.url || variantProduct?.url,
+    image: product?.image || source.image,
+    attributes,
+    productType: product?.productType || variantProduct?.productType,
+    hasMaxOrder: product?.hasMaxOrder ?? variant?.hasMaxOrder,
+    maxOrderQuantity: toNumber(product?.maxOrderQuantity ?? variant?.maxOrderQuantity),
+    minOrderQuantity: toNumber(product?.minOrderQuantity ?? variant?.minOrderQuantity)
+  };
 }
 
 /**
@@ -923,12 +1047,13 @@ export function transformAddToCartInput(variantId: number, quantity: number, for
  * Transform create cart input for API request
  */
 export function transformCreateCartInput(input: any): any {
+  const variants = input.variants || input.productVariants || [];
   const transformed: any = {
-    product_variants: input.productVariants?.map((variant: any) => ({
+    product_variants: variants.map((variant: any) => ({
       id: variant.id || variant.variantId,
       count: variant.count || variant.quantity,
       form_attributes: variant.formAttributes ? transformRequestKeys(variant.formAttributes) : undefined
-    })) || []
+    }))
   };
 
   if (input.coupon) {
@@ -962,15 +1087,79 @@ export function extractField<T = any>(response: any, fieldPath: string): T | und
  */
 export function transformPaymentMethodsResponse(response: any): any {
   const result = transformApiResponse(response);
+  if (!isPlainObject(result)) {
+    return [];
+  }
 
-  // Rename paymentTypes to methods if it exists
-  if (result.paymentTypes) {
+  const paymentTypes = Array.isArray(result.paymentTypes)
+    ? result.paymentTypes
+    : Array.isArray((result as any).methods)
+      ? (result as any).methods
+      : [];
+
+  return paymentTypes.map((method: any) => ({
+    id: toNumber(method.id) ?? 0,
+    code: method.code,
+    title: method.title || method.name || '',
+    isDefault: Boolean(method.isDefault)
+  }));
+}
+
+/**
+ * Transform applicable shipping methods response
+ */
+export function transformApplicableShippingMethodsResponse(response: any): any {
+  const result = transformApiResponse(response);
+  if (!isPlainObject(result)) {
     return {
-      methods: result.paymentTypes
+      shippingMethods: [],
+      groupedShippingRates: {},
+      itemsShippingRate: []
     };
   }
 
-  return result;
+  const groupedShippingRates = isPlainObject(result.groupedShippingRates)
+    ? Object.entries(result.groupedShippingRates).reduce((acc, [key, rates]) => {
+      acc[key] = Array.isArray(rates) ? rates.map((rate: any) => normalizeShippingRate(rate)) : [];
+      return acc;
+    }, {} as Record<string, any[]>)
+    : {};
+
+  return {
+    shippingMethods: Array.isArray(result.shippingMethods)
+      ? result.shippingMethods.map((method: any) => ({
+        id: toNumber(method.id) ?? 0,
+        name: method.name || '',
+        type: method.type || ''
+      }))
+      : [],
+    groupedShippingRates,
+    itemsShippingRate: Array.isArray(result.itemsShippingRate)
+      ? result.itemsShippingRate.map((entry: any) => ({
+        invoiceItemId: toNumber(entry.invoiceItemId) ?? 0,
+        shippingRate: normalizeShippingRate(entry.shippingRate)
+      }))
+      : []
+  };
+}
+
+function normalizeShippingRate(rate: any): any {
+  if (!isPlainObject(rate)) {
+    return {
+      id: 0,
+      name: '',
+      price: 0
+    };
+  }
+
+  return {
+    id: toNumber(rate.id) ?? 0,
+    name: rate.name || '',
+    price: toNumber(rate.price) ?? 0,
+    icon: rate.icon,
+    color: rate.color,
+    type: rate.type
+  };
 }
 
 /**

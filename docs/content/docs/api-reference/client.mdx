@@ -26,33 +26,47 @@ const client = createSazitoClient({
 
 ## Lifecycle methods
 
-### `setAuthToken(token: string): void`
+### Set Auth Token
+
+Use: `setAuthToken(token: string): void`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `token` | `string` | Required | Raw JWT token stored in browser storage. |
 
-### `getAuthToken(): string | null`
+### Get Auth Token
+
+Use: `getAuthToken(): string | null`.
 
 Returns currently stored token.
 
-### `clearAuth(): void`
+### Clear Auth
+
+Use: `clearAuth(): void`.
 
 Removes persisted auth token.
 
-### `isAuthenticated(): boolean`
+### Is Authenticated
+
+Use: `isAuthenticated(): boolean`.
 
 Returns true when token exists.
 
-### `clearCache(): void`
+### Clear Cache
+
+Use: `clearCache(): void`.
 
 Clears SDK cache.
 
-### `clearCredentials(): void`
+### Clear Credentials
+
+Use: `clearCredentials(): void`.
 
 Clears guest checkout credentials.
 
-### `clearAll(): void`
+### Clear All
+
+Use: `clearAll(): void`.
 
 Clears auth token, cache, and credentials.
 
@@ -73,6 +87,8 @@ Clears auth token, cache, and credentials.
 - `images`
 - `visits`
 - `booking`
+- `dynamicForms`
+- `regions`
 - `entityRoutes`
 - `menu`
 - `general`
@@ -93,4 +109,51 @@ const cartApi = cart({ domain: 'mystore.sazito.com' });
 All available aliases:
 `products`, `categories`, `cart`, `orders`, `invoices`, `shipping`,
 `payments`, `users`, `search`, `feedbacks`, `wallet`, `cms`, `images`,
-`visits`, `booking`, `entityRoutes`, `menu`, `general`.
+`visits`, `booking`, `dynamicForms`, `regions`, `entityRoutes`, `menu`, `general`.
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### SazitoConfig
+
+Source: `src/core/config.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `domain` | `string` | Required |
+| `timeout` | `number` | Optional |
+| `retry` | `RetryConfig` | Optional |
+| `cache` | `{     products?: CacheConfig;     categories?: CacheConfig;     cart?: CacheConfig;     orders?: CacheConfig;     search?: CacheConfig;     cms?: CacheConfig;     tags?: CacheConfig;     entityRoutes?: CacheConfig;   }` | Optional |
+| `cache.products` | `CacheConfig` | Optional |
+| `cache.categories` | `CacheConfig` | Optional |
+| `cache.cart` | `CacheConfig` | Optional |
+| `cache.orders` | `CacheConfig` | Optional |
+| `cache.search` | `CacheConfig` | Optional |
+| `cache.cms` | `CacheConfig` | Optional |
+| `cache.tags` | `CacheConfig` | Optional |
+| `cache.entityRoutes` | `CacheConfig` | Optional |
+| `customFetchApi` | `typeof fetch` | Optional |
+| `debug` | `boolean` | Optional |
+
+#### RetryConfig
+
+Source: `src/core/config.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `enabled` | `boolean` | Required |
+| `retries` | `number` | Required |
+| `retryDelay` | `number` | Required |
+
+#### CacheConfig
+
+Source: `src/core/config.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `enabled` | `boolean` | Required |
+| `ttl` | `number` | Optional |
+{/* AUTO_FIELDS_END */}
+

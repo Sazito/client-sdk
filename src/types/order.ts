@@ -2,41 +2,28 @@
  * Order-related types
  */
 
-import { InvoiceItem, ShippingAddress } from './invoice';
-import { PaymentMethod } from './payment';
-
-export type OrderStatus =
-  | 'PENDING'
-  | 'PROCESSING'
-  | 'SHIPPED'
-  | 'DELIVERED'
-  | 'CANCELLED'
-  | 'REFUNDED';
+import { InvoiceItem } from './invoice';
 
 export interface Order {
   id: number;
   orderNumber: string;
-  status: OrderStatus;
-  items: InvoiceItem[];
-  shippingAddress?: ShippingAddress;
-  paymentMethod?: PaymentMethod;
+  orderIdentifier: string;
+  invoice: {
+    shippingItems: any[];
+    invoiceItems: InvoiceItem[];
+  };
+}
 
-  // Financial details
-  subtotal: number;
-  discountTotal: number;
-  shippingTotal: number;
-  taxTotal: number;
-  total: number;
-
-  trackingNumber?: string;
-  notes?: string;
-
-  createdAt: string;
-  updatedAt: string;
+export interface OrdersListResponse {
+  orders: Order[];
+  totalCount: number;
+  totalCountRaw: number;
+  totalNotSeen: number;
+  totalSeen: number;
 }
 
 export interface OrderFilters {
-  status?: OrderStatus;
-  page?: number;
+  pageNumber?: number;
   pageSize?: number;
+  filters?: Array<{ name: string; value: any }>;
 }

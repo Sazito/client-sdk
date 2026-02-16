@@ -5,7 +5,9 @@ description: Resolve URL paths to concrete storefront entities.
 
 ## Method
 
-### `entityRoutes.resolve(urlPart, options?)`
+### Resolve
+
+Use: `entityRoutes.resolve(urlPart, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -23,45 +25,272 @@ Returns: `SazitoResponse<EntityRouteResponse>`.
 | `url` | `string` | Required | Resolved URL path. |
 | `entity` | `Product \| ProductCategory \| CmsPage \| BlogPage` | Optional | Present when `entityType` is not `unknown`. |
 
-## Example
-
-```ts
-const route = await client.entityRoutes.resolve('/product/running-shoe-pro');
-
-if (route.data?.entityType === 'product') {
-  console.log(route.data.entity?.name);
-}
-```
-
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function resolvePath(pathname: string) {
-  return client.entityRoutes.resolve(pathname);
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
+
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.entityRoutes.resolve('/product/sample-product').then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
-```ts
+```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function GET(request: Request) {
-  const pathname = new URL(request.url).searchParams.get('path') || '/';
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const res = await client.entityRoutes.resolve(pathname);
-  return Response.json(res);
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.entityRoutes.resolve('/product/sample-product');
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.entityRoutes.resolve('/product/sample-product').then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.entityRoutes.resolve('/product/sample-product');
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.entityRoutes.resolve('/product/sample-product');
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.entityRoutes.resolve('/product/sample-product');
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### EntityRoute
+
+Source: `src/types/entity-route.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entityType` | `EntityType` | Required |
+| `entityId` | `number` | Required |
+| `url` | `string` | Required |
+
+#### ProductEntityRoute
+
+Source: `src/types/entity-route.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entityType` | `EntityType` | Required |
+| `entityId` | `number` | Required |
+| `url` | `string` | Required |
+| `entityType` | `'product'` | Required |
+| `entity` | `Product` | Required |
+
+#### ProductCategoryEntityRoute
+
+Source: `src/types/entity-route.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entityType` | `EntityType` | Required |
+| `entityId` | `number` | Required |
+| `url` | `string` | Required |
+| `entityType` | `'product_category'` | Required |
+| `entity` | `ProductCategory` | Required |
+
+#### CMSPageEntityRoute
+
+Source: `src/types/entity-route.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entityType` | `EntityType` | Required |
+| `entityId` | `number` | Required |
+| `url` | `string` | Required |
+| `entityType` | `'cms_page'` | Required |
+| `entity` | `CmsPage` | Required |
+
+#### BlogPageEntityRoute
+
+Source: `src/types/entity-route.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entityType` | `EntityType` | Required |
+| `entityId` | `number` | Required |
+| `url` | `string` | Required |
+| `entityType` | `'blog_page'` | Required |
+| `entity` | `BlogPage` | Required |
+
+#### UnknownEntityRoute
+
+Source: `src/types/entity-route.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entityType` | `EntityType` | Required |
+| `entityId` | `number` | Required |
+| `url` | `string` | Required |
+| `entityType` | `'unknown'` | Required |
+| `entity` | `never` | Optional |
+
+#### EntityRouteResponse
+
+Source: `src/types/entity-route.ts`
+
+Type: `\| ProductEntityRoute   \| ProductCategoryEntityRoute   \| CMSPageEntityRoute   \| BlogPageEntityRoute   \| UnknownEntityRoute`
+{/* AUTO_FIELDS_END */}
+

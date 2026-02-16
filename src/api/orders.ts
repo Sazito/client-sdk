@@ -6,8 +6,8 @@
 import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
-  PaginatedResponse,
   Order,
+  OrdersListResponse,
   OrderFilters,
   RequestOptions
 } from '../types';
@@ -22,10 +22,19 @@ export class OrdersAPI {
   async list(
     filters?: OrderFilters,
     options?: RequestOptions
-  ): Promise<SazitoResponse<PaginatedResponse<Order>>> {
-    return this.http.get<PaginatedResponse<Order>>(ORDERS_API, {
+  ): Promise<SazitoResponse<OrdersListResponse>> {
+    const params: Record<string, any> = {
+      page_number: filters?.pageNumber ?? 1,
+      page_size: filters?.pageSize ?? 100
+    };
+
+    if (filters?.filters && filters.filters.length > 0) {
+      params.filters = JSON.stringify(filters.filters);
+    }
+
+    return this.http.get<OrdersListResponse>(ORDERS_API, {
       ...options,
-      params: filters
+      params
     });
   }
 

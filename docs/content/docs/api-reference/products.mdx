@@ -5,7 +5,9 @@ description: Product lookup, filtered listing, and cross-entity search.
 
 ## Methods
 
-### `products.get(slugOrPath, options?)`
+### Get
+
+Use: `products.get(slugOrPath, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -14,7 +16,9 @@ description: Product lookup, filtered listing, and cross-entity search.
 
 Returns: `SazitoResponse<Product>`.
 
-### `products.list(filters?, options?)`
+### List
+
+Use: `products.list(filters?, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -32,7 +36,9 @@ Returns: `SazitoResponse<Product>`.
 
 Returns: `SazitoResponse<PaginatedResponse<Product>>`.
 
-### `products.search(query, filters?, options?)`
+### Search
+
+Use: `products.search(query, filters?, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -44,7 +50,7 @@ Returns: `SazitoResponse<SearchResponse>`.
 
 ## Response key fields
 
-### `Product`
+### Product
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -63,66 +69,330 @@ Returns: `SazitoResponse<SearchResponse>`.
 | `api` | Resolved entity is not a product or product not found. |
 | `network` | Connectivity/timeout issues. |
 
-## Example
+## Examples
 
-```ts
-const res = await client.products.list({
-  categories: [73, 94],
-  discountedOnly: true,
-  sort: '!price',
-  page: 1,
-  pageSize: 20,
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
+
+<Tab value="Next.js (Client)">
+
+```tsx
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
 });
 ```
 
-## Examples
-
-<Tabs items={["React", "Next.js"]}>
-
-<Tab value="React">
-
 ```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
 import { useEffect, useState } from 'react';
-import type { Product } from '@sazito/client-sdk';
-import { client } from '../lib/sazito';
+import { sazito } from '@/app/lib/sazito-client';
 
-export function ProductList() {
-  const [items, setItems] = useState<Product[]>([]);
+export default function Example() {
+  const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      const res = await client.products.list({ page: 1, pageSize: 12, sort: 'newest' });
-      if (!mounted || res.error) return;
-      setItems(res.data?.items ?? []);
-    })();
-
-    return () => {
-      mounted = false;
-    };
+    sazito.products.list({ page: 1, pageSize: 12 }).then((res) => setData(res.data ?? null));
   }, []);
 
-  return <div>{items.map((p) => <p key={p.url}>{p.name}</p>)}</div>;
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
 ```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export default async function ProductsPage() {
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+}
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
   const res = await client.products.list({ page: 1, pageSize: 12 });
 
-  if (res.error) return <div>Failed to load products.</div>;
-  return <div>{res.data?.items.map((p) => <p key={p.url}>{p.name}</p>)}</div>;
+  return res.data;
 }
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.products.list({ page: 1, pageSize: 12 }).then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.products.list({ page: 1, pageSize: 12 });
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.products.list({ page: 1, pageSize: 12 });
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.products.list({ page: 1, pageSize: 12 });
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### ProductFilters
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `page` | `number` | Optional |
+| `pageSize` | `number` | Optional |
+| `sort` | `ProductSort` | Optional |
+| `categories` | `number \| number[]` | Optional |
+| `priceMin` | `number` | Optional |
+| `priceMax` | `number` | Optional |
+| `availableOnly` | `boolean` | Optional |
+| `discountedOnly` | `boolean` | Optional |
+| `pinnedIds` | `number[]` | Optional |
+| `similarTo` | `number` | Optional |
+
+#### Product
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
+| `enabled` | `boolean` | Required |
+| `productType` | `string` | Required |
+| `themeConfig` | `any` | Optional |
+| `dynamicFormId` | `number` | Optional |
+| `eventEntityId` | `number` | Optional |
+| `attributes` | `ProductAttribute[]` | Optional |
+| `images` | `Image[]` | Required |
+| `variants` | `ProductVariant[]` | Required |
+| `categories` | `ProductCategory[]` | Required |
+| `createdAt` | `string` | Required |
+| `updatedAt` | `string` | Required |
+
+#### ProductVariant
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `productId` | `number` | Optional |
+| `sku` | `string` | Optional |
+| `enabled` | `boolean` | Required |
+| `price` | `number` | Required |
+| `originalPrice` | `number` | Optional |
+| `stockQuantity` | `number` | Required |
+| `isStockManaged` | `boolean` | Required |
+| `isAvailable` | `boolean` | Optional |
+| `attributes` | `ProductAttribute[]` | Required |
+| `hasMaxOrder` | `boolean` | Required |
+| `maxOrderQuantity` | `number` | Required |
+| `minOrderQuantity` | `number` | Required |
+| `weight` | `number` | Optional |
+| `dynamicFormId` | `number` | Optional |
+| `sortIndex` | `number` | Required |
+| `imageId` | `number` | Optional |
+| `commercialFiles` | `any[]` | Optional |
+| `createdAt` | `string` | Required |
+| `updatedAt` | `string` | Required |
+
+#### ProductCategory
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
+| `enabled` | `boolean` | Optional |
+| `description` | `string` | Optional |
+| `productsCount` | `number` | Optional |
+| `themeConfig` | `any` | Optional |
+| `attributes` | `ProductAttribute[]` | Optional |
+| `createdAt` | `string` | Optional |
+| `updatedAt` | `string` | Optional |
+
+#### ProductAttribute
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | `string` | Required |
+| `value` | `string` | Required |
+
+#### Image
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
+| `alt` | `string` | Optional |
+| `width` | `number` | Optional |
+| `height` | `number` | Optional |
+| `order` | `number` | Optional |
+| `createdAt` | `string` | Required |
+| `updatedAt` | `string` | Required |
+
+#### SearchResponse
+
+Source: `src/types/search.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `products` | `{     items: Product[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `products.items` | `Product[]` | Required |
+| `products.total` | `number` | Required |
+| `products.page` | `number` | Required |
+| `products.pageSize` | `number` | Required |
+| `blogPages` | `{     items: BlogPage[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `blogPages.items` | `BlogPage[]` | Required |
+| `blogPages.total` | `number` | Required |
+| `blogPages.page` | `number` | Required |
+| `blogPages.pageSize` | `number` | Required |
+| `cmsPages` | `{     items: CmsPage[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `cmsPages.items` | `CmsPage[]` | Required |
+| `cmsPages.total` | `number` | Required |
+| `cmsPages.page` | `number` | Required |
+| `cmsPages.pageSize` | `number` | Required |
+| `productCategories` | `{     items: ProductCategory[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `productCategories.items` | `ProductCategory[]` | Required |
+| `productCategories.total` | `number` | Required |
+| `productCategories.page` | `number` | Required |
+| `productCategories.pageSize` | `number` | Required |
+{/* AUTO_FIELDS_END */}
+

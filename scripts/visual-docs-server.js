@@ -300,6 +300,268 @@ async function executeOperation(payload) {
         sdkResponse = await client.menu.getHeaderMenu(identifier);
         break;
       }
+      case 'booking.getEvent': {
+        const entityId = Number(input.entityId);
+        sdkRequest.method = 'client.booking.getEvent';
+        sdkRequest.params = { entityId };
+        sdkResponse = await client.booking.getEvent(entityId);
+        break;
+      }
+      case 'booking.getEventAvailabilities': {
+        const payload = {
+          eventEntityId: Number(input.eventEntityId),
+          duration: Number(input.duration),
+          fromDate: String(input.fromDate || '').trim(),
+          toDate: String(input.toDate || '').trim(),
+          timezone: input.timezone ? String(input.timezone).trim() : undefined
+        };
+        sdkRequest.method = 'client.booking.getEventAvailabilities';
+        sdkRequest.params = payload;
+        sdkResponse = await client.booking.getEventAvailabilities(payload);
+        break;
+      }
+      case 'cart.get':
+        sdkRequest.method = 'client.cart.get';
+        sdkRequest.params = {};
+        sdkResponse = await client.cart.get();
+        break;
+      case 'cart.create': {
+        const payload = input.input || {};
+        sdkRequest.method = 'client.cart.create';
+        sdkRequest.params = payload;
+        sdkResponse = await client.cart.create(payload);
+        break;
+      }
+      case 'cart.addItemWithAttributes': {
+        const variantId = Number(input.variantId);
+        const count = Number(input.count);
+        const attributes = input.attributes || {};
+        sdkRequest.method = 'client.cart.addItemWithAttributes';
+        sdkRequest.params = { variantId, count, attributes };
+        sdkResponse = await client.cart.addItemWithAttributes(variantId, count, attributes);
+        break;
+      }
+      case 'cart.updateItem': {
+        const cartProductId = Number(input.cartProductId);
+        const variantId = Number(input.variantId);
+        const count = Number(input.count);
+        const formAttributes = input.formAttributes || undefined;
+        sdkRequest.method = 'client.cart.updateItem';
+        sdkRequest.params = { cartProductId, variantId, count, formAttributes };
+        sdkResponse = await client.cart.updateItem(cartProductId, variantId, count, formAttributes);
+        break;
+      }
+      case 'cart.removeItem': {
+        const cartProductId = Number(input.cartProductId);
+        const variantId = Number(input.variantId);
+        sdkRequest.method = 'client.cart.removeItem';
+        sdkRequest.params = { cartProductId, variantId };
+        sdkResponse = await client.cart.removeItem(cartProductId, variantId);
+        break;
+      }
+      case 'invoices.get':
+        sdkRequest.method = 'client.invoices.get';
+        sdkRequest.params = {};
+        sdkResponse = await client.invoices.get();
+        break;
+      case 'invoices.create':
+        sdkRequest.method = 'client.invoices.create';
+        sdkRequest.params = {};
+        sdkResponse = await client.invoices.create();
+        break;
+      case 'invoices.refresh':
+        sdkRequest.method = 'client.invoices.refresh';
+        sdkRequest.params = {};
+        sdkResponse = await client.invoices.refresh();
+        break;
+      case 'invoices.addShippingAddress': {
+        const shippingAddressId = Number(input.shippingAddressId);
+        const shippingAddressIdentifier = String(input.shippingAddressIdentifier || '').trim();
+        sdkRequest.method = 'client.invoices.addShippingAddress';
+        sdkRequest.params = { shippingAddressId, shippingAddressIdentifier };
+        sdkResponse = await client.invoices.addShippingAddress(shippingAddressId, shippingAddressIdentifier);
+        break;
+      }
+      case 'invoices.assignShippingMethod': {
+        const shippings = Array.isArray(input.shippings) ? input.shippings : [];
+        sdkRequest.method = 'client.invoices.assignShippingMethod';
+        sdkRequest.params = { shippings };
+        sdkResponse = await client.invoices.assignShippingMethod(shippings);
+        break;
+      }
+      case 'invoices.addDiscountCode': {
+        const code = String(input.code || '').trim();
+        sdkRequest.method = 'client.invoices.addDiscountCode';
+        sdkRequest.params = { code };
+        sdkResponse = await client.invoices.addDiscountCode(code);
+        break;
+      }
+      case 'invoices.addDetails': {
+        const comment = String(input.comment || '').trim();
+        sdkRequest.method = 'client.invoices.addDetails';
+        sdkRequest.params = { comment };
+        sdkResponse = await client.invoices.addDetails(comment);
+        break;
+      }
+      case 'dynamicForms.getForm': {
+        const formId = Number(input.formId);
+        sdkRequest.method = 'client.dynamicForms.getForm';
+        sdkRequest.params = { formId };
+        sdkResponse = await client.dynamicForms.getForm(formId);
+        break;
+      }
+      case 'dynamicForms.uploadProductFormFile': {
+        const fileName = String(input.fileName || 'sample.txt').trim() || 'sample.txt';
+        const fileContent = String(input.fileContent || 'sample file');
+        const uploadFile = typeof File !== 'undefined'
+          ? new File([fileContent], fileName, { type: 'text/plain' })
+          : new Blob([fileContent], { type: 'text/plain' });
+        sdkRequest.method = 'client.dynamicForms.uploadProductFormFile';
+        sdkRequest.params = { fileName, fileContentLength: fileContent.length };
+        sdkResponse = await client.dynamicForms.uploadProductFormFile(uploadFile);
+        break;
+      }
+      case 'regions.list':
+        sdkRequest.method = 'client.regions.list';
+        sdkRequest.params = {};
+        sdkResponse = await client.regions.list();
+        break;
+      case 'feedbacks.getSeed': {
+        const orderIdentifier = String(input.orderIdentifier || '').trim();
+        sdkRequest.method = 'client.feedbacks.getSeed';
+        sdkRequest.params = { orderIdentifier };
+        sdkResponse = await client.feedbacks.getSeed(orderIdentifier);
+        break;
+      }
+      case 'feedbacks.createOrderRating': {
+        const payload = {
+          orderId: String(input.input?.orderId || '').trim(),
+          orderIdentifier: String(input.input?.orderIdentifier || '').trim(),
+          orderRate: Number(input.input?.orderRate)
+        };
+        sdkRequest.method = 'client.feedbacks.createOrderRating';
+        sdkRequest.params = payload;
+        sdkResponse = await client.feedbacks.createOrderRating(payload);
+        break;
+      }
+      case 'feedbacks.submitProductReview': {
+        const payload = input.input || {};
+        sdkRequest.method = 'client.feedbacks.submitProductReview';
+        sdkRequest.params = payload;
+        sdkResponse = await client.feedbacks.submitProductReview(payload);
+        break;
+      }
+      case 'feedbacks.getProductStatistics': {
+        const productId = String(input.productId || '').trim();
+        sdkRequest.method = 'client.feedbacks.getProductStatistics';
+        sdkRequest.params = { productId };
+        sdkResponse = await client.feedbacks.getProductStatistics(productId);
+        break;
+      }
+      case 'feedbacks.getProductReviews': {
+        const productId = String(input.productId || '').trim();
+        const filters = input.filters || {};
+        sdkRequest.method = 'client.feedbacks.getProductReviews';
+        sdkRequest.params = { productId, filters };
+        sdkResponse = await client.feedbacks.getProductReviews(productId, filters);
+        break;
+      }
+      case 'feedbacks.uploadReviewImages': {
+        const images = Array.isArray(input.images) ? input.images : [];
+        const payload = images.map((item, index) => ({
+          file: new Blob([String(item.content || `image-${index + 1}`)], { type: 'text/plain' }),
+          name: item.name ? String(item.name) : `image-${index + 1}.txt`,
+          alt: item.alt ? String(item.alt) : `image-${index + 1}`
+        }));
+        sdkRequest.method = 'client.feedbacks.uploadReviewImages';
+        sdkRequest.params = {
+          images: payload.map(item => ({ name: item.name, alt: item.alt }))
+        };
+        sdkResponse = await client.feedbacks.uploadReviewImages(payload);
+        break;
+      }
+      case 'invoices.addForm': {
+        const payload = input.input || {};
+        sdkRequest.method = 'client.invoices.addForm';
+        sdkRequest.params = payload;
+        sdkResponse = await client.invoices.addForm(payload);
+        break;
+      }
+      case 'invoices.getApplicableShippingMethods':
+        sdkRequest.method = 'client.invoices.getApplicableShippingMethods';
+        sdkRequest.params = {};
+        sdkResponse = await client.invoices.getApplicableShippingMethods();
+        break;
+      case 'invoices.addCredit':
+        sdkRequest.method = 'client.invoices.addCredit';
+        sdkRequest.params = {};
+        sdkResponse = await client.invoices.addCredit();
+        break;
+      case 'invoices.removeCredit':
+        sdkRequest.method = 'client.invoices.removeCredit';
+        sdkRequest.params = {};
+        sdkResponse = await client.invoices.removeCredit();
+        break;
+      case 'invoices.toggleCredit':
+        sdkRequest.method = 'client.invoices.toggleCredit';
+        sdkRequest.params = {};
+        sdkResponse = await client.invoices.toggleCredit();
+        break;
+      case 'shipping.createAddress': {
+        const address = input.address || {};
+        sdkRequest.method = 'client.shipping.createAddress';
+        sdkRequest.params = { address };
+        sdkResponse = await client.shipping.createAddress(address);
+        break;
+      }
+      case 'shipping.updateAddress': {
+        const address = input.address || {};
+        sdkRequest.method = 'client.shipping.updateAddress';
+        sdkRequest.params = { address };
+        sdkResponse = await client.shipping.updateAddress(address);
+        break;
+      }
+      case 'shipping.getAddress':
+        sdkRequest.method = 'client.shipping.getAddress';
+        sdkRequest.params = {};
+        sdkResponse = await client.shipping.getAddress();
+        break;
+      case 'shipping.getMethods':
+        sdkRequest.method = 'client.shipping.getMethods';
+        sdkRequest.params = {};
+        sdkResponse = await client.shipping.getMethods();
+        break;
+      case 'payments.getMethods':
+        sdkRequest.method = 'client.payments.getMethods';
+        sdkRequest.params = {};
+        sdkResponse = await client.payments.getMethods();
+        break;
+      case 'payments.create': {
+        const paymentTypeId = Number(input.paymentTypeId);
+        sdkRequest.method = 'client.payments.create';
+        sdkRequest.params = { paymentTypeId };
+        sdkResponse = await client.payments.create(paymentTypeId);
+        break;
+      }
+      case 'payments.initialize':
+        sdkRequest.method = 'client.payments.initialize';
+        sdkRequest.params = {};
+        sdkResponse = await client.payments.initialize();
+        break;
+      case 'payments.processStep': {
+        const payload = input.input || {};
+        sdkRequest.method = 'client.payments.processStep';
+        sdkRequest.params = payload;
+        sdkResponse = await client.payments.processStep(payload);
+        break;
+      }
+      case 'payments.pollUntilSettled': {
+        const intervalMs = Number(input.intervalMs) || 15000;
+        sdkRequest.method = 'client.payments.pollUntilSettled';
+        sdkRequest.params = { intervalMs };
+        sdkResponse = await client.payments.pollUntilSettled(undefined, intervalMs);
+        break;
+      }
       case 'users.login': {
         const payload = {
           email: String(input.email || '').trim(),

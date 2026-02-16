@@ -12,12 +12,25 @@ import {
   RequestOptions
 } from '../types';
 import { CARTS_API } from '../constants/endpoints';
+import { transformCartResponse } from '../utils/transformers';
+
+export interface AddItemAttributesInput {
+  formAttributes?: Record<string, any>;
+  schedulerBookingAttributes?: CreateCartInput['schedulerBookingAttributes'];
+}
 
 export class CartAPI {
   constructor(
     private http: HttpClient,
     private credentials: CredentialsManager
   ) {}
+
+  private persistCartCredentials(cart: Cart): void {
+    this.credentials.setCartCredentials({
+      id: cart.id,
+      identifier: cart.identifier
+    });
+  }
 
   /**
    * Get current cart
@@ -34,10 +47,20 @@ export class CartAPI {
       };
     }
 
-    return this.http.get<Cart>(`${CARTS_API}/${cartCreds.id}`, {
+    const response = await this.http.get<any>(`${CARTS_API}/${cartCreds.id}`, {
       ...options,
       params: { identifier: cartCreds.identifier }
     });
+
+    if (response.data) {
+      return { data: transformCartResponse(response.data) as Cart };
+    }
+
+    if (response.error) {
+      this.clearCart();
+    }
+
+    return response;
   }
 
   /**
@@ -47,17 +70,18 @@ export class CartAPI {
     input: CreateCartInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<Cart>> {
-    const response = await this.http.post<Cart>(CARTS_API, input, options);
+    const response = await this.http.post<any>(CARTS_API, input, options);
 
-    // Store cart credentials for guest users
-    if (response.data) {
-      this.credentials.setCartCredentials({
-        id: response.data.id,
-        identifier: response.data.identifier
-      });
+    if (!response.data) {
+      return response;
     }
 
-    return response;
+    const cart = transformCartResponse(response.data) as Cart;
+
+    // Store cart credentials for guest users
+    this.persistCartCredentials(cart);
+
+    return { data: cart };
   }
 
   /**
@@ -69,6 +93,23 @@ export class CartAPI {
     formAttributes?: Record<string, any>,
     options?: RequestOptions
   ): Promise<SazitoResponse<Cart>> {
+    return this.addItemWithAttributes(
+      variantId,
+      count,
+      { formAttributes },
+      options
+    );
+  }
+
+  /**
+   * Add item to cart with standardized attributes payload.
+   */
+  async addItemWithAttributes(
+    variantId: number,
+    count: number,
+    attributes?: AddItemAttributesInput,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<Cart>> {
     const cartCreds = this.credentials.getCartCredentials();
 
     if (!cartCreds) {
@@ -77,12 +118,13 @@ export class CartAPI {
         variants: [{
           id: variantId,
           count,
-          formAttributes
-        }]
+          formAttributes: attributes?.formAttributes
+        }],
+        schedulerBookingAttributes: attributes?.schedulerBookingAttributes
       }, options);
     }
 
-    const response = await this.http.post<Cart>(
+    const response = await this.http.post<any>(
       `${CARTS_API}/${cartCreds.id}/add_products_to_cart`,
       {
         identifier: cartCreds.identifier,
@@ -90,10 +132,21 @@ export class CartAPI {
           id: variantId,
           count
         }],
-        formAttributes
+        formAttributes: attributes?.formAttributes,
+        schedulerBookingAttributes: attributes?.schedulerBookingAttributes
       },
       options
     );
+
+    if (response.data) {
+      const cart = transformCartResponse(response.data) as Cart;
+      this.persistCartCredentials(cart);
+      return { data: cart };
+    }
+
+    if (response.error?.status === 422) {
+      this.clearCart();
+    }
 
     return response;
   }
@@ -103,7 +156,9 @@ export class CartAPI {
    */
   async updateItem(
     cartProductId: number,
+    variantId: number,
     count: number,
+    formAttributes?: Record<string, any>,
     options?: RequestOptions
   ): Promise<SazitoResponse<Cart>> {
     const cartCreds = this.credentials.getCartCredentials();
@@ -117,18 +172,27 @@ export class CartAPI {
       };
     }
 
-    return this.http.post<Cart>(
+    const response = await this.http.post<any>(
       `${CARTS_API}/${cartCreds.id}/update_products_in_cart`,
       {
         identifier: cartCreds.identifier,
         cartProductId,
         variants: [{
-          id: cartProductId,
+          id: variantId,
           count
-        }]
+        }],
+        formAttributes
       },
       options
     );
+
+    if (response.data) {
+      const cart = transformCartResponse(response.data) as Cart;
+      this.persistCartCredentials(cart);
+      return { data: cart };
+    }
+
+    return response;
   }
 
   /**
@@ -150,7 +214,7 @@ export class CartAPI {
       };
     }
 
-    return this.http.post<Cart>(
+    const response = await this.http.post<any>(
       `${CARTS_API}/${cartCreds.id}/remove_products_from_cart`,
       {
         identifier: cartCreds.identifier,
@@ -161,6 +225,14 @@ export class CartAPI {
       },
       options
     );
+
+    if (response.data) {
+      const cart = transformCartResponse(response.data) as Cart;
+      this.persistCartCredentials(cart);
+      return { data: cart };
+    }
+
+    return response;
   }
 
   /**

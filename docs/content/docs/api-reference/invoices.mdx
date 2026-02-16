@@ -5,7 +5,9 @@ description: Checkout invoice creation, updates, shipping assignment, and discou
 
 ## Methods
 
-### `invoices.get(options?)`
+### Get
+
+Use: `invoices.get(options?)`.
 
 Returns current invoice from stored invoice credentials.
 
@@ -13,7 +15,9 @@ Returns current invoice from stored invoice credentials.
 | --- | --- | --- | --- |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `invoices.create(options?)`
+### Create
+
+Use: `invoices.create(options?)`.
 
 Creates invoice from current cart credentials.
 
@@ -21,11 +25,15 @@ Creates invoice from current cart credentials.
 | --- | --- | --- | --- |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `invoices.refresh(options?)`
+### Refresh
+
+Use: `invoices.refresh(options?)`.
 
 Syncs invoice with cart state.
 
-### `invoices.addShippingAddress(shippingAddressId, shippingAddressIdentifier, options?)`
+### Add Shipping Address
+
+Use: `invoices.addShippingAddress(shippingAddressId, shippingAddressIdentifier, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -33,33 +41,73 @@ Syncs invoice with cart state.
 | `shippingAddressIdentifier` | `string` | Required | Shipping address identifier. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `invoices.addDiscountCode(code, options?)`
+### Add Discount Code
+
+Use: `invoices.addDiscountCode(code, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `code` | `string` | Required | Discount code (uppercased by SDK). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `invoices.assignShippingMethod(shippings, options?)`
+### Assign Shipping Method
+
+Use: `invoices.assignShippingMethod(shippings, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `shippings[].rateId` | `number` | Required | Shipping rate ID. |
-| `shippings[].invoiceItemIds` | `string[]` | Required | Invoice item IDs covered by this rate. |
+| `shippings[].invoiceItemIds` | `number[]` | Required | Invoice item IDs covered by this rate. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `invoices.addDetails(comment, options?)`
+### Add Details
+
+Use: `invoices.addDetails(comment, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `comment` | `string` | Required | Customer comment for invoice. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `invoices.getApplicableShippingMethods(options?)`
+### Add Form
 
-Returns: `SazitoResponse<ShippingMethod[]>`.
+Use: `invoices.addForm(input, options?)`.
 
-### `invoices.clearInvoice()`
+Attaches checkout dynamic form data to invoice via `/api/v2/invoices/{id}/add_form`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.formAttributes` | `Record<string, any>` | Required | Dynamic form data payload. |
+| `input.invoiceIdentifier` | `string` | Optional | Explicit invoice identifier override. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### Get Applicable Shipping Methods
+
+Use: `invoices.getApplicableShippingMethods(options?)`.
+
+Returns: `SazitoResponse<ApplicableShippingMethods>`.
+
+### Add Credit
+
+Use: `invoices.addCredit(options?)`.
+
+Applies wallet credit to the current invoice.
+
+### Remove Credit
+
+Use: `invoices.removeCredit(options?)`.
+
+Removes wallet credit from the current invoice.
+
+### Toggle Credit
+
+Use: `invoices.toggleCredit(options?)`.
+
+Toggles wallet credit based on current `invoice.creditTotal`.
+
+### Clear Invoice
+
+Use: `invoices.clearInvoice()`.
 
 Clears persisted invoice credentials only.
 
@@ -72,8 +120,9 @@ Clears persisted invoice credentials only.
 | `items` | `InvoiceItem[]` | Required | Invoice items. |
 | `shippingAddress` | `ShippingAddress` | Optional | Selected address. |
 | `shippingItems` | `ShippingItem[]` | Required | Shipping assignments. |
-| `subtotal` | `number` | Required | Pre-discount subtotal. |
+| `netTotal` | `number` | Required | Net total from backend invoice pricing. |
 | `finalTotal` | `number` | Required | Final checkout total. |
+| `creditTotal` | `number` | Required | Applied wallet credit amount. |
 | `discountCode` | `string` | Optional | Applied discount code. |
 
 ## Known errors
@@ -84,34 +133,319 @@ Clears persisted invoice credentials only.
 
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function createInvoiceFromCurrentCart() {
-  const res = await client.invoices.create();
-  if (res.error) throw new Error(res.error.message);
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
+
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.invoices.get().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Next.js (Server)">
+
+```tsx
+// app/lib/sazito-server.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
+}
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.invoices.get();
+
   return res.data;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="React">
 
-```ts
+```tsx
+// src/lib/sazito.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function POST() {
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const res = await client.invoices.create();
-  return Response.json(res);
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.invoices.get().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.invoices.get();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.invoices.get();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.invoices.get();
+
+  return res.data;
+});
+```
+
+</Tab>
+
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### ShippingAssignment
+
+Source: `src/types/shipping.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `rateId` | `number` | Required |
+| `invoiceItemIds` | `number[]` | Required |
+
+#### ApplicableShippingMethods
+
+Source: `src/types/shipping.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `shippingMethods` | `ShippingMethod[]` | Required |
+| `groupedShippingRates` | `Record<string, ShippingRate[]>` | Required |
+| `itemsShippingRate` | `ItemShippingRate[]` | Required |
+
+#### Invoice
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `identifier` | `string` | Required |
+| `items` | `InvoiceItem[]` | Required |
+| `shippingAddress` | `ShippingAddress` | Optional |
+| `shippingItems` | `ShippingItem[]` | Required |
+| `needsShipping` | `boolean` | Required |
+| `userComment` | `string` | Optional |
+| `netTotal` | `number` | Required |
+| `finalTotal` | `number` | Required |
+| `vat` | `number` | Required |
+| `vatPercent` | `number` | Required |
+| `itemsDiscount` | `number` | Required |
+| `discountTotal` | `number` | Required |
+| `customerProfit` | `number` | Required |
+| `customerProfitPercentage` | `number` | Required |
+| `itemsTotalRawPrice` | `number` | Required |
+| `couponTotal` | `number` | Required |
+| `shippingTotal` | `number` | Required |
+| `creditTotal` | `number` | Required |
+| `user` | `User` | Optional |
+| `discountUsages` | `Array<{     discountCode: {       code: string;       userSegment?: string;     };   }>` | Required |
+| `discountUsages.[].discountCode` | `{       code: string;       userSegment?: string;     }` | Required |
+| `discountUsages.[].discountCode.code` | `string` | Required |
+| `discountUsages.[].discountCode.userSegment` | `string` | Optional |
+| `coupon` | `{     userSegment?: string;   }` | Optional |
+| `coupon.userSegment` | `string` | Optional |
+| `discountCode` | `string` | Optional |
+
+#### InvoiceItem
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `productVariantId` | `number` | Required |
+| `name` | `string` | Required |
+| `quantity` | `number` | Required |
+| `unitPrice` | `number` | Required |
+| `lineTotal` | `number` | Required |
+| `rawPrice` | `number` | Required |
+| `customerProfit` | `number` | Required |
+| `image` | `Image` | Required |
+| `product` | `CheckoutProductSnapshot` | Required |
+| `commercialFiles` | `any` | Optional |
+| `formAttributes` | `Record<string, FormAttributeValue> \| InvoiceItemFormAttributes` | Optional |
+| `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
+| `formFields` | `Record<string, any>` | Optional |
+
+#### ShippingItem
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `invoiceItemIds` | `number[]` | Required |
+| `rate` | `{     id: number;     name: string;     price: number;     icon?: string;     color?: string;     type?: string;   }` | Required |
+| `rate.id` | `number` | Required |
+| `rate.name` | `string` | Required |
+| `rate.price` | `number` | Required |
+| `rate.icon` | `string` | Optional |
+| `rate.color` | `string` | Optional |
+| `rate.type` | `string` | Optional |
+
+#### ShippingAddress
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `identifier` | `string` | Required |
+| `firstName` | `string` | Required |
+| `lastName` | `string` | Required |
+| `mobilePhone` | `string` | Optional |
+| `phoneNumber` | `string` | Optional |
+| `email` | `string` | Optional |
+| `region` | `Region` | Optional |
+| `city` | `City` | Required |
+| `address` | `string` | Required |
+| `postalCode` | `string` | Optional |
+| `latitude` | `number` | Optional |
+| `longitude` | `number` | Optional |
+| `userSetCoordinatesBefore` | `boolean` | Optional |
+| `createdAt` | `string` | Optional |
+| `updatedAt` | `string` | Optional |
+
+#### User
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `email` | `string` | Optional |
+| `mobilePhone` | `string` | Optional |
+| `firstName` | `string` | Optional |
+| `lastName` | `string` | Optional |
+| `birthDate` | `string` | Optional |
+{/* AUTO_FIELDS_END */}
+

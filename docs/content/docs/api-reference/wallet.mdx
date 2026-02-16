@@ -5,11 +5,15 @@ description: Wallet balance, transaction history, and invoice credit operations.
 
 ## Methods
 
-### `wallet.getBalance(options?)`
+### Get Balance
+
+Use: `wallet.getBalance(options?)`.
 
 Returns: `SazitoResponse<Wallet>`.
 
-### `wallet.listTransactions(filters?, options?)`
+### List Transactions
+
+Use: `wallet.listTransactions(filters?, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -19,7 +23,9 @@ Returns: `SazitoResponse<Wallet>`.
 
 Returns: `SazitoResponse<{ transactions: WalletTransaction[] }>`.
 
-### `wallet.applyCredit(invoiceId, options?)`
+### Apply Credit
+
+Use: `wallet.applyCredit(invoiceId, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -28,7 +34,9 @@ Returns: `SazitoResponse<{ transactions: WalletTransaction[] }>`.
 
 Returns: `SazitoResponse<Invoice>`.
 
-### `wallet.removeCredit(invoiceId, options?)`
+### Remove Credit
+
+Use: `wallet.removeCredit(invoiceId, options?)`.
 
 Same schema as `applyCredit`.
 
@@ -50,40 +58,249 @@ Same schema as `applyCredit`.
 
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function loadWallet() {
-  const balance = await client.wallet.getBalance();
-  const tx = await client.wallet.listTransactions({ page_number: 1, page_size: 20 });
-  return { balance, tx };
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
+
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.wallet.getBalance().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
-```ts
-import { cookies } from 'next/headers';
+```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function GET() {
-  const token = (await cookies()).get('user_id_token')?.value;
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-
-  const res = await client.wallet.getBalance({
-    headers: token ? { Authorization: token } : undefined,
-  });
-
-  return Response.json(res);
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.wallet.getBalance();
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.wallet.getBalance().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.wallet.getBalance();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.wallet.getBalance();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.wallet.getBalance();
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### TransactionFilters
+
+Source: `src/api/wallet.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `page_number` | `number` | Optional |
+| `page_size` | `number` | Optional |
+
+#### WalletTransactionsResponse
+
+Source: `src/api/wallet.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `transactions` | `WalletTransaction[]` | Required |
+
+#### Wallet
+
+Source: `src/api/wallet.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `balance` | `number` | Required |
+| `enabled` | `boolean` | Required |
+| `currency` | `string` | Optional |
+| `transactions` | `WalletTransaction[]` | Optional |
+
+#### WalletTransaction
+
+Source: `src/api/wallet.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `string \| number` | Required |
+| `reason` | `WalletTransactionReason` | Required |
+| `amount` | `number` | Required |
+| `createdAt` | `string` | Required |
+| `metaData` | `Record<string, unknown>` | Optional |
+
+#### WalletBalance
+
+Source: `src/api/wallet.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `balance` | `number` | Required |
+| `enabled` | `boolean` | Required |
+
+#### WalletTransactionReason
+
+Source: `src/api/wallet.ts`
+
+Type: `\| 'redeem'   \| 'NthPurchase'   \| 'merge-user'   \| 'SimpleCashbackRule'   \| 'BirthdateGift'   \| 'TajrobehAppreciation'   \| 'edit_order'   \| 'cancel_order'   \| 'edit_shipping_cost'   \| 'edit_cashback'   \| 'gift'   \| 'others'   \| 'Refund'   \| 'Charge'   \| 'Expired'   \| `${string}:activity``
+{/* AUTO_FIELDS_END */}
+

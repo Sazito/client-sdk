@@ -5,18 +5,22 @@ description: Authenticated order listing and detail retrieval.
 
 ## Methods
 
-### `orders.list(filters?, options?)`
+### List
+
+Use: `orders.list(filters?, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `filters.status` | `OrderStatus` | Optional | Filter by order status. |
-| `filters.page` | `number` | Optional | Page number. |
+| `filters.pageNumber` | `number` | Optional | Page number (default `1`). |
 | `filters.pageSize` | `number` | Optional | Page size. |
+| `filters.filters` | `Array<{ name: string; value: any }>` | Optional | Backend filters payload (for example `self_only`). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-Returns: `SazitoResponse<PaginatedResponse<Order>>`.
+Returns: `SazitoResponse<OrdersListResponse>`.
 
-### `orders.get(orderId, options?)`
+### Get
+
+Use: `orders.get(orderId, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -31,10 +35,9 @@ Returns: `SazitoResponse<Order>`.
 | --- | --- | --- | --- |
 | `id` | `number` | Required | Order ID. |
 | `orderNumber` | `string` | Required | Human-readable order number. |
-| `status` | `OrderStatus` | Required | Order status enum. |
-| `items` | `InvoiceItem[]` | Required | Purchased items. |
-| `total` | `number` | Required | Final amount. |
-| `trackingNumber` | `string` | Optional | Shipment tracking number. |
+| `orderIdentifier` | `string` | Required | Stable order identifier token. |
+| `invoice.invoiceItems` | `InvoiceItem[]` | Required | Purchased items. |
+| `invoice.shippingItems` | `any[]` | Required | Shipping assignments on order invoice. |
 
 ## Known errors
 
@@ -44,39 +47,274 @@ Returns: `SazitoResponse<Order>`.
 
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function loadOrders() {
-  return client.orders.list({ page: 1, pageSize: 20 });
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
+
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.orders.list({ pageNumber: 1, pageSize: 20 }).then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
-```ts
-import { cookies } from 'next/headers';
+```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function GET() {
-  const token = (await cookies()).get('user_id_token')?.value;
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-
-  const res = await client.orders.list(
-    { page: 1, pageSize: 20 },
-    { headers: token ? { Authorization: token } : undefined }
-  );
-
-  return Response.json(res);
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.orders.list({ pageNumber: 1, pageSize: 20 });
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.orders.list({ pageNumber: 1, pageSize: 20 }).then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.orders.list({ pageNumber: 1, pageSize: 20 });
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.orders.list({ pageNumber: 1, pageSize: 20 });
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.orders.list({ pageNumber: 1, pageSize: 20 });
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### OrderFilters
+
+Source: `src/types/order.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `pageNumber` | `number` | Optional |
+| `pageSize` | `number` | Optional |
+| `filters` | `Array<{ name: string; value: any }>` | Optional |
+| `filters.[].name` | `string` | Required |
+| `filters.[].value` | `any` | Required |
+
+#### Order
+
+Source: `src/types/order.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `orderNumber` | `string` | Required |
+| `orderIdentifier` | `string` | Required |
+| `invoice` | `{     shippingItems: any[];     invoiceItems: InvoiceItem[];   }` | Required |
+| `invoice.shippingItems` | `any[]` | Required |
+| `invoice.invoiceItems` | `InvoiceItem[]` | Required |
+
+#### InvoiceItem
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `productVariantId` | `number` | Required |
+| `name` | `string` | Required |
+| `quantity` | `number` | Required |
+| `unitPrice` | `number` | Required |
+| `lineTotal` | `number` | Required |
+| `rawPrice` | `number` | Required |
+| `customerProfit` | `number` | Required |
+| `image` | `Image` | Required |
+| `product` | `CheckoutProductSnapshot` | Required |
+| `commercialFiles` | `any` | Optional |
+| `formAttributes` | `Record<string, FormAttributeValue> \| InvoiceItemFormAttributes` | Optional |
+| `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
+| `formFields` | `Record<string, any>` | Optional |
+
+#### ShippingAddress
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `identifier` | `string` | Required |
+| `firstName` | `string` | Required |
+| `lastName` | `string` | Required |
+| `mobilePhone` | `string` | Optional |
+| `phoneNumber` | `string` | Optional |
+| `email` | `string` | Optional |
+| `region` | `Region` | Optional |
+| `city` | `City` | Required |
+| `address` | `string` | Required |
+| `postalCode` | `string` | Optional |
+| `latitude` | `number` | Optional |
+| `longitude` | `number` | Optional |
+| `userSetCoordinatesBefore` | `boolean` | Optional |
+| `createdAt` | `string` | Optional |
+| `updatedAt` | `string` | Optional |
+
+#### PaymentMethod
+
+Source: `src/types/payment.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `code` | `PaymentGateway` | Required |
+| `title` | `string` | Required |
+| `isDefault` | `boolean` | Required |
+{/* AUTO_FIELDS_END */}
+

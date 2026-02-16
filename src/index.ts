@@ -37,7 +37,9 @@ export {
   createBookingAPI,
   createEntityRoutesAPI,
   createMenuAPI,
-  createGeneralAPI
+  createGeneralAPI,
+  createDynamicFormsAPI,
+  createRegionsAPI
 } from './modules';
 
 // Shorthand aliases for module factories
@@ -59,7 +61,9 @@ export {
   createBookingAPI as booking,
   createEntityRoutesAPI as entityRoutes,
   createMenuAPI as menu,
-  createGeneralAPI as general
+  createGeneralAPI as general,
+  createDynamicFormsAPI as dynamicForms,
+  createRegionsAPI as regions
 } from './modules';
 
 // Data transformers (for manual transformation if needed)

@@ -2,6 +2,8 @@
  * Payment-related types
  */
 
+import type { Order } from './order';
+
 export type PaymentGateway =
   | 'mellatpayment'      // Bank Mellat
   | 'pecpayment'         // Parsian
@@ -43,34 +45,28 @@ export type PaymentStatus =
 export interface PaymentMethod {
   id: number;
   code: PaymentGateway;
-  name: string;
-  description: {
-    description: string;
-    cardNumber?: string;             // For card-to-card
-    cardDescription?: string;
-    uploadNeeded?: boolean;
-  };
-  enabled: boolean;
-  config?: Record<string, any>;
+  title: string;
+  isDefault: boolean;
 }
 
 export interface Payment {
   id: number;
   identifier: string;
-  paymentType: PaymentMethod;
+  paymentType: {
+    id?: number;
+    code: PaymentGateway;
+    title?: string;
+  };
   amount: number;
-  invoiceId: number;
-  status: PaymentStatus;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface PaymentAction {
-  action: 'POST' | 'REDIRECT' | 'UPLOAD' | 'FAIL' | 'StockViolated';
-  address?: string;                   // Gateway URL
-  payload?: Record<string, any>;      // POST data
-  time?: number;                      // For upload deadline
-  message?: string;                   // Error message
+  action: 'POST' | 'REDIRECT' | 'UPLOAD' | 'pending' | 'showOrder' | 'StockViolated' | 'FAIL';
+  address?: string;
+  payload?: Record<string, any>;
+  order?: Order;
+  time?: number;
+  message?: string;
 }
 
 export interface PaymentCredentials {
@@ -85,8 +81,7 @@ export interface CreatePaymentInput {
 }
 
 export interface PaymentStepInput {
-  identifier: string;
-  isFailed?: string;                 // "true" to mark as failed
-  imageUrl?: string;                 // For card-to-card
-  code?: string;                      // For card-to-card verification
+  isFailed?: string;
+  imageUrl?: string;
+  code?: string;
 }

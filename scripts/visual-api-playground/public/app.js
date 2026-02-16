@@ -285,6 +285,767 @@ const OPERATIONS = [
     ]
   },
   {
+    id: 'booking.getEvent',
+    label: 'Booking: Get Event',
+    description: 'GET /api/v1/scheduler/events/{entityId} via booking.getEvent().',
+    fields: [
+      {
+        key: 'entityId',
+        label: 'Event Entity ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'booking.getEventAvailabilities',
+    label: 'Booking: Get Availabilities',
+    description: 'GET /api/v1/scheduler/availabilities via booking.getEventAvailabilities().',
+    fields: [
+      {
+        key: 'eventEntityId',
+        label: 'Event Entity ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'duration',
+        label: 'Duration (minutes)',
+        type: 'number',
+        section: 'request',
+        defaultValue: 30,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'fromDate',
+        label: 'From Date',
+        type: 'text',
+        section: 'request',
+        defaultValue: '2026-02-16',
+        required: true
+      },
+      {
+        key: 'toDate',
+        label: 'To Date',
+        type: 'text',
+        section: 'request',
+        defaultValue: '2026-03-15',
+        required: true
+      },
+      {
+        key: 'timezone',
+        label: 'Timezone',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'Asia/Tehran'
+      }
+    ]
+  },
+  {
+    id: 'cart.get',
+    label: 'Cart: Get Current',
+    description: 'GET /api/v2/carts/{id} with stored cart credentials via cart.get().',
+    fields: []
+  },
+  {
+    id: 'cart.create',
+    label: 'Cart: Create',
+    description: 'POST /api/v2/carts via cart.create().',
+    fields: [
+      {
+        key: 'input.variants',
+        label: 'Variants (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: [
+          { id: 123, count: 1 }
+        ],
+        required: true
+      },
+      {
+        key: 'input.coupon',
+        label: 'Coupon',
+        type: 'text',
+        section: 'request',
+        placeholder: 'OFF20'
+      },
+      {
+        key: 'input.formAttributes',
+        label: 'Form Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {}
+      },
+      {
+        key: 'input.schedulerBookingAttributes',
+        label: 'Scheduler Booking Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          eventEntityId: 10,
+          startDateTimeLocal: '2026-02-20T11:00',
+          endDateTimeLocal: '2026-02-20T11:30',
+          timezone: 'Asia/Tehran'
+        }
+      }
+    ]
+  },
+  {
+    id: 'cart.addItemWithAttributes',
+    label: 'Cart: Add Item With Attributes',
+    description: 'POST /api/v2/carts/{id}/add_products_to_cart with form + scheduler booking attributes.',
+    fields: [
+      {
+        key: 'variantId',
+        label: 'Variant ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 123,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'count',
+        label: 'Count',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'attributes.formAttributes',
+        label: 'Form Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          national_code: '0011223344',
+          agree_terms: true
+        }
+      },
+      {
+        key: 'attributes.schedulerBookingAttributes',
+        label: 'Scheduler Booking Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          eventEntityId: 10,
+          startDateTimeLocal: '2026-02-20T11:00',
+          endDateTimeLocal: '2026-02-20T11:30',
+          timezone: 'Asia/Tehran'
+        }
+      }
+    ]
+  },
+  {
+    id: 'cart.updateItem',
+    label: 'Cart: Update Item Quantity',
+    description: 'POST /api/v2/carts/{id}/update_products_in_cart via cart.updateItem().',
+    fields: [
+      {
+        key: 'cartProductId',
+        label: 'Cart Product ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'variantId',
+        label: 'Variant ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 123,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'count',
+        label: 'Count',
+        type: 'number',
+        section: 'request',
+        defaultValue: 2,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'formAttributes',
+        label: 'Form Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {}
+      }
+    ]
+  },
+  {
+    id: 'cart.removeItem',
+    label: 'Cart: Remove Item',
+    description: 'POST /api/v2/carts/{id}/remove_products_from_cart via cart.removeItem().',
+    fields: [
+      {
+        key: 'cartProductId',
+        label: 'Cart Product ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'variantId',
+        label: 'Variant ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 123,
+        min: 1,
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'invoices.get',
+    label: 'Invoices: Get Current',
+    description: 'GET /api/v2/invoices/{id} with stored invoice credentials via invoices.get().',
+    fields: []
+  },
+  {
+    id: 'invoices.create',
+    label: 'Invoices: Create',
+    description: 'POST /api/v2/invoices from stored cart credentials via invoices.create().',
+    fields: []
+  },
+  {
+    id: 'invoices.refresh',
+    label: 'Invoices: Refresh',
+    description: 'POST /api/v2/invoices/{id}/refresh via invoices.refresh().',
+    fields: []
+  },
+  {
+    id: 'invoices.addShippingAddress',
+    label: 'Invoices: Add Shipping Address',
+    description: 'POST /api/v2/invoices/{id}/add_shipping_address via invoices.addShippingAddress().',
+    fields: [
+      {
+        key: 'shippingAddressId',
+        label: 'Shipping Address ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'shippingAddressIdentifier',
+        label: 'Shipping Address Identifier',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'shipping-address-identifier',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'invoices.assignShippingMethod',
+    label: 'Invoices: Assign Shipping Method',
+    description: 'POST /api/v2/invoices/{id}/add_shipping_method via invoices.assignShippingMethod().',
+    fields: [
+      {
+        key: 'shippings',
+        label: 'Shippings (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: [
+          {
+            rateId: 1,
+            invoiceItemIds: [1]
+          }
+        ],
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'invoices.addDiscountCode',
+    label: 'Invoices: Add Discount Code',
+    description: 'POST /api/v2/invoices/{id}/add_discount_code via invoices.addDiscountCode().',
+    fields: [
+      {
+        key: 'code',
+        label: 'Discount Code',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'OFF20',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'invoices.addDetails',
+    label: 'Invoices: Add Details',
+    description: 'POST /api/v2/invoices/{id}/add_invoice_details via invoices.addDetails().',
+    fields: [
+      {
+        key: 'comment',
+        label: 'Comment',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'Please call before delivery.',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'dynamicForms.getForm',
+    label: 'Dynamic Forms: Get Form',
+    description: 'GET /api/v1/dynamic_form/{id} via dynamicForms.getForm().',
+    fields: [
+      {
+        key: 'formId',
+        label: 'Form ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'dynamicForms.uploadProductFormFile',
+    label: 'Dynamic Forms: Upload File',
+    description: 'POST /api/v1/service/filemanager/uploads/private/productform via dynamicForms.uploadProductFormFile().',
+    fields: [
+      {
+        key: 'fileName',
+        label: 'File Name',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'sample.txt',
+        required: true
+      },
+      {
+        key: 'fileContent',
+        label: 'File Content (Text)',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'sample file content for dynamic form uploader',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'regions.list',
+    label: 'Regions: List',
+    description: 'GET /api/v1/regions via regions.list() with sorted regions/cities output.',
+    fields: []
+  },
+  {
+    id: 'feedbacks.getSeed',
+    label: 'Feedbacks: Get Seed',
+    description: 'GET /api/v1/feedbacks/seed/{orderIdentifier} via feedbacks.getSeed().',
+    fields: [
+      {
+        key: 'orderIdentifier',
+        label: 'Order Identifier',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'ORDER-1001',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'feedbacks.createOrderRating',
+    label: 'Feedbacks: Create Order Rating',
+    description: 'POST /api/v1/feedbacks/comments via feedbacks.createOrderRating().',
+    fields: [
+      {
+        key: 'input.orderId',
+        label: 'Order ID',
+        type: 'text',
+        section: 'request',
+        defaultValue: '1001',
+        required: true
+      },
+      {
+        key: 'input.orderIdentifier',
+        label: 'Order Identifier',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'ORDER-1001',
+        required: true
+      },
+      {
+        key: 'input.orderRate',
+        label: 'Order Rate (1-5)',
+        type: 'number',
+        section: 'request',
+        defaultValue: 5,
+        min: 1,
+        max: 5,
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'feedbacks.submitProductReview',
+    label: 'Feedbacks: Submit Product Review',
+    description: 'POST /api/v1/feedbacks/comments/details via feedbacks.submitProductReview().',
+    fields: [
+      {
+        key: 'input.commentId',
+        label: 'Comment ID',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'comment-1',
+        required: true
+      },
+      {
+        key: 'input.productId',
+        label: 'Product ID',
+        type: 'text',
+        section: 'request',
+        defaultValue: '2001',
+        required: true
+      },
+      {
+        key: 'input.productVariantId',
+        label: 'Product Variant ID',
+        type: 'text',
+        section: 'request',
+        defaultValue: '3001',
+        required: true
+      },
+      {
+        key: 'input.productName',
+        label: 'Product Name',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'Sample Product',
+        required: true
+      },
+      {
+        key: 'input.productRate',
+        label: 'Product Rate (1-5)',
+        type: 'number',
+        section: 'request',
+        defaultValue: 5,
+        min: 1,
+        max: 5,
+        required: true
+      },
+      {
+        key: 'input.recommendationStatus',
+        label: 'Recommendation Status',
+        type: 'select',
+        section: 'request',
+        options: [
+          { label: 'RECOMMENDED', value: 'RECOMMENDED' },
+          { label: 'NEUTRAL', value: 'NEUTRAL' },
+          { label: 'NOT-RECOMMENDED', value: 'NOT-RECOMMENDED' },
+          { label: 'NONE', value: 'NONE' }
+        ],
+        defaultValue: 'RECOMMENDED'
+      },
+      {
+        key: 'input.text',
+        label: 'Review Text',
+        type: 'text',
+        section: 'request',
+        defaultValue: 'Great product and quality.',
+        required: true
+      },
+      {
+        key: 'input.productAttributes',
+        label: 'Product Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: [{ name: 'Color', value: 'Black' }]
+      },
+      {
+        key: 'input.productImage',
+        label: 'Product Image (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: { url: 'https://example.com/image.jpg', alt: 'Product image' }
+      },
+      {
+        key: 'input.pros',
+        label: 'Pros (JSON array)',
+        type: 'json',
+        section: 'request',
+        defaultValue: ['Good value', 'Durable']
+      },
+      {
+        key: 'input.cons',
+        label: 'Cons (JSON array)',
+        type: 'json',
+        section: 'request',
+        defaultValue: ['Slow shipping']
+      },
+      {
+        key: 'input.attachmentsServeKeys',
+        label: 'Attachment Serve Keys (JSON array)',
+        type: 'json',
+        section: 'request',
+        defaultValue: []
+      },
+      {
+        key: 'input.owner',
+        label: 'Owner',
+        type: 'boolean',
+        section: 'request',
+        defaultValue: true
+      },
+      {
+        key: 'input.isAnonymous',
+        label: 'Anonymous',
+        type: 'boolean',
+        section: 'request',
+        defaultValue: false
+      }
+    ]
+  },
+  {
+    id: 'feedbacks.getProductStatistics',
+    label: 'Feedbacks: Product Statistics',
+    description: 'GET /api/v1/feedbacks/comments/details/{productId}?exclude=comments via feedbacks.getProductStatistics().',
+    fields: [
+      {
+        key: 'productId',
+        label: 'Product ID',
+        type: 'text',
+        section: 'request',
+        defaultValue: '2001',
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'feedbacks.getProductReviews',
+    label: 'Feedbacks: Product Reviews',
+    description: 'GET /api/v1/feedbacks/comments/details/{productId} via feedbacks.getProductReviews().',
+    fields: [
+      {
+        key: 'productId',
+        label: 'Product ID',
+        type: 'text',
+        section: 'request',
+        defaultValue: '2001',
+        required: true
+      },
+      {
+        key: 'filters.pageNumber',
+        label: 'Page Number',
+        type: 'number',
+        section: 'pagination',
+        defaultValue: 1,
+        min: 1
+      },
+      {
+        key: 'filters.pageSize',
+        label: 'Page Size',
+        type: 'number',
+        section: 'pagination',
+        defaultValue: 10,
+        min: 1
+      }
+    ]
+  },
+  {
+    id: 'feedbacks.uploadReviewImages',
+    label: 'Feedbacks: Upload Review Images',
+    description: 'POST /api/v1/service/filemanager/uploads/public/tajrobe via feedbacks.uploadReviewImages().',
+    fields: [
+      {
+        key: 'images',
+        label: 'Images Input (JSON array)',
+        type: 'json',
+        section: 'request',
+        defaultValue: [
+          {
+            name: 'review-image-1.jpg',
+            alt: 'review image',
+            content: 'dummy image content'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'invoices.addForm',
+    label: 'Invoices: Add Checkout Form',
+    description: 'POST /api/v2/invoices/{id}/add_form via invoices.addForm().',
+    fields: [
+      {
+        key: 'input.invoiceIdentifier',
+        label: 'Invoice Identifier (Optional)',
+        type: 'text',
+        section: 'request',
+        placeholder: 'leave empty to use stored invoice identifier'
+      },
+      {
+        key: 'input.formAttributes',
+        label: 'Form Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          full_name: 'Reza Mahmoudi',
+          national_code: '0011223344'
+        },
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'invoices.getApplicableShippingMethods',
+    label: 'Invoices: Applicable Shipping Methods',
+    description: 'GET /api/v2/invoices/{id}/applicable_shipping_methods via invoices.getApplicableShippingMethods().',
+    fields: []
+  },
+  {
+    id: 'invoices.addCredit',
+    label: 'Invoices: Add Credit',
+    description: 'POST /api/v2/invoices/{id}/add_credit via invoices.addCredit().',
+    fields: []
+  },
+  {
+    id: 'invoices.removeCredit',
+    label: 'Invoices: Remove Credit',
+    description: 'POST /api/v2/invoices/{id}/remove_credit via invoices.removeCredit().',
+    fields: []
+  },
+  {
+    id: 'invoices.toggleCredit',
+    label: 'Invoices: Toggle Credit',
+    description: 'Toggles invoice credit by reading current invoice then calling add/remove credit.',
+    fields: []
+  },
+  {
+    id: 'shipping.createAddress',
+    label: 'Shipping: Create Address',
+    description: 'POST /api/v2/shipping_addresses via shipping.createAddress().',
+    fields: [
+      {
+        key: 'address',
+        label: 'Address (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          firstName: 'Reza',
+          lastName: 'Mahmoudi',
+          mobilePhone: '09123456789',
+          regionId: 1,
+          cityId: 1,
+          address: 'Tehran, Valiasr St'
+        },
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'shipping.updateAddress',
+    label: 'Shipping: Update Address',
+    description: 'POST /api/v2/shipping_addresses with identifier via shipping.updateAddress().',
+    fields: [
+      {
+        key: 'address',
+        label: 'Address (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          firstName: 'Reza',
+          lastName: 'Mahmoudi',
+          mobilePhone: '09123456789',
+          regionId: 1,
+          cityId: 1,
+          address: 'Tehran, Updated Address'
+        },
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'shipping.getAddress',
+    label: 'Shipping: Get Address',
+    description: 'GET /api/v2/shipping_addresses/{id} via shipping.getAddress().',
+    fields: []
+  },
+  {
+    id: 'shipping.getMethods',
+    label: 'Shipping: Get Methods',
+    description: 'GET /api/v2/shipping_methods via shipping.getMethods().',
+    fields: []
+  },
+  {
+    id: 'payments.getMethods',
+    label: 'Payments: Get Methods',
+    description: 'POST /api/v2/payments/list via payments.getMethods().',
+    fields: []
+  },
+  {
+    id: 'payments.create',
+    label: 'Payments: Create',
+    description: 'POST /api/v2/payments via payments.create().',
+    fields: [
+      {
+        key: 'paymentTypeId',
+        label: 'Payment Type ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      }
+    ]
+  },
+  {
+    id: 'payments.initialize',
+    label: 'Payments: Initialize',
+    description: 'POST /api/v2/payments/{id}/process_payment_step via payments.initialize().',
+    fields: []
+  },
+  {
+    id: 'payments.processStep',
+    label: 'Payments: Process Step',
+    description: 'POST /api/v2/payments/{id}/process_payment_step via payments.processStep().',
+    fields: [
+      {
+        key: 'input',
+        label: 'Step Input (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          imageUrl: 'https://example.com/receipt.jpg',
+          code: '123456'
+        }
+      }
+    ]
+  },
+  {
+    id: 'payments.pollUntilSettled',
+    label: 'Payments: Poll Until Settled',
+    description: 'Calls payments.initialize every 15s until action is no longer pending.',
+    fields: [
+      {
+        key: 'intervalMs',
+        label: 'Interval (ms)',
+        type: 'number',
+        section: 'request',
+        defaultValue: 15000,
+        min: 1000
+      }
+    ]
+  },
+  {
     id: 'users.login',
     label: 'Users: Login (Email/Password)',
     description: 'POST /api/v1/sessions/login via users.login().',
@@ -575,7 +1336,7 @@ const OPERATIONS = [
   {
     id: 'wallet.applyCredit',
     label: 'Wallet: Apply Credit',
-    description: 'POST /api/v1/invoices/{id}/add_credit (requires auth token for successful result).',
+    description: 'POST /api/v2/invoices/{id}/add_credit (requires auth token for successful result).',
     fields: [
       {
         key: 'invoiceId',
@@ -591,7 +1352,7 @@ const OPERATIONS = [
   {
     id: 'wallet.removeCredit',
     label: 'Wallet: Remove Credit',
-    description: 'POST /api/v1/invoices/{id}/remove_credit (requires auth token for successful result).',
+    description: 'POST /api/v2/invoices/{id}/remove_credit (requires auth token for successful result).',
     fields: [
       {
         key: 'invoiceId',

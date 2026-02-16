@@ -1,0 +1,53 @@
+---
+title: Regions
+description: Fetch shipping regions with nested cities.
+---
+
+## Methods
+
+### List
+
+Use: `regions.list(options?)`.
+
+Fetches all regions from `/api/v1/regions`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<RegionWithCities[]>`.
+
+## Behavior
+
+- Regions are returned sorted alphabetically by `name`.
+- Each region's `cities` array is also sorted alphabetically by `name`.
+
+## Types
+
+### Region With Cities
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `number` | Region/province ID. |
+| `name` | `string` | Region/province name. |
+| `cities` | `RegionCity[]` | Nested cities for selected region. |
+
+### Region City
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `number` | City ID. |
+| `name` | `string` | City name. |
+| `latitude` | `number` | City latitude. |
+| `longitude` | `number` | City longitude. |
+
+## Example
+
+```ts
+const regionsRes = await client.regions.list();
+if (regionsRes.error) throw new Error(regionsRes.error.message);
+
+const regions = regionsRes.data ?? [];
+const firstRegion = regions[0];
+const firstCity = firstRegion?.cities?.[0];
+```

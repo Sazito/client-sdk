@@ -72,9 +72,12 @@ export class HttpClient {
     options?: RequestOptions
   ): Promise<SazitoResponse<T>> {
     const url = this.buildUrl(endpoint);
+    const isMultipartBody = this.isMultipartBody(body);
 
-    // Transform request body to snake_case
-    const transformedBody = body ? transformRequestKeys(body) : undefined;
+    // Transform JSON-like payloads to snake_case; keep multipart bodies untouched
+    const transformedBody = body
+      ? isMultipartBody ? body : transformRequestKeys(body)
+      : undefined;
 
     // Invalidate related cache
     const apiName = this.getApiName(endpoint);
@@ -82,7 +85,9 @@ export class HttpClient {
 
     return this.request<T>('POST', url, {
       ...options,
-      body: transformedBody
+      body: transformedBody,
+      rawBody: isMultipartBody,
+      omitJsonContentType: isMultipartBody
     });
   }
 
@@ -95,9 +100,12 @@ export class HttpClient {
     options?: RequestOptions
   ): Promise<SazitoResponse<T>> {
     const url = this.buildUrl(endpoint);
+    const isMultipartBody = this.isMultipartBody(body);
 
-    // Transform request body to snake_case
-    const transformedBody = body ? transformRequestKeys(body) : undefined;
+    // Transform JSON-like payloads to snake_case; keep multipart bodies untouched
+    const transformedBody = body
+      ? isMultipartBody ? body : transformRequestKeys(body)
+      : undefined;
 
     // Invalidate related cache
     const apiName = this.getApiName(endpoint);
@@ -105,7 +113,9 @@ export class HttpClient {
 
     return this.request<T>('PUT', url, {
       ...options,
-      body: transformedBody
+      body: transformedBody,
+      rawBody: isMultipartBody,
+      omitJsonContentType: isMultipartBody
     });
   }
 
@@ -131,7 +141,11 @@ export class HttpClient {
   private async request<T>(
     method: string,
     url: string,
-    options?: RequestOptions & { body?: any },
+    options?: RequestOptions & {
+      body?: any;
+      rawBody?: boolean;
+      omitJsonContentType?: boolean;
+    },
     retryCount = 0
   ): Promise<SazitoResponse<T>> {
     const controller = new AbortController();
@@ -144,8 +158,10 @@ export class HttpClient {
     try {
       const response = await this.fetchApi(url, {
         method,
-        headers: this.getHeaders(options?.headers),
-        body: options?.body ? JSON.stringify(options.body) : undefined,
+        headers: this.getHeaders(options?.headers, options?.omitJsonContentType),
+        body: options?.body
+          ? options.rawBody ? options.body : JSON.stringify(options.body)
+          : undefined,
         signal
       });
 
@@ -183,7 +199,7 @@ export class HttpClient {
 
       // Unwrap single-key responses for specific entity types (e.g., { cart: {...} } -> {...})
       // Don't unwrap 'route' responses as they need to be accessed as response.data.route
-      const unwrapKeys = ['cart', 'product', 'user', 'order', 'invoice', 'payment', 'shipping'];
+      const unwrapKeys = ['cart', 'product', 'user', 'order', 'invoice', 'payment', 'shippingAddress'];
       if (transformedResult && typeof transformedResult === 'object' && !Array.isArray(transformedResult)) {
         const keys = Object.keys(transformedResult);
         if (keys.length === 1 && unwrapKeys.includes(keys[0]) && 
@@ -246,12 +262,20 @@ export class HttpClient {
   /**
    * Get request headers
    */
-  private getHeaders(customHeaders?: Record<string, string>): Record<string, string> {
+  private getHeaders(
+    customHeaders?: Record<string, string>,
+    omitJsonContentType = false
+  ): Record<string, string> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       'x-forwarded-host': this.domain,  // Send domain in header
       ...customHeaders
     };
+
+    if (!omitJsonContentType) {
+      headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    } else {
+      delete headers['Content-Type'];
+    }
 
     // Auto-inject JWT from cookie (raw JWT, no Bearer prefix)
     const token = this.tokenStorage.get();
@@ -260,6 +284,10 @@ export class HttpClient {
     }
 
     return headers;
+  }
+
+  private isMultipartBody(body: any): boolean {
+    return typeof FormData !== 'undefined' && body instanceof FormData;
   }
 
   /**

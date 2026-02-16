@@ -16,3 +16,5 @@ export * from './booking';
 export * from './entity-routes';
 export * from './menu';
 export * from './general';
+export * from './dynamic-forms';
+export * from './regions';

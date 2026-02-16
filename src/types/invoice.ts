@@ -2,22 +2,32 @@
  * Invoice and checkout-related types
  */
 
-import { Image, ProductAttribute, Region, City } from './common';
+import { CheckoutProductSnapshot, Image, Region, City } from './common';
+import { SchedulerBookingAttributes, FormAttributeValue } from './cart';
+
+export interface InvoiceItemFormAttributes {
+  formId?: number;
+  formData: Record<string, {
+    label: string;
+    value: any;
+    type: string;
+  }>;
+}
 
 export interface InvoiceItem {
   id: number;
-  variant: {
-    id: number;
-    product: any;
-    attributes: ProductAttribute[];
-  };
-  image: Image;
+  productVariantId: number;
   name: string;
+  quantity: number;
   unitPrice: number;
   lineTotal: number;
-  quantity: number;
-  formAttributes?: Record<string, any>;
-  bookingAttributes?: Record<string, any>;
+  rawPrice: number;
+  customerProfit: number;
+  image: Image;
+  product: CheckoutProductSnapshot;
+  commercialFiles?: any;
+  formAttributes?: Record<string, FormAttributeValue> | InvoiceItemFormAttributes;
+  bookingAttributes?: SchedulerBookingAttributes;
   formFields?: Record<string, any>;
 }
 
@@ -25,11 +35,11 @@ export interface ShippingItem {
   invoiceItemIds: number[];
   rate: {
     id: number;
-    shippingMethodId: number;
-    cost: number;
-    deliveryTime: string;
-    minDays: number;
-    maxDays: number;
+    name: string;
+    price: number;
+    icon?: string;
+    color?: string;
+    type?: string;
   };
 }
 
@@ -38,22 +48,22 @@ export interface ShippingAddress {
   identifier: string;
   firstName: string;
   lastName: string;
-  mobilePhone: string;
+  mobilePhone?: string;
   phoneNumber?: string;
   email?: string;
-  region: Region;
+  region?: Region;
   city: City;
   address: string;
   postalCode?: string;
   latitude?: number;
   longitude?: number;
   userSetCoordinatesBefore?: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface User {
-  id: number;
+  id?: number;
   email?: string;
   mobilePhone?: string;
   firstName?: string;
@@ -67,23 +77,31 @@ export interface Invoice {
   items: InvoiceItem[];
   shippingAddress?: ShippingAddress;
   shippingItems: ShippingItem[];
-  shippingMethod?: string;           // e.g., "postpaid", null
   needsShipping: boolean;
-  user?: User;
-  comment?: string;
-
-  // Financial totals
-  subtotal: number;                 // Subtotal
-  total: number;               // After item discounts
-  finalTotal: number;               // Final (after all discounts/shipping)
+  userComment?: string;
+  netTotal: number;
+  finalTotal: number;
+  vat: number;
+  vatPercent: number;
+  itemsDiscount: number;
   discountTotal: number;
+  customerProfit: number;
+  customerProfitPercentage: number;
+  itemsTotalRawPrice: number;
+  couponTotal: number;
   shippingTotal: number;
-  taxTotal: number;
-
+  creditTotal: number;
+  user?: User;
+  discountUsages: Array<{
+    discountCode: {
+      code: string;
+      userSegment?: string;
+    };
+  }>;
+  coupon?: {
+    userSegment?: string;
+  };
   discountCode?: string;
-
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface InvoiceCredentials {

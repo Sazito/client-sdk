@@ -5,13 +5,15 @@ description: Shipping address lifecycle and shipping method retrieval.
 
 ## Methods
 
-### `shipping.createAddress(address, options?)`
+### Create Address
+
+Use: `shipping.createAddress(address, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `address.firstName` | `string` | Required | Recipient first name. |
 | `address.lastName` | `string` | Required | Recipient last name. |
-| `address.mobilePhone` | `string` | Required | Recipient mobile phone. |
+| `address.mobilePhone` | `string` | Optional | Recipient mobile phone. |
 | `address.regionId` | `number` | Required | Region ID. |
 | `address.cityId` | `number` | Required | City ID. |
 | `address.address` | `string` | Required | Street address. |
@@ -22,19 +24,27 @@ description: Shipping address lifecycle and shipping method retrieval.
 | `address.longitude` | `number` | Optional | Geo longitude. |
 | `address.userSetCoordinatesBefore` | `boolean` | Optional | Manual coordinate flag. |
 
-### `shipping.updateAddress(address, options?)`
+### Update Address
+
+Use: `shipping.updateAddress(address, options?)`.
 
 Same input schema as `createAddress`.
 
-### `shipping.getAddress(options?)`
+### Get Address
+
+Use: `shipping.getAddress(options?)`.
 
 Returns: `SazitoResponse<ShippingAddress>`.
 
-### `shipping.getMethods(options?)`
+### Get Methods
+
+Use: `shipping.getMethods(options?)`.
 
 Returns: `SazitoResponse<ShippingMethod[]>`.
 
-### `shipping.clearAddress()`
+### Clear Address
+
+Use: `shipping.clearAddress()`.
 
 Clears persisted shipping credentials.
 
@@ -43,13 +53,8 @@ Clears persisted shipping credentials.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `id` | `number` | Required | Method ID. |
-| `code` | `string` | Required | Method code. |
 | `name` | `string` | Required | Method name. |
-| `description` | `string` | Required | Method description. |
-| `enabled` | `boolean` | Required | Availability flag. |
-| `isFree` | `boolean` | Required | Free-shipping flag. |
-| `isCourier` | `boolean` | Required | Courier flag. |
-| `isPost` | `boolean` | Required | Postal service flag. |
+| `type` | `string` | Required | Shipping method type code. |
 
 ## Known errors
 
@@ -59,40 +64,259 @@ Clears persisted shipping credentials.
 
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function saveAddress() {
-  return client.shipping.createAddress({
-    firstName: 'John',
-    lastName: 'Doe',
-    mobilePhone: '09123456789',
-    regionId: 1,
-    cityId: 10,
-    address: 'No. 10, Example St',
-    postalCode: '1234567890',
-  });
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
+
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.shipping.getMethods().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
-```ts
+```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function GET() {
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const res = await client.shipping.getMethods();
-  return Response.json(res);
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.shipping.getMethods();
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.shipping.getMethods().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.shipping.getMethods();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.shipping.getMethods();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.shipping.getMethods();
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### ShippingAddressInput
+
+Source: `src/types/shipping.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `firstName` | `string` | Required |
+| `lastName` | `string` | Required |
+| `mobilePhone` | `string` | Optional |
+| `phoneNumber` | `string` | Optional |
+| `email` | `string` | Optional |
+| `regionId` | `number` | Required |
+| `cityId` | `number` | Required |
+| `address` | `string` | Required |
+| `postalCode` | `string` | Optional |
+| `latitude` | `number` | Optional |
+| `longitude` | `number` | Optional |
+| `userSetCoordinatesBefore` | `boolean` | Optional |
+
+#### ShippingAddress
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `identifier` | `string` | Required |
+| `firstName` | `string` | Required |
+| `lastName` | `string` | Required |
+| `mobilePhone` | `string` | Optional |
+| `phoneNumber` | `string` | Optional |
+| `email` | `string` | Optional |
+| `region` | `Region` | Optional |
+| `city` | `City` | Required |
+| `address` | `string` | Required |
+| `postalCode` | `string` | Optional |
+| `latitude` | `number` | Optional |
+| `longitude` | `number` | Optional |
+| `userSetCoordinatesBefore` | `boolean` | Optional |
+| `createdAt` | `string` | Optional |
+| `updatedAt` | `string` | Optional |
+
+#### ShippingMethod
+
+Source: `src/types/shipping.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `name` | `string` | Required |
+| `type` | `string` | Required |
+
+#### ShippingRate
+
+Source: `src/types/shipping.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `name` | `string` | Required |
+| `price` | `number` | Required |
+| `icon` | `string` | Optional |
+| `color` | `string` | Optional |
+| `type` | `string` | Optional |
+{/* AUTO_FIELDS_END */}
+

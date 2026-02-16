@@ -26,6 +26,8 @@ import { BookingAPI } from '../api/booking';
 import { EntityRoutesAPI } from '../api/entity-routes';
 import { MenuAPI } from '../api/menu';
 import { GeneralAPI } from '../api/general';
+import { DynamicFormsAPI } from '../api/dynamic-forms';
+import { RegionsAPI } from '../api/regions';
 import type { RequestOptions, SazitoResponse, SearchResponse } from '../types';
 
 export class SazitoClient {
@@ -52,6 +54,8 @@ export class SazitoClient {
   public readonly entityRoutes: EntityRoutesAPI;
   public readonly menu: MenuAPI;
   public readonly general: GeneralAPI;
+  public readonly dynamicForms: DynamicFormsAPI;
+  public readonly regions: RegionsAPI;
 
   constructor(config: SazitoConfig) {
     const mergedConfig = mergeConfig(config);
@@ -80,6 +84,8 @@ export class SazitoClient {
     this.entityRoutes = new EntityRoutesAPI(this.http);
     this.menu = new MenuAPI(this.http);
     this.general = new GeneralAPI(this.http);
+    this.dynamicForms = new DynamicFormsAPI(this.http);
+    this.regions = new RegionsAPI(this.http);
   }
 
   /**

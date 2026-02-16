@@ -5,7 +5,9 @@ description: Guest/authenticated cart creation and item mutation APIs.
 
 ## Methods
 
-### `cart.get(options?)`
+### Get
+
+Use: `cart.get(options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -13,16 +15,21 @@ description: Guest/authenticated cart creation and item mutation APIs.
 
 Returns: `SazitoResponse<Cart>`.
 
-### `cart.create(input, options?)`
+### Create
+
+Use: `cart.create(input, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `input.variants` | `AddToCartInput[]` | Required | Variants to initialize cart with. |
 | `input.coupon` | `string` | Optional | Initial coupon. |
 | `input.formAttributes` | `Record<string, any>` | Optional | Dynamic form values. |
+| `input.schedulerBookingAttributes` | `SchedulerBookingAttributes` | Optional | Booking attributes for scheduler products. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `cart.addItem(variantId, count, formAttributes?, options?)`
+### Add Item
+
+Use: `cart.addItem(variantId, count, formAttributes?, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -31,15 +38,35 @@ Returns: `SazitoResponse<Cart>`.
 | `formAttributes` | `Record<string, any>` | Optional | Dynamic form attributes. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `cart.updateItem(cartProductId, count, options?)`
+### Add Item With Attributes
+
+Use: `cart.addItemWithAttributes(variantId, count, attributes?, options?)`.
+
+Extended add-item flow with both dynamic form and scheduler booking payloads.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `variantId` | `number` | Required | Variant ID. |
+| `count` | `number` | Required | Quantity to add. |
+| `attributes.formAttributes` | `Record<string, any>` | Optional | Product dynamic form attributes. |
+| `attributes.schedulerBookingAttributes` | `SchedulerBookingAttributes` | Optional | Scheduler booking attributes (`eventEntityId`, `startDateTimeLocal`, `endDateTimeLocal`, `timezone`). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+### Update Item
+
+Use: `cart.updateItem(cartProductId, variantId, count, formAttributes?, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `cartProductId` | `number` | Required | Existing cart-product row ID. |
+| `variantId` | `number` | Required | Variant ID being updated. |
 | `count` | `number` | Required | New quantity. |
+| `formAttributes` | `Record<string, any>` | Optional | Updated dynamic form attributes. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `cart.removeItem(cartProductId, variantId, options?)`
+### Remove Item
+
+Use: `cart.removeItem(cartProductId, variantId, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -47,7 +74,9 @@ Returns: `SazitoResponse<Cart>`.
 | `variantId` | `number` | Required | Variant ID to remove. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `cart.clearCart()`
+### Clear Cart
+
+Use: `cart.clearCart()`.
 
 Clears persisted cart credentials only.
 
@@ -58,9 +87,11 @@ Clears persisted cart credentials only.
 | `id` | `number` | Required | Cart ID. |
 | `identifier` | `string` | Required | Guest cart identifier. |
 | `items` | `CartProduct[]` | Required | Cart line items. |
-| `subtotal` | `number` | Required | Subtotal value. |
-| `total` | `number` | Required | Total after discounts. |
+| `netTotal` | `number` | Required | Net total from backend checkout pricing. |
+| `grossTotal` | `number` | Optional | Gross total (when present in backend response). |
 | `needsShipping` | `boolean` | Required | Whether shipping step is required. |
+| `minBasketLimitViolated` | `boolean` | Required | Minimum basket status flag. |
+| `deleteCoupon` | `boolean` | Optional | Coupon deletion flag from backend. |
 
 ## Known errors
 
@@ -70,40 +101,246 @@ Clears persisted cart credentials only.
 
 ## Examples
 
-<Tabs items={["React", "Next.js"]}>
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
 
-<Tab value="React">
+<Tab value="Next.js (Client)">
 
 ```tsx
-import { client } from '../lib/sazito';
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
 
-export function AddToCartButton({ variantId }: { variantId: number }) {
-  async function onAdd() {
-    const res = await client.cart.addItem(variantId, 1);
-    if (res.error) alert(res.error.message);
-  }
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+```
 
-  return <button onClick={onAdd}>Add to cart</button>;
+```tsx
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
+
+export default function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.cart.get().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
-```ts
+```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function POST(request: Request) {
-  const { variantId, count } = await request.json();
-
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const res = await client.cart.addItem(variantId, count);
-
-  return Response.json(res);
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.cart.get();
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.cart.get().then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.cart.get();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.cart.get();
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.cart.get();
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### CreateCartInput
+
+Source: `src/types/cart.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `coupon` | `string` | Optional |
+| `variants` | `AddToCartInput[]` | Required |
+| `formAttributes` | `Record<string, FormAttributeValue>` | Optional |
+| `schedulerBookingAttributes` | `SchedulerBookingAttributes` | Optional |
+
+#### AddToCartInput
+
+Source: `src/types/cart.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `count` | `number` | Required |
+| `formAttributes` | `Record<string, FormAttributeValue>` | Optional |
+
+#### Cart
+
+Source: `src/types/cart.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `identifier` | `string` | Required |
+| `items` | `CartProduct[]` | Required |
+| `netTotal` | `number` | Required |
+| `grossTotal` | `number` | Optional |
+| `needsShipping` | `boolean` | Required |
+| `minBasketLimitViolated` | `boolean` | Required |
+| `deleteCoupon` | `boolean` | Optional |
+
+#### CartProduct
+
+Source: `src/types/cart.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `productVariantId` | `number` | Required |
+| `quantity` | `number` | Required |
+| `unitPrice` | `number` | Required |
+| `lineTotal` | `number` | Required |
+| `product` | `CheckoutProductSnapshot` | Required |
+| `formAttributes` | `Record<string, FormAttributeValue>` | Optional |
+| `formFields` | `Record<string, any>` | Optional |
+| `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
+{/* AUTO_FIELDS_END */}
+

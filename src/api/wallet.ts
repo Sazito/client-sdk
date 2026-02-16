@@ -8,7 +8,7 @@ import {
   Invoice,
   RequestOptions
 } from '../types';
-import { WALLET_API, WALLET_TRANSACTIONS_API } from '../constants/endpoints';
+import { INVOICES_API, WALLET_API, WALLET_TRANSACTIONS_API } from '../constants/endpoints';
 
 export type WalletTransactionReason =
   | 'redeem'
@@ -111,7 +111,7 @@ export class WalletAPI {
     if (validation) return validation;
 
     return this.http.post<Invoice>(
-      `/api/v1/invoices/${invoiceId}/add_credit`,
+      `${INVOICES_API}/${invoiceId}/add_credit`,
       {},
       options
     );
@@ -128,7 +128,7 @@ export class WalletAPI {
     if (validation) return validation;
 
     return this.http.post<Invoice>(
-      `/api/v1/invoices/${invoiceId}/remove_credit`,
+      `${INVOICES_API}/${invoiceId}/remove_credit`,
       {},
       options
     );

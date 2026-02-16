@@ -1,76 +1,182 @@
 ---
 title: Feedbacks
-description: Product feedback list/create/get endpoints.
+description: Tajrobe review flow (seed, order rating, product reviews, stats, and uploads) plus legacy feedback endpoints.
 ---
 
-## Methods
+## Review flow methods
 
-### `feedbacks.list(filters?, options?)`
+### Get Seed
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `filters.productId` | `number` | Optional | Filter by product ID. |
-| `filters.page` | `number` | Optional | Page number. |
-| `filters.pageSize` | `number` | Optional | Page size. |
-| `options` | `RequestOptions` | Optional | Per-request controls. |
+Use: `feedbacks.getSeed(orderIdentifier, options?)`.
 
-Returns: `SazitoResponse<PaginatedResponse<Feedback>>`.
-
-### `feedbacks.create(input, options?)`
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `input.comment` | `string` | Required | Feedback body. |
-| `input.productId` | `number` | Optional | Product ID. |
-| `input.rating` | `number` | Optional | Rating value (typically 1-5). |
-| `options` | `RequestOptions` | Optional | Per-request controls. |
-
-### `feedbacks.get(feedbackId, options?)`
+Gets review seed data from `/api/v1/feedbacks/seed/{orderIdentifier}`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `feedbackId` | `number` | Required | Feedback ID. |
+| `orderIdentifier` | `string` | Required | Order identifier from order/invoice. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-## `Feedback` fields
+Returns: `SazitoResponse<FeedbackSeed>`.
+
+### Create Order Rating
+
+Use: `feedbacks.createOrderRating(input, options?)`.
+
+Submits order-level rating to `/api/v1/feedbacks/comments`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `number` | Required | Feedback ID. |
-| `comment` | `string` | Required | Feedback text. |
-| `status` | `'pending' \| 'approved' \| 'rejected'` | Required | Moderation status. |
-| `rating` | `number` | Optional | Rating score. |
-| `productId` | `number` | Optional | Linked product ID. |
+| `input.orderId` | `string` | Required | Order ID. |
+| `input.orderIdentifier` | `string` | Required | Order identifier. |
+| `input.orderRate` | `number` | Required | Order rate (`1..5`). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
 
-## Examples
+Returns: `SazitoResponse<{ id: string }>` where `id` is `commentId`.
 
-<Tabs items={["React", "Next.js"]}>
+### Submit Product Review
 
-<Tab value="React">
+Use: `feedbacks.submitProductReview(input, options?)`.
 
-```tsx
-import { client } from '../lib/sazito';
+Submits product review payload to `/api/v1/feedbacks/comments/details`.
 
-export async function submitFeedback(productId: number, comment: string) {
-  return client.feedbacks.create({ productId, comment, rating: 5 });
-}
-```
+Required fields include:
+- `commentId`
+- `productId`
+- `productVariantId`
+- `productName`
+- `productRate`
+- `text`
+- `recommendationStatus`
+- `productAttributes`
+- `productImage`
+- `pros`
+- `cons`
+- `attachmentsServeKeys`
+- `owner`
+- `isAnonymous`
 
-</Tab>
+Returns: `SazitoResponse<void>`.
 
-<Tab value="Next.js">
+### Get Product Statistics
+
+Use: `feedbacks.getProductStatistics(productId, options?)`.
+
+Reads review statistics from `/api/v1/feedbacks/comments/details/{productId}?exclude=comments`.
+
+Returns: `SazitoResponse<ProductStatistics>`.
+
+### Get Product Reviews
+
+Use: `feedbacks.getProductReviews(productId, filters?, options?)`.
+
+Reads paginated reviews from `/api/v1/feedbacks/comments/details/{productId}`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `filters.pageNumber` | `number` | Optional | Page number (default `1`). |
+| `filters.pageSize` | `number` | Optional | Page size (default `10`). |
+
+Returns: `SazitoResponse<ProductReviewsResponse>`.
+
+### Upload Review Images
+
+Use: `feedbacks.uploadReviewImages(images, options?)`.
+
+Uploads review images to `/api/v1/service/filemanager/uploads/public/tajrobe`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `images[].file` | `File \| Blob` | Required | Image file. |
+| `images[].name` | `string` | Optional | File display name. |
+| `images[].alt` | `string` | Optional | Alt text. |
+
+Returns: `SazitoResponse<{ images: ReviewUploadedImage[] }>` where each image includes `serveKey`.
+
+## Legacy methods (backward compatibility)
+
+- `feedbacks.list(filters?, options?)`
+- `feedbacks.create(input, options?)`
+- `feedbacks.get(feedbackId, options?)`
+
+These call legacy `/api/v1/feedbacks` endpoints and are kept for existing integrations.
+
+## Example: End-to-end review submission
 
 ```ts
-import { createSazitoClient } from '@sazito/client-sdk';
+const seed = await client.feedbacks.getSeed('ORDER-1001');
+if (seed.error) throw new Error(seed.error.message);
 
-export async function POST(request: Request) {
-  const body = await request.json();
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const res = await client.feedbacks.create(body);
-  return Response.json(res);
+if (!seed.data?.hasCommentAlready) {
+  const orderRating = await client.feedbacks.createOrderRating({
+    orderId: seed.data?.orderId ?? '',
+    orderIdentifier: seed.data?.orderIdentifier ?? '',
+    orderRate: 5
+  });
+  if (orderRating.error) throw new Error(orderRating.error.message);
+
+  const first = seed.data?.items?.[0];
+  if (first) {
+    const productReview = await client.feedbacks.submitProductReview({
+      commentId: orderRating.data?.id ?? '',
+      productId: first.productId,
+      productVariantId: first.productVariantId,
+      productName: first.productName,
+      productAttributes: first.productAttributes,
+      productImage: first.productImage,
+      productRate: 5,
+      text: 'Great product.',
+      pros: ['Quality'],
+      cons: [],
+      recommendationStatus: 'RECOMMENDED',
+      attachmentsServeKeys: [],
+      owner: true,
+      isAnonymous: false
+    });
+    if (productReview.error) throw new Error(productReview.error.message);
+  }
 }
 ```
 
-</Tab>
+{/* AUTO_FIELDS_START */}
+## Type Details
 
-</Tabs>
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### FeedbackFilters
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `productId` | `number` | Optional |
+| `page` | `number` | Optional |
+| `pageSize` | `number` | Optional |
+
+#### CreateFeedbackInput
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `productId` | `number` | Optional |
+| `rating` | `number` | Optional |
+| `comment` | `string` | Required |
+
+#### Feedback
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `user` | `{     id: number;     name: string;   }` | Optional |
+| `user.id` | `number` | Required |
+| `user.name` | `string` | Required |
+| `productId` | `number` | Optional |
+| `rating` | `number` | Optional |
+| `comment` | `string` | Required |
+| `status` | `'pending' \| 'approved' \| 'rejected'` | Required |
+| `createdAt` | `string` | Required |
+| `updatedAt` | `string` | Required |
+{/* AUTO_FIELDS_END */}
+

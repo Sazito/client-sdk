@@ -73,11 +73,29 @@ export interface ProductAttribute {
 }
 
 /**
+ * Normalized product snapshot embedded in checkout entities
+ * (cart items, invoice items, successful order items).
+ */
+export interface CheckoutProductSnapshot {
+  variantId: number;
+  productId?: number;
+  name: string;
+  url?: string;
+  image?: Image;
+  attributes: ProductAttribute[];
+  productType?: string;
+  hasMaxOrder?: boolean;
+  maxOrderQuantity?: number;
+  minOrderQuantity?: number;
+}
+
+/**
  * Region (استان)
  */
 export interface Region {
   id: number;
   name: string;
+  cities?: City[];
 }
 
 /**
@@ -87,4 +105,6 @@ export interface City {
   id: number;
   name: string;
   regionId?: number;
+  latitude?: number;
+  longitude?: number;
 }

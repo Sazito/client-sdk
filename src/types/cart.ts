@@ -2,39 +2,44 @@
  * Cart-related types
  */
 
-import { Image, ProductAttribute } from './common';
+import { CheckoutProductSnapshot } from './common';
+
+export interface SchedulerBookingAttributes {
+  eventEntityId: number;
+  eventTitle?: string;
+  startDateTimeLocal: string;
+  endDateTimeLocal: string;
+  timezone: string;
+}
+
+export interface UploadedFormFileAttribute {
+  serveKey: string;
+  fileName: string;
+}
+
+export type FormAttributeValue = string | number | boolean | null | UploadedFormFileAttribute;
 
 export interface CartProduct {
-  id: number;                        // cartProductId
-  product: {
-    variantId: number;
-    name: string;
-    url: string;
-    image: Image;
-    attributes: ProductAttribute[];
-    hasMaxOrder: boolean;
-    maxOrderQuantity: number;
-    minOrderQuantity: number;
-  };
+  id: number;
+  productVariantId: number;
+  quantity: number;
   unitPrice: number;
   lineTotal: number;
-  quantity: number;
-  formAttributes?: Record<string, any>;
-  bookingAttributes?: {
-    eventEntityId?: number;
-    timezone?: string;
-  };
+  product: CheckoutProductSnapshot;
+  formAttributes?: Record<string, FormAttributeValue>;
   formFields?: Record<string, any>;
+  bookingAttributes?: SchedulerBookingAttributes;
 }
 
 export interface Cart {
   id: number;
-  identifier: string;         // Used for guest cart authentication
+  identifier: string;
   items: CartProduct[];
-  subtotal: number;                 // Subtotal before discounts/shipping
-  total: number;               // After discounts, before shipping
+  netTotal: number;
+  grossTotal?: number;
   needsShipping: boolean;
-  deleteCoupon: boolean;
+  minBasketLimitViolated: boolean;
+  deleteCoupon?: boolean;
 }
 
 export interface CartCredentials {
@@ -43,21 +48,14 @@ export interface CartCredentials {
 }
 
 export interface AddToCartInput {
-  id: number;                        // variantId
+  id: number;
   count: number;
-  formAttributes?: Record<string, any>;
-  schedulerBookingAttributes?: {
-    eventEntityId: number;
-    timezone: string;
-  };
+  formAttributes?: Record<string, FormAttributeValue>;
 }
 
 export interface CreateCartInput {
   coupon?: string;
   variants: AddToCartInput[];
-  formAttributes?: Record<string, any>;
-  schedulerBookingAttributes?: {
-    eventEntityId: number;
-    timezone: string;
-  };
+  formAttributes?: Record<string, FormAttributeValue>;
+  schedulerBookingAttributes?: SchedulerBookingAttributes;
 }

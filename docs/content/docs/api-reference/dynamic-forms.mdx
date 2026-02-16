@@ -1,0 +1,80 @@
+---
+title: Dynamic Forms
+description: Fetch dynamic form schemas and upload product form files.
+---
+
+## Methods
+
+### Get Form
+
+Use: `dynamicForms.getForm(formId, options?)`.
+
+Fetches dynamic form definition from `/api/v1/dynamic_form/{id}`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `formId` | `number` | Required | Dynamic form ID. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<DynamicForm>`.
+
+### Upload Product Form File
+
+Use: `dynamicForms.uploadProductFormFile(file, options?)`.
+
+Uploads file for uploader fields to `/api/v1/service/filemanager/uploads/private/productform`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file` | `File \| Blob` | Required | File object to upload. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<{ serveKey: string }>` where `serveKey` should be used in form attributes.
+
+## Key types
+
+### Dynamic Form
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `number` | Form ID. |
+| `title` | `string` | Form title. |
+| `description` | `string` | Form description. |
+| `fields` | `DynamicFormField[]` | Field definitions. |
+
+### Dynamic Form Field
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `key` | `string` | Internal unique key. |
+| `name` | `string` | API field key used in `formAttributes`. |
+| `type` | `DynamicFormFieldType` | Input renderer type. |
+| `required` | `boolean` | Required field flag. |
+| `inputOptions` | `SelectOption[]` | Options for select-like fields. |
+| `allowedExtensions` | `string[]` | Allowed extensions for uploader fields. |
+
+## Usage examples
+
+#### Get Form
+
+Use: `dynamicForms.getForm(...)`.
+
+```ts
+const formRes = await client.dynamicForms.getForm(12);
+if (formRes.error) throw new Error(formRes.error.message);
+
+const form = formRes.data;
+const uploaderField = form?.fields.find(field => field.type === 'Uploader');
+const allowedExtensions = uploaderField?.allowedExtensions ?? [];
+```
+
+#### Upload Product Form File
+
+Use: `dynamicForms.uploadProductFormFile(...)`.
+
+```ts
+const uploadRes = await client.dynamicForms.uploadProductFormFile(file);
+if (uploadRes.error) throw new Error(uploadRes.error.message);
+
+const serveKey = uploadRes.data?.serveKey;
+```

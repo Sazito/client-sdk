@@ -22,6 +22,81 @@ export function createCommerceClient() {
 
 Implement one utility that maps `SazitoResponse.error` to your UI or API error schema.
 
+```ts
+// src/lib/sazito-error.ts
+import type { SazitoResponse } from '@sazito/client-sdk';
+
+export type AppError = {
+  code: 'VALIDATION_ERROR' | 'NETWORK_ERROR' | 'API_ERROR' | 'UNKNOWN_ERROR';
+  message: string;
+  status: number;
+  retryable: boolean;
+  details?: unknown;
+};
+
+export function mapSazitoError(error: SazitoResponse<unknown>['error']): AppError {
+  if (!error) {
+    return {
+      code: 'UNKNOWN_ERROR',
+      message: 'Unknown error',
+      status: 500,
+      retryable: false,
+    };
+  }
+
+  if (error.type === 'validation') {
+    return {
+      code: 'VALIDATION_ERROR',
+      message: error.message,
+      status: error.status ?? 400,
+      retryable: false,
+      details: error.details,
+    };
+  }
+
+  if (error.type === 'network') {
+    return {
+      code: 'NETWORK_ERROR',
+      message: error.message,
+      status: error.status ?? 503,
+      retryable: true,
+      details: error.details,
+    };
+  }
+
+  return {
+    code: 'API_ERROR',
+    message: error.message,
+    status: error.status ?? 500,
+    retryable: (error.status ?? 500) >= 500,
+    details: error.details,
+  };
+}
+```
+
+```ts
+// UI usage
+const res = await client.products.list({ page: 1, pageSize: 12 });
+if (res.error) {
+  const appError = mapSazitoError(res.error);
+  setError(appError.message);
+  return;
+}
+```
+
+```ts
+// API route usage
+const res = await client.orders.get(123);
+if (res.error) {
+  const appError = mapSazitoError(res.error);
+
+  return NextResponse.json(
+    { error: appError.code, message: appError.message, details: appError.details },
+    { status: appError.status }
+  );
+}
+```
+
 ## Use request-level controls for critical paths
 
 - Set lower timeout for page-critical requests.

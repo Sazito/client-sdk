@@ -1,0 +1,148 @@
+---
+title: Nuxt Guide
+description: Nuxt patterns for using Sazito SDK in both client and server contexts.
+---
+
+## Runtime model
+
+- Inject a single SDK client plugin for browser pages/components.
+- Use a server utility for API handlers.
+- Keep domain in `runtimeConfig.public.sazitoDomain`.
+
+## 1. Nuxt plugin + typing
+
+```ts
+// plugins/sazito.client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({
+    domain: config.public.sazitoDomain,
+    timeout: 15000,
+  });
+
+  return { provide: { sazito } };
+});
+```
+
+```ts
+// types/nuxt.d.ts
+import type { SazitoClient } from '@sazito/client-sdk';
+
+declare module '#app' {
+  interface NuxtApp {
+    $sazito: SazitoClient;
+  }
+}
+
+declare module 'vue' {
+  interface ComponentCustomProperties {
+    $sazito: SazitoClient;
+  }
+}
+```
+
+## 2. Client page example
+
+```vue
+<!-- pages/products.vue -->
+<script setup lang="ts">
+const { $sazito } = useNuxtApp();
+
+const { data, error, pending, refresh } = await useAsyncData('products', async () => {
+  const res = await $sazito.products.list({ page: 1, pageSize: 12, sort: 'newest' });
+  if (res.error) throw createError({ statusCode: res.error.status ?? 500, statusMessage: res.error.message });
+  return res.data?.items ?? [];
+});
+</script>
+
+<template>
+  <section>
+    <button @click="refresh">Refresh</button>
+    <p v-if="pending">Loading...</p>
+    <p v-else-if="error">{{ error.message }}</p>
+    <ul v-else>
+      <li v-for="item in data" :key="item.url">{{ item.name }}</li>
+    </ul>
+  </section>
+</template>
+```
+
+## 3. Server utility + API handler
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoServerClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({
+    domain: config.public.sazitoDomain,
+    timeout: 15000,
+  });
+}
+```
+
+```ts
+// server/api/wallet.get.ts
+import { getHeader } from 'h3';
+import { getSazitoServerClient } from '../utils/sazito';
+
+export default defineEventHandler(async (event) => {
+  const token = getHeader(event, 'authorization');
+  const client = getSazitoServerClient();
+
+  const res = await client.wallet.getBalance({
+    headers: token ? { Authorization: token } : undefined,
+    cache: false,
+  });
+
+  if (res.error) {
+    throw createError({ statusCode: res.error.status ?? 500, statusMessage: res.error.message });
+  }
+
+  return res.data;
+});
+```
+
+## 4. Mutation example (client -> server API)
+
+```ts
+// composables/useCartActions.ts
+export function useCartActions() {
+  async function addToCart(variantId: number, count = 1) {
+    return await $fetch('/api/cart/add', {
+      method: 'POST',
+      body: { variantId, count },
+    });
+  }
+
+  return { addToCart };
+}
+```
+
+```ts
+// server/api/cart/add.post.ts
+import { readBody } from 'h3';
+import { getSazitoServerClient } from '../../utils/sazito';
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody<{ variantId: number; count: number }>(event);
+  const client = getSazitoServerClient();
+
+  const res = await client.cart.addItem(body.variantId, body.count);
+  if (res.error) {
+    throw createError({ statusCode: res.error.status ?? 500, statusMessage: res.error.message });
+  }
+
+  return res.data;
+});
+```
+
+## 5. Checklist
+
+- Inject SDK once in `plugins/sazito.client.ts`.
+- Keep server-only orchestration in `server/api/*` handlers.
+- Pass auth token explicitly for authenticated server calls.
+- Throw normalized errors from `SazitoResponse.error`.

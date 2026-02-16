@@ -1,99 +1,290 @@
 ---
 title: Booking
-description: Scheduler events and booking management APIs.
+description: Scheduler events, availabilities, and booking management APIs.
 ---
 
 ## Methods
 
-### `booking.listEvents(filters?, options?)`
+### List Events
+
+Use: `booking.listEvents(filters?, options?)`.
+
+Legacy scheduler event listing endpoint.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `filters.start_date` | `string` | Optional | Start date filter. |
-| `filters.end_date` | `string` | Optional | End date filter. |
-| `filters.available_only` | `boolean` | Optional | Filter available events only. |
+| `filters.startDate` | `string` | Optional | Start date filter (`YYYY-MM-DD`). |
+| `filters.endDate` | `string` | Optional | End date filter (`YYYY-MM-DD`). |
+| `filters.availableOnly` | `boolean` | Optional | Show only available events. |
 | `filters.page` | `number` | Optional | Page number. |
-| `filters.page_size` | `number` | Optional | Page size. |
+| `filters.pageSize` | `number` | Optional | Page size. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<PaginatedResponse<Event>>`.
 
-### `booking.getEvent(eventId, options?)`
+### Get Event
+
+Use: `booking.getEvent(entityId, options?)`.
+
+Fetches scheduler event details from `/api/v1/scheduler/events/{entityId}`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `eventId` | `number` | Required | Scheduler event ID. |
+| `entityId` | `number` | Required | Event entity ID. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-### `booking.createBooking(input, options?)`
+Returns: `SazitoResponse<SchedulerEvent>`.
+
+### Get Event Availabilities
+
+Use: `booking.getEventAvailabilities(filters, options?)`.
+
+Fetches available days and slots from `/api/v1/scheduler/availabilities`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `input.event_entity_id` | `number` | Required | Event entity ID to book. |
+| `filters.eventEntityId` | `number` | Required | Event entity ID. |
+| `filters.duration` | `number` | Required | Selected slot duration in minutes. |
+| `filters.fromDate` | `string` | Required | Start date (`YYYY-MM-DD`). |
+| `filters.toDate` | `string` | Required | End date (`YYYY-MM-DD`). |
+| `filters.timezone` | `string` | Optional | Timezone (example: `Asia/Tehran`). |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+Returns: `SazitoResponse<{ availableDays: BookingAvailableDay[] }>`.
+
+### Create Booking
+
+Use: `booking.createBooking(input, options?)`.
+
+Legacy booking creation endpoint.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input.eventEntityId` | `number` | Required | Event entity ID. |
 | `input.timezone` | `string` | Required | Booking timezone. |
-| `input.attendee_name` | `string` | Required | Attendee full name. |
-| `input.attendee_email` | `string` | Optional | Attendee email. |
-| `input.attendee_phone` | `string` | Optional | Attendee phone. |
-
-### `booking.listBookings(options?)`
-
-Lists current user bookings.
-
-### `booking.cancelBooking(bookingId, options?)`
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `bookingId` | `number` | Required | Booking ID. |
+| `input.attendeeName` | `string` | Required | Attendee name. |
+| `input.attendeeEmail` | `string` | Optional | Attendee email. |
+| `input.attendeePhone` | `string` | Optional | Attendee phone. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-## `Event` key fields
+Returns: `SazitoResponse<Booking>`.
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `id` | `number` | Required | Event ID. |
-| `title` | `string` | Required | Event title. |
-| `start_time` | `string` | Required | Event start time. |
-| `end_time` | `string` | Required | Event end time. |
-| `capacity` | `number` | Required | Total capacity. |
-| `available_slots` | `number` | Required | Remaining slots. |
+### List Bookings
 
-## Examples
+Use: `booking.listBookings(options?)`.
 
-<Tabs items={["React", "Next.js"]}>
+Returns authenticated user bookings.
 
-<Tab value="React">
+### Cancel Booking
 
-```tsx
-import { useEffect, useState } from 'react';
-import { client } from '../lib/sazito';
+Use: `booking.cancelBooking(bookingId, options?)`.
 
-export function Events() {
-  const [items, setItems] = useState<any[]>([]);
+Cancels booking by ID.
 
-  useEffect(() => {
-    client.booking.listEvents({ page: 1, page_size: 10 }).then((res) => {
-      if (!res.error) setItems(res.data?.items ?? []);
-    });
-  }, []);
+## Key types
 
-  return <div>{items.map((e) => <p key={e.id}>{e.title}</p>)}</div>;
-}
-```
+### Scheduler Event
 
-</Tab>
+| Field | Type | Description |
+| --- | --- | --- |
+| `entityId` | `number` | Event ID used by scheduler APIs. |
+| `title` | `string` | Event title. |
+| `description` | `string` | Event description. |
+| `durationsMinute` | `number[]` | Supported durations for booking slots. |
 
-<Tab value="Next.js">
+### Booking Available Day
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `date` | `string` | Date (`YYYY-MM-DD`). |
+| `timeSlots` | `BookingTimeSlot[]` | Slots for the day. |
+
+### Booking Time Slot
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `startTimeLocal` | `string` | Start time (`HH:mm`). |
+| `endTimeLocal` | `string` | End time (`HH:mm`). |
+| `isAvailable` | `boolean` | Slot availability. |
+| `remainingCapacity` | `number` | Remaining capacity for slot. |
+
+## Usage examples
 
 ```ts
-import { createSazitoClient } from '@sazito/client-sdk';
+const eventRes = await client.booking.getEvent(15);
+if (eventRes.error) throw new Error(eventRes.error.message);
 
-export async function GET() {
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const res = await client.booking.listEvents({ page: 1, page_size: 10 });
-  return Response.json(res);
-}
+const duration = eventRes.data?.durationsMinute?.[0] ?? 30;
+const slotsRes = await client.booking.getEventAvailabilities({
+  eventEntityId: 15,
+  duration,
+  fromDate: '2026-02-16',
+  toDate: '2026-03-15',
+  timezone: 'Asia/Tehran'
+});
+
+if (slotsRes.error) throw new Error(slotsRes.error.message);
 ```
 
-</Tab>
+#### List Events
 
-</Tabs>
+Use: `booking.listEvents(...)`.
+
+```ts
+const eventsRes = await client.booking.listEvents({
+  startDate: '2026-02-16',
+  endDate: '2026-03-15',
+  availableOnly: true,
+  page: 1,
+  pageSize: 10
+});
+
+if (eventsRes.error) throw new Error(eventsRes.error.message);
+const events = eventsRes.data?.items ?? [];
+```
+
+#### Get Event
+
+Use: `booking.getEvent(...)`.
+
+```ts
+const eventRes = await client.booking.getEvent(15);
+if (eventRes.error) throw new Error(eventRes.error.message);
+
+const event = eventRes.data;
+const defaultDuration = event?.durationsMinute?.[0] ?? 30;
+```
+
+#### Get Event Availabilities
+
+Use: `booking.getEventAvailabilities(...)`.
+
+```ts
+const availabilityRes = await client.booking.getEventAvailabilities({
+  eventEntityId: 15,
+  duration: 30,
+  fromDate: '2026-02-16',
+  toDate: '2026-03-15',
+  timezone: 'Asia/Tehran'
+});
+
+if (availabilityRes.error) throw new Error(availabilityRes.error.message);
+const availableDays = availabilityRes.data?.availableDays ?? [];
+```
+
+#### Create Booking (legacy endpoint)
+
+Use: `booking.createBooking(...)`.
+
+```ts
+const createRes = await client.booking.createBooking({
+  eventEntityId: 15,
+  timezone: 'Asia/Tehran',
+  attendeeName: 'Reza Mahmoudi',
+  attendeeEmail: 'reza@example.com',
+  attendeePhone: '09123456789'
+});
+
+if (createRes.error) throw new Error(createRes.error.message);
+const booking = createRes.data;
+```
+
+#### List Bookings
+
+Use: `booking.listBookings(...)`.
+
+```ts
+client.setAuthToken(idToken); // required for authenticated booking list
+
+const bookingsRes = await client.booking.listBookings();
+if (bookingsRes.error) throw new Error(bookingsRes.error.message);
+
+const myBookings = bookingsRes.data?.items ?? [];
+```
+
+#### Cancel Booking
+
+Use: `booking.cancelBooking(...)`.
+
+```ts
+client.setAuthToken(idToken); // required for authenticated booking actions
+
+const cancelRes = await client.booking.cancelBooking(10001);
+if (cancelRes.error) throw new Error(cancelRes.error.message);
+
+const cancelledBooking = cancelRes.data;
+```
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### EventFilters
+
+Source: `src/api/booking.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `startDate` | `string` | Optional |
+| `start_date` | `string` | Optional |
+| `endDate` | `string` | Optional |
+| `end_date` | `string` | Optional |
+| `availableOnly` | `boolean` | Optional |
+| `available_only` | `boolean` | Optional |
+| `page` | `number` | Optional |
+| `pageSize` | `number` | Optional |
+| `page_size` | `number` | Optional |
+
+#### CreateBookingInput
+
+Source: `src/api/booking.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `eventEntityId` | `number` | Optional |
+| `event_entity_id` | `number` | Optional |
+| `timezone` | `string` | Required |
+| `attendeeName` | `string` | Optional |
+| `attendee_name` | `string` | Optional |
+| `attendeeEmail` | `string` | Optional |
+| `attendee_email` | `string` | Optional |
+| `attendeePhone` | `string` | Optional |
+| `attendee_phone` | `string` | Optional |
+
+#### Event
+
+Source: `src/api/booking.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `title` | `string` | Required |
+| `description` | `string` | Optional |
+| `startTime` | `string` | Optional |
+| `endTime` | `string` | Optional |
+| `capacity` | `number` | Optional |
+| `bookedCount` | `number` | Optional |
+| `availableSlots` | `number` | Optional |
+| `price` | `number` | Optional |
+| `location` | `string` | Optional |
+| `createdAt` | `string` | Optional |
+
+#### Booking
+
+Source: `src/api/booking.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `eventId` | `number` | Required |
+| `event` | `Event` | Required |
+| `userId` | `number` | Optional |
+| `attendeeName` | `string` | Required |
+| `attendeeEmail` | `string` | Optional |
+| `attendeePhone` | `string` | Optional |
+| `status` | `'pending' \| 'confirmed' \| 'cancelled'` | Required |
+| `bookingTime` | `string` | Required |
+| `createdAt` | `string` | Required |
+{/* AUTO_FIELDS_END */}
+

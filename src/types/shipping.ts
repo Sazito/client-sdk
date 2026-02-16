@@ -5,28 +5,34 @@
 
 export interface ShippingMethod {
   id: number;
-  code: string;
   name: string;
-  description: string;
-  enabled: boolean;
-  isFree: boolean;
-  isCourier: boolean;
-  isPost: boolean;
+  type: string;
 }
 
 export interface ShippingRate {
   id: number;
-  shippingMethodId: number;
-  cost: number;
-  deliveryTime: string;
-  minDays: number;
-  maxDays: number;
+  name: string;
+  price: number;
+  icon?: string;
+  color?: string;
+  type?: string;
+}
+
+export interface ItemShippingRate {
+  invoiceItemId: number;
+  shippingRate: ShippingRate;
+}
+
+export interface ApplicableShippingMethods {
+  shippingMethods: ShippingMethod[];
+  groupedShippingRates: Record<string, ShippingRate[]>;
+  itemsShippingRate: ItemShippingRate[];
 }
 
 export interface ShippingAddressInput {
   firstName: string;
   lastName: string;
-  mobilePhone: string;
+  mobilePhone?: string;
   phoneNumber?: string;
   email?: string;
   regionId: number;
@@ -45,5 +51,5 @@ export interface ShippingAddressCredentials {
 
 export interface ShippingAssignment {
   rateId: number;
-  invoiceItemIds: string[];
+  invoiceItemIds: number[];
 }

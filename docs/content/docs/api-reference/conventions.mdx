@@ -40,3 +40,59 @@ All methods return `SazitoResponse<T>`.
 - `Required` means the SDK method needs the field to execute correctly.
 - `Optional` means the field may be omitted.
 - Methods can still return `validation` errors if prerequisite client state is missing (cart/invoice/payment credentials).
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### RequestOptions
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `retries` | `number` | Optional |
+| `timeout` | `number` | Optional |
+| `cache` | `boolean` | Optional |
+| `headers` | `Record<string, string>` | Optional |
+| `signal` | `AbortSignal` | Optional |
+
+#### SazitoResponse
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `data` | `T` | Optional |
+| `error` | `{     status?: number;     message: string;     type: 'network' \| 'api' \| 'validation';     details?: any;   }` | Optional |
+| `error.status` | `number` | Optional |
+| `error.message` | `string` | Required |
+| `error.type` | `'network' \| 'api' \| 'validation'` | Required |
+| `error.details` | `any` | Optional |
+
+#### PaginatedResponse
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | `T[]` | Required |
+| `total` | `number` | Required |
+| `page` | `number` | Required |
+| `pageSize` | `number` | Required |
+
+#### CookieOptions
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `httpOnly` | `boolean` | Optional |
+| `secure` | `boolean` | Optional |
+| `sameSite` | `'Strict' \| 'Lax' \| 'None'` | Optional |
+| `maxAge` | `number` | Optional |
+| `path` | `string` | Optional |
+| `domain` | `string` | Optional |
+{/* AUTO_FIELDS_END */}
+

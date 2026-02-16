@@ -14,14 +14,6 @@ export function baseOptions(): BaseLayoutProps {
     },
     links: [
       {
-        text: 'Guides',
-        url: '/docs/guides/guest-checkout',
-      },
-      {
-        text: 'API Reference',
-        url: '/docs/api-reference/client',
-      },
-      {
         text: 'npm',
         url: 'https://www.npmjs.com/package/@sazito/client-sdk',
         external: true,

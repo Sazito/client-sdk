@@ -5,7 +5,9 @@ description: Unified entity search across products, CMS pages, blog pages, and c
 
 ## Method
 
-### `search.query(query, filters?, options?)`
+### Query
+
+Use: `search.query(query, filters?, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -31,58 +33,311 @@ Returns: `SazitoResponse<SearchResponse>`.
 | `*.page` | `number` | Required | Current page. |
 | `*.pageSize` | `number` | Required | Page size. |
 
-## Example
+## Examples
 
-```ts
-const res = await client.search.query('running shoes', {
-  categoryId: 73,
-  minPrice: 100000,
-  maxPrice: 900000,
-  page: 1,
-  pageSize: 20,
+<Tabs items={["Next.js (Client)", "Next.js (Server)", "React", "Vue", "Nuxt", "Nuxt.js (Server)"]}>
+
+<Tab value="Next.js (Client)">
+
+```tsx
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
 });
 ```
 
-## Examples
-
-<Tabs items={["React", "Next.js"]}>
-
-<Tab value="React">
-
 ```tsx
-import { useState } from 'react';
-import { client } from '../lib/sazito';
+// app/[lang]/(home)/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { sazito } from '@/app/lib/sazito-client';
 
-export function SearchBox() {
-  const [results, setResults] = useState<any>(null);
+export default function Example() {
+  const [data, setData] = useState<any>(null);
 
-  async function onSearch(query: string) {
-    const res = await client.search.query(query, { page: 1, pageSize: 10 });
-    if (!res.error) setResults(res.data);
-  }
+  useEffect(() => {
+    sazito.search.query('shoe', { page: 1, pageSize: 10 }).then((res) => setData(res.data ?? null));
+  }, []);
 
-  return <button onClick={() => onSearch('shoe')}>Search</button>;
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 ```
 
 </Tab>
 
-<Tab value="Next.js">
+<Tab value="Next.js (Server)">
 
-```ts
+```tsx
+// app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q') || '';
-
-  const client = createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
-  const res = await client.search.query(query, { page: 1, pageSize: 10 });
-
-  return Response.json(res);
+export function getSazitoServerClient() {
+  return createSazitoClient({ domain: process.env.SAZITO_STORE_DOMAIN! });
 }
+```
+
+```tsx
+// app/actions/example.ts
+'use server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
+
+export async function runExample() {
+  const client = getSazitoServerClient();
+  const res = await client.search.query('shoe', { page: 1, pageSize: 10 });
+
+  return res.data;
+}
+```
+
+</Tab>
+
+<Tab value="React">
+
+```tsx
+// src/lib/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+```
+
+```tsx
+// src/components/Example.tsx
+import { useEffect, useState } from 'react';
+import { sazito } from '../lib/sazito';
+
+export function Example() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    sazito.search.query('shoe', { page: 1, pageSize: 10 }).then((res) => setData(res.data ?? null));
+  }, []);
+
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+</Tab>
+
+<Tab value="Vue">
+
+```vue
+<!-- src/lib/sazito.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazito = createSazitoClient({
+  domain: import.meta.env.VITE_SAZITO_DOMAIN,
+});
+</script>
+```
+
+```vue
+<!-- src/components/Example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { sazito } from '../lib/sazito';
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await sazito.search.query('shoe', { page: 1, pageSize: 10 });
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt">
+
+```vue
+<!-- plugins/sazito.client.ts -->
+<script lang="ts">
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export default defineNuxtPlugin(() => {
+  const config = useRuntimeConfig();
+  const sazito = createSazitoClient({ domain: config.public.sazitoDomain });
+  return { provide: { sazito } };
+});
+</script>
+```
+
+```vue
+<!-- pages/example.vue -->
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+const { $sazito } = useNuxtApp();
+
+const data = ref<any>(null);
+
+onMounted(async () => {
+  const res = await $sazito.search.query('shoe', { page: 1, pageSize: 10 });
+  data.value = res.data ?? null;
+});
+</script>
+
+<template>
+  <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+</template>
+```
+
+</Tab>
+
+<Tab value="Nuxt.js (Server)">
+
+```ts
+// server/utils/sazito.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export function getSazitoClient() {
+  const config = useRuntimeConfig();
+  return createSazitoClient({ domain: config.public.sazitoDomain });
+}
+```
+
+```ts
+// server/api/example.get.ts
+import { getSazitoClient } from '../utils/sazito';
+
+export default defineEventHandler(async () => {
+  const client = getSazitoClient();
+  const res = await client.search.query('shoe', { page: 1, pageSize: 10 });
+
+  return res.data;
+});
 ```
 
 </Tab>
 
 </Tabs>
+
+{/* AUTO_FIELDS_START */}
+## Type Details
+
+The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### SearchFilters
+
+Source: `src/api/search.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `page` | `number` | Optional |
+| `pageSize` | `number` | Optional |
+| `categoryId` | `number` | Optional |
+| `minPrice` | `number` | Optional |
+| `maxPrice` | `number` | Optional |
+
+#### SearchResponse
+
+Source: `src/types/search.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `products` | `{     items: Product[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `products.items` | `Product[]` | Required |
+| `products.total` | `number` | Required |
+| `products.page` | `number` | Required |
+| `products.pageSize` | `number` | Required |
+| `blogPages` | `{     items: BlogPage[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `blogPages.items` | `BlogPage[]` | Required |
+| `blogPages.total` | `number` | Required |
+| `blogPages.page` | `number` | Required |
+| `blogPages.pageSize` | `number` | Required |
+| `cmsPages` | `{     items: CmsPage[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `cmsPages.items` | `CmsPage[]` | Required |
+| `cmsPages.total` | `number` | Required |
+| `cmsPages.page` | `number` | Required |
+| `cmsPages.pageSize` | `number` | Required |
+| `productCategories` | `{     items: ProductCategory[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `productCategories.items` | `ProductCategory[]` | Required |
+| `productCategories.total` | `number` | Required |
+| `productCategories.page` | `number` | Required |
+| `productCategories.pageSize` | `number` | Required |
+
+#### Product
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
+| `enabled` | `boolean` | Required |
+| `productType` | `string` | Required |
+| `themeConfig` | `any` | Optional |
+| `dynamicFormId` | `number` | Optional |
+| `eventEntityId` | `number` | Optional |
+| `attributes` | `ProductAttribute[]` | Optional |
+| `images` | `Image[]` | Required |
+| `variants` | `ProductVariant[]` | Required |
+| `categories` | `ProductCategory[]` | Required |
+| `createdAt` | `string` | Required |
+| `updatedAt` | `string` | Required |
+
+#### BlogPage
+
+Source: `src/types/search.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
+| `enabled` | `boolean` | Optional |
+| `cmsPageType` | `CMSPageType` | Optional |
+| `content` | `string` | Optional |
+| `summary` | `string` | Optional |
+| `image` | `Image` | Optional |
+| `themeConfig` | `any` | Optional |
+| `attributes` | `ProductAttribute[]` | Optional |
+| `createdAt` | `string` | Required |
+| `updatedAt` | `string` | Required |
+
+#### CmsPage
+
+Source: `src/types/search.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
+| `enabled` | `boolean` | Optional |
+| `cmsPageType` | `CMSPageType` | Optional |
+| `content` | `string` | Optional |
+| `summary` | `string` | Optional |
+| `image` | `Image` | Optional |
+| `themeConfig` | `any` | Optional |
+| `attributes` | `ProductAttribute[]` | Optional |
+| `createdAt` | `string` | Required |
+| `updatedAt` | `string` | Required |
+
+#### ProductCategory
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
+| `enabled` | `boolean` | Optional |
+| `description` | `string` | Optional |
+| `productsCount` | `number` | Optional |
+| `themeConfig` | `any` | Optional |
+| `attributes` | `ProductAttribute[]` | Optional |
+| `createdAt` | `string` | Optional |
+| `updatedAt` | `string` | Optional |
+{/* AUTO_FIELDS_END */}
+

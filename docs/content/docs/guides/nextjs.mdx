@@ -1,21 +1,32 @@
 ---
 title: Next.js Guide
-description: App Router patterns for server and client usage of Sazito SDK.
+description: App Router patterns for using Sazito SDK in both client and server contexts.
 ---
 
 ## Runtime model
 
-- Use SDK directly in Server Components for public/read operations.
-- For authenticated server calls, pass `Authorization` explicitly via request options.
-- Keep browser token lifecycle (`setAuthToken`) in Client Components.
+- Use `app/lib` for shared SDK setup.
+- Use Client Components for browser interactions and token lifecycle.
+- Use Server Components for read-heavy rendering.
+- Use Server Actions for authenticated mutations.
 
-## 1. Server-side client helper
+## 1. Shared SDK files
+
+```ts
+// app/lib/sazito-client.ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+export const sazitoClient = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+  timeout: 15000,
+});
+```
 
 ```ts
 // app/lib/sazito-server.ts
 import { createSazitoClient } from '@sazito/client-sdk';
 
-export function createServerSazito() {
+export function getSazitoServerClient() {
   return createSazitoClient({
     domain: process.env.SAZITO_STORE_DOMAIN!,
     timeout: 15000,
@@ -23,135 +34,112 @@ export function createServerSazito() {
 }
 ```
 
-## 2. Parallel data fetching in Server Components
+## 2. Server Component example (parallel reads)
 
 ```tsx
-// app/(store)/page.tsx
-import { createServerSazito } from '../lib/sazito-server';
+// app/[lang]/(store)/page.tsx
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
 
 export default async function StorePage() {
-  const client = createServerSazito();
+  const client = getSazitoServerClient();
 
   const [productsRes, categoriesRes] = await Promise.all([
-    client.products.list({ page: 1, pageSize: 12 }),
+    client.products.list({ page: 1, pageSize: 12, sort: 'newest' }),
     client.categories.list({ page: 1, pageSize: 50 }),
   ]);
 
   if (productsRes.error || categoriesRes.error) {
-    return <div>Failed to load storefront data.</div>;
+    return <p>Failed to load storefront data.</p>;
+  }
+
+  return (
+    <section>
+      <h1>Storefront</h1>
+      <p>Products: {productsRes.data?.items.length ?? 0}</p>
+      <p>Categories: {categoriesRes.data?.categories.length ?? 0}</p>
+    </section>
+  );
+}
+```
+
+## 3. Client Component example (interactive query)
+
+```tsx
+// app/[lang]/(store)/search-box.tsx
+'use client';
+
+import { useState } from 'react';
+import { sazitoClient } from '@/app/lib/sazito-client';
+
+export function SearchBox() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runSearch() {
+    setError(null);
+
+    const res = await sazitoClient.search.query(query, { page: 1, pageSize: 10 }, { timeout: 8000 });
+    if (res.error) {
+      setError(res.error.message);
+      return;
+    }
+
+    setResults(res.data?.products.items ?? []);
   }
 
   return (
     <div>
-      <h1>Store</h1>
-      <p>Products: {productsRes.data?.items.length ?? 0}</p>
-      <p>Categories: {categoriesRes.data?.categories.length ?? 0}</p>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products" />
+      <button onClick={runSearch}>Search</button>
+      {error ? <p>{error}</p> : null}
+      <ul>{results.map((item) => <li key={item.url}>{item.name}</li>)}</ul>
     </div>
   );
 }
 ```
 
-## 3. Authenticated server call with explicit headers
-
-`setAuthToken` is browser-oriented. In server contexts, read token from cookies and pass it in `headers`.
+## 4. Authenticated Server Action example
 
 ```ts
-// app/api/orders/route.ts
+// app/[lang]/account/wallet/actions.ts
+'use server';
+
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import { createServerSazito } from '@/app/lib/sazito-server';
+import { getSazitoServerClient } from '@/app/lib/sazito-server';
 
-export async function GET() {
+export async function getWalletBalanceAction() {
   const token = (await cookies()).get('user_id_token')?.value;
-  const client = createServerSazito();
+  const client = getSazitoServerClient();
 
-  const res = await client.orders.list(
-    { page: 1, pageSize: 20 },
-    {
-      headers: token ? { Authorization: token } : undefined,
-      cache: false,
-    }
-  );
+  const res = await client.wallet.getBalance({
+    headers: token ? { Authorization: token } : undefined,
+    cache: false,
+  });
 
   if (res.error) {
-    return NextResponse.json({ error: res.error.message }, { status: res.error.status ?? 500 });
+    throw new Error(res.error.message);
   }
 
-  return NextResponse.json(res.data);
+  return res.data;
 }
 ```
 
-## 4. Client Component usage
+## 5. Usage in a Server Component
 
 ```tsx
-'use client';
+// app/[lang]/account/wallet/page.tsx
+import { getWalletBalanceAction } from './actions';
 
-import { createSazitoClient } from '@sazito/client-sdk';
-
-const client = createSazitoClient({ domain: process.env.NEXT_PUBLIC_STORE_DOMAIN! });
-```
-
-Use Client Components when you need browser token storage, checkout credential persistence, or user-driven mutations.
-
-## 5. Next.js checklist
-
-- Start independent requests in parallel with `Promise.all`.
-- Keep server responses small before sending to Client Components.
-- Use Route Handlers for authenticated orchestration.
-- Avoid creating SDK instances repeatedly in hot render paths.
-
-## 6. Direct module exports (Server Component)
-
-```tsx
-// app/(store)/page.tsx
-import { products, categories } from '@sazito/client-sdk';
-
-const config = { domain: process.env.SAZITO_STORE_DOMAIN!, timeout: 15000 };
-const productsApi = products(config);
-const categoriesApi = categories(config);
-
-export default async function StorePage() {
-  const [productsRes, categoriesRes] = await Promise.all([
-    productsApi.list({ page: 1, pageSize: 12 }),
-    categoriesApi.list({ page: 1, pageSize: 30 }),
-  ]);
-
-  if (productsRes.error || categoriesRes.error) {
-    return <p>Failed to load data.</p>;
-  }
-
-  return <p>Loaded {productsRes.data?.items.length ?? 0} products.</p>;
+export default async function WalletPage() {
+  const wallet = await getWalletBalanceAction();
+  return <pre>{JSON.stringify(wallet, null, 2)}</pre>;
 }
 ```
 
-## 7. Direct module exports (Client Component)
+## 6. Checklist
 
-```tsx
-'use client';
-
-import { useEffect, useState } from 'react';
-import { products } from '@sazito/client-sdk';
-import type { Product } from '@sazito/client-sdk';
-
-const productsApi = products({ domain: process.env.NEXT_PUBLIC_STORE_DOMAIN! });
-
-export function FeaturedProducts() {
-  const [items, setItems] = useState<Product[]>([]);
-
-  useEffect(() => {
-    async function run() {
-      const res = await productsApi.list({ page: 1, pageSize: 6, sort: 'newest' });
-      if (!res.error) setItems(res.data?.items ?? []);
-    }
-    run();
-  }, []);
-
-  return (
-    <ul>
-      {items.map((item) => (
-        <li key={item.url}>{item.name}</li>
-      ))}
-    </ul>
-  );
-}
-```
+- Keep `NEXT_PUBLIC_SAZITO_DOMAIN` for browser code and `SAZITO_STORE_DOMAIN` for server code.
+- Use Server Components for initial page payload and SEO-critical data.
+- Use Server Actions for authenticated writes and sensitive flows.
+- Always branch on `res.error` before using `res.data`.

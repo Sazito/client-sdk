@@ -11,6 +11,7 @@ import { createSazitoClient } from '@sazito/client-sdk';
 const client = createSazitoClient({
   domain: 'mystore.sazito.com',
   timeout: 30000,
+  customFetchApi: fetch,
   debug: false,
   retry: {
     enabled: true,
@@ -30,16 +31,69 @@ const client = createSazitoClient({
 });
 ```
 
-## Fields
+## Fields (all config keys)
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `domain` | `string` | Yes | Store domain without protocol |
 | `timeout` | `number` | No | Global request timeout in ms |
-| `retry` | `RetryConfig` | No | Retries used for 5xx responses |
-| `cache` | per-module map | No | Module-level cache configuration |
-| `customFetchApi` | `typeof fetch` | No | Override runtime fetch |
+| `customFetchApi` | `typeof fetch` | No | Override runtime fetch implementation |
 | `debug` | `boolean` | No | Enables request logging |
+| `retry` | `RetryConfig` | No | Retry policy object |
+| `retry.enabled` | `boolean` | No | Enables/disables retry behavior |
+| `retry.retries` | `number` | No | Max retry attempts (0-3) |
+| `retry.retryDelay` | `number` | No | Base delay in ms between retries |
+| `cache` | `CacheMap` | No | Module-level cache configuration |
+| `cache.products` | `CacheConfig` | No | Cache config for products API |
+| `cache.categories` | `CacheConfig` | No | Cache config for categories API |
+| `cache.cart` | `CacheConfig` | No | Cache config for cart API |
+| `cache.orders` | `CacheConfig` | No | Cache config for orders API |
+| `cache.search` | `CacheConfig` | No | Cache config for search API |
+| `cache.cms` | `CacheConfig` | No | Cache config for CMS API |
+| `cache.tags` | `CacheConfig` | No | Cache config for tags API |
+| `cache.entityRoutes` | `CacheConfig` | No | Cache config for entity routes API |
+| `cache.*.enabled` | `boolean` | No | Turns cache on/off for that module |
+| `cache.*.ttl` | `number` | No | Time-to-live in ms for cached GET data |
+
+`CacheMap` shape:
+
+```ts
+type CacheMap = {
+  products?: CacheConfig;
+  categories?: CacheConfig;
+  cart?: CacheConfig;
+  orders?: CacheConfig;
+  search?: CacheConfig;
+  cms?: CacheConfig;
+  tags?: CacheConfig;
+  entityRoutes?: CacheConfig;
+};
+
+type CacheConfig = {
+  enabled: boolean;
+  ttl?: number;
+};
+```
+
+## Defaults
+
+If a field is omitted, SDK defaults are used:
+
+| Field | Default |
+| --- | --- |
+| `timeout` | `30000` |
+| `retry.enabled` | `true` |
+| `retry.retries` | `3` |
+| `retry.retryDelay` | `1000` |
+| `cache.products` | `{ enabled: true, ttl: 600000 }` |
+| `cache.categories` | `{ enabled: true, ttl: 600000 }` |
+| `cache.cart` | `{ enabled: false }` |
+| `cache.orders` | `{ enabled: false }` |
+| `cache.search` | `{ enabled: true, ttl: 300000 }` |
+| `cache.cms` | `{ enabled: true, ttl: 600000 }` |
+| `cache.tags` | `{ enabled: true, ttl: 600000 }` |
+| `cache.entityRoutes` | `{ enabled: true, ttl: 600000 }` |
+| `debug` | `false` |
 
 ## Per-request overrides
 

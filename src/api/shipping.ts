@@ -105,11 +105,18 @@ export class ShippingAPI {
    * Get list of enabled shipping methods
    */
   async getMethods(options?: RequestOptions): Promise<SazitoResponse<ShippingMethod[]>> {
-    return this.http.post<ShippingMethod[]>(
-      `${SHIPPING_METHODS_API}/list`,
-      {},
-      options
-    );
+    const response = await this.http.get<any>(SHIPPING_METHODS_API, options);
+
+    if (response.data) {
+      const shippingMethods = Array.isArray(response.data.shippingMethods)
+        ? response.data.shippingMethods
+        : Array.isArray(response.data)
+          ? response.data
+          : [];
+      return { data: shippingMethods as ShippingMethod[] };
+    }
+
+    return response;
   }
 
   /**
