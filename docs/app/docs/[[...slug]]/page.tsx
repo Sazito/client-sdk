@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/mdx-components';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
+import type { MDXComponents } from 'mdx/types';
 import { LLMCopyButton, ViewOptions } from '@/components/ai/page-actions';
 import { gitConfig } from '@/lib/layout.shared';
 
@@ -13,6 +14,8 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   if (!page) notFound();
 
   const MDX = page.data.body;
+  const relativeLink = createRelativeLink(source, page) as unknown as MDXComponents['a'];
+  const mdxComponents: MDXComponents = relativeLink ? { a: relativeLink } : {};
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
@@ -27,10 +30,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
       </div>
       <DocsBody>
         <MDX
-          components={getMDXComponents({
-            // this allows you to link to other pages with relative file paths
-            a: createRelativeLink(source, page),
-          })}
+          components={getMDXComponents(mdxComponents)}
         />
       </DocsBody>
     </DocsPage>

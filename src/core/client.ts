@@ -11,6 +11,7 @@ import { CredentialsManager } from '../utils/credentials-manager';
 import { ProductsAPI } from '../api/products';
 import { CategoriesAPI } from '../api/categories';
 import { CartAPI } from '../api/cart';
+import { CheckoutAPI } from '../api/checkout';
 import { OrdersAPI } from '../api/orders';
 import { InvoicesAPI } from '../api/invoices';
 import { ShippingAPI } from '../api/shipping';
@@ -39,6 +40,7 @@ export class SazitoClient {
   public readonly products: ProductsAPI;
   public readonly categories: CategoriesAPI;
   public readonly cart: CartAPI;
+  public readonly checkout: CheckoutAPI;
   public readonly orders: OrdersAPI;
   public readonly invoices: InvoicesAPI;
   public readonly shipping: ShippingAPI;
@@ -69,10 +71,11 @@ export class SazitoClient {
     this.products = new ProductsAPI(this.http);
     this.categories = new CategoriesAPI(this.http);
     this.cart = new CartAPI(this.http, this.credentialsManager);
-    this.orders = new OrdersAPI(this.http);
     this.invoices = new InvoicesAPI(this.http, this.credentialsManager);
     this.shipping = new ShippingAPI(this.http, this.credentialsManager);
     this.payments = new PaymentsAPI(this.http, this.credentialsManager);
+    this.checkout = new CheckoutAPI(this.cart, this.invoices, this.shipping, this.payments);
+    this.orders = new OrdersAPI(this.http);
     this.users = new UsersAPI(this.http);
     this.search = new SearchAPI(this.http);
     this.feedbacks = new FeedbacksAPI(this.http);

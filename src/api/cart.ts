@@ -17,6 +17,13 @@ import { transformCartResponse } from '../utils/transformers';
 export interface AddItemAttributesInput {
   formAttributes?: Record<string, any>;
   schedulerBookingAttributes?: CreateCartInput['schedulerBookingAttributes'];
+  coupon?: string;
+}
+
+export interface UpdateItemAttributesInput {
+  formAttributes?: Record<string, any>;
+  coupon?: string;
+  deleteCoupon?: boolean;
 }
 
 export class CartAPI {
@@ -120,7 +127,8 @@ export class CartAPI {
           count,
           formAttributes: attributes?.formAttributes
         }],
-        schedulerBookingAttributes: attributes?.schedulerBookingAttributes
+        schedulerBookingAttributes: attributes?.schedulerBookingAttributes,
+        coupon: attributes?.coupon
       }, options);
     }
 
@@ -133,7 +141,8 @@ export class CartAPI {
           count
         }],
         formAttributes: attributes?.formAttributes,
-        schedulerBookingAttributes: attributes?.schedulerBookingAttributes
+        schedulerBookingAttributes: attributes?.schedulerBookingAttributes,
+        coupon: attributes?.coupon
       },
       options
     );
@@ -155,10 +164,29 @@ export class CartAPI {
    * Update cart item quantity
    */
   async updateItem(
-    cartProductId: number,
+    cartProductId: number | string,
     variantId: number,
     count: number,
     formAttributes?: Record<string, any>,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<Cart>> {
+    return this.updateItemWithAttributes(
+      cartProductId,
+      variantId,
+      count,
+      { formAttributes },
+      options
+    );
+  }
+
+  /**
+   * Update cart item quantity and optional coupon mutations.
+   */
+  async updateItemWithAttributes(
+    cartProductId: number | string,
+    variantId: number,
+    count: number,
+    attributes?: UpdateItemAttributesInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<Cart>> {
     const cartCreds = this.credentials.getCartCredentials();
@@ -176,12 +204,14 @@ export class CartAPI {
       `${CARTS_API}/${cartCreds.id}/update_products_in_cart`,
       {
         identifier: cartCreds.identifier,
-        cartProductId,
+        cartProductId: String(cartProductId),
         variants: [{
           id: variantId,
           count
         }],
-        formAttributes
+        formAttributes: attributes?.formAttributes,
+        coupon: attributes?.coupon,
+        deleteCoupon: attributes?.deleteCoupon
       },
       options
     );
@@ -199,7 +229,7 @@ export class CartAPI {
    * Remove item from cart
    */
   async removeItem(
-    cartProductId: number,
+    cartProductId: number | string,
     variantId: number,
     options?: RequestOptions
   ): Promise<SazitoResponse<Cart>> {
@@ -218,7 +248,7 @@ export class CartAPI {
       `${CARTS_API}/${cartCreds.id}/remove_products_from_cart`,
       {
         identifier: cartCreds.identifier,
-        cartProductId,
+        cartProductId: String(cartProductId),
         variants: [{
           id: variantId
         }]

@@ -72,26 +72,41 @@ Clears auth token, cache, and credentials.
 
 ## Modules
 
-- `products`
-- `categories`
-- `cart`
-- `orders`
-- `invoices`
-- `shipping`
-- `payments`
-- `users`
-- `search`
-- `feedbacks`
-- `wallet`
-- `cms`
-- `images`
-- `visits`
-- `booking`
-- `dynamicForms`
-- `regions`
-- `entityRoutes`
-- `menu`
-- `general`
+### Checkout and sales flow modules
+
+| Module | Purpose |
+| --- | --- |
+| `checkout` | Headless orchestration of the full MVP sales flow (cart, invoice, shipping assignment, payment initialization). |
+| `cart` | Start checkout for guest or authenticated users, add/update/remove line items, and persist cart credentials. |
+| `invoices` | Build checkout invoice from cart, attach shipping address/method, apply discount/credit, and prepare payment state. |
+| `shipping` | Create/update buyer address and read shipping method catalog used during checkout. |
+| `payments` | Fetch payment methods, create payment, handle redirect/upload/code steps (including card-to-card), and finalize checkout. |
+| `orders` | Read authenticated order history and order details after checkout. |
+| `users` | Authenticate users and merge guest checkout data into account context when needed. |
+
+### Catalog and storefront modules
+
+| Module | Purpose |
+| --- | --- |
+| `products` | Product listings, details, and product-centric discovery. |
+| `categories` | Category tree and category pages. |
+| `search` | Keyword/product search and discovery filtering support. |
+| `menu` | Store navigation/menu structures. |
+| `entityRoutes` | Resolve slugs/routes to entity metadata. |
+| `images` | Image retrieval helpers for media-heavy views. |
+| `cms` | CMS pages/blocks content for storefront pages. |
+| `general` | Store-wide metadata and shop configuration. |
+
+### Engagement and supporting modules
+
+| Module | Purpose |
+| --- | --- |
+| `feedbacks` | Product/shop feedback and review operations. |
+| `wallet` | Wallet balance and wallet transaction APIs (including checkout credit). |
+| `visits` | Visit analytics/reporting endpoints. |
+| `booking` | Booking-related retrieval for schedulable offerings. |
+| `dynamicForms` | Dynamic form schema and form-related checkout/product inputs. |
+| `regions` | Regions/cities lookup used by shipping and address forms. |
 
 ## Direct module factory exports
 
@@ -99,15 +114,16 @@ You can import module factories directly from the package root when you do not
 need a full client instance.
 
 ```ts
-import { products, categories, cart } from '@sazito/client-sdk';
+import { products, categories, cart, checkout } from '@sazito/client-sdk';
 
 const productsApi = products({ domain: 'mystore.sazito.com' });
 const categoriesApi = categories({ domain: 'mystore.sazito.com' });
 const cartApi = cart({ domain: 'mystore.sazito.com' });
+const checkoutApi = checkout({ domain: 'mystore.sazito.com' });
 ```
 
 All available aliases:
-`products`, `categories`, `cart`, `orders`, `invoices`, `shipping`,
+`products`, `categories`, `cart`, `checkout`, `orders`, `invoices`, `shipping`,
 `payments`, `users`, `search`, `feedbacks`, `wallet`, `cms`, `images`,
 `visits`, `booking`, `dynamicForms`, `regions`, `entityRoutes`, `menu`, `general`.
 
@@ -156,4 +172,3 @@ Source: `src/core/config.ts`
 | `enabled` | `boolean` | Required |
 | `ttl` | `number` | Optional |
 {/* AUTO_FIELDS_END */}
-

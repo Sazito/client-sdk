@@ -349,6 +349,142 @@ const OPERATIONS = [
     ]
   },
   {
+    id: 'checkout.initialize',
+    label: 'Checkout: Initialize (MVP Flow)',
+    description: 'Headless sales flow orchestration: add item -> invoice -> shipping assignment -> default payment selection -> initialize action.',
+    fields: [
+      {
+        key: 'variantId',
+        label: 'Variant ID',
+        type: 'number',
+        section: 'request',
+        defaultValue: 114706,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'count',
+        label: 'Count',
+        type: 'number',
+        section: 'request',
+        defaultValue: 1,
+        min: 1,
+        required: true
+      },
+      {
+        key: 'attributes.formAttributes',
+        label: 'Item Form Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          engraving: 'SDK'
+        }
+      },
+      {
+        key: 'attributes.schedulerBookingAttributes',
+        label: 'Booking Attributes (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: null
+      },
+      {
+        key: 'shippingAddress',
+        label: 'Shipping Address (JSON, optional)',
+        type: 'json',
+        section: 'request',
+        defaultValue: null
+      },
+      {
+        key: 'discountCode',
+        label: 'Discount Code (optional)',
+        type: 'text',
+        section: 'request',
+        placeholder: 'OFF20'
+      },
+      {
+        key: 'comment',
+        label: 'Invoice Comment (optional)',
+        type: 'text',
+        section: 'request',
+        placeholder: 'Please call before delivery'
+      },
+      {
+        key: 'invoiceFormAttributes',
+        label: 'Invoice Form Attributes (JSON, optional)',
+        type: 'json',
+        section: 'request',
+        defaultValue: null
+      },
+      {
+        key: 'useWalletCredit',
+        label: 'Use Wallet Credit',
+        type: 'boolean',
+        section: 'request',
+        defaultValue: ''
+      },
+      {
+        key: 'paymentTypeId',
+        label: 'Payment Type ID (optional)',
+        type: 'number',
+        section: 'request',
+        placeholder: 'leave empty for default payment method'
+      }
+    ]
+  },
+  {
+    id: 'checkout.processPaymentStep',
+    label: 'Checkout: Process Payment Step',
+    description: 'For step-based gateways: JSON mode uses checkout.processPaymentStep(); form mode uses checkout.processPaymentStepForm().',
+    fields: [
+      {
+        key: 'mode',
+        label: 'Payload Mode',
+        type: 'select',
+        section: 'request',
+        options: [
+          { label: 'JSON (application/json)', value: 'json' },
+          { label: 'Form (non-JSON)', value: 'form' }
+        ],
+        defaultValue: 'json'
+      },
+      {
+        key: 'input',
+        label: 'JSON Input',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          imageUrl: 'https://example.com/receipt.jpg',
+          code: '123456'
+        }
+      },
+      {
+        key: 'formFields',
+        label: 'Form Fields (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          code: '123456',
+          image_url: 'https://example.com/receipt.jpg'
+        }
+      }
+    ]
+  },
+  {
+    id: 'checkout.pollPaymentUntilSettled',
+    label: 'Checkout: Poll Payment',
+    description: 'Polls payment action until it leaves pending via checkout.pollPaymentUntilSettled().',
+    fields: [
+      {
+        key: 'intervalMs',
+        label: 'Interval (ms)',
+        type: 'number',
+        section: 'request',
+        defaultValue: 15000,
+        min: 1000
+      }
+    ]
+  },
+  {
     id: 'cart.get',
     label: 'Cart: Get Current',
     description: 'GET /api/v2/carts/{id} with stored cart credentials via cart.get().',
@@ -365,7 +501,7 @@ const OPERATIONS = [
         type: 'json',
         section: 'request',
         defaultValue: [
-          { id: 123, count: 1 }
+          { id: 114706, count: 1 }
         ],
         required: true
       },
@@ -387,13 +523,7 @@ const OPERATIONS = [
         key: 'input.schedulerBookingAttributes',
         label: 'Scheduler Booking Attributes (JSON)',
         type: 'json',
-        section: 'request',
-        defaultValue: {
-          eventEntityId: 10,
-          startDateTimeLocal: '2026-02-20T11:00',
-          endDateTimeLocal: '2026-02-20T11:30',
-          timezone: 'Asia/Tehran'
-        }
+        section: 'request'
       }
     ]
   },
@@ -407,7 +537,7 @@ const OPERATIONS = [
         label: 'Variant ID',
         type: 'number',
         section: 'request',
-        defaultValue: 123,
+        defaultValue: 114706,
         min: 1,
         required: true
       },
@@ -434,13 +564,14 @@ const OPERATIONS = [
         key: 'attributes.schedulerBookingAttributes',
         label: 'Scheduler Booking Attributes (JSON)',
         type: 'json',
+        section: 'request'
+      },
+      {
+        key: 'attributes.coupon',
+        label: 'Coupon',
+        type: 'text',
         section: 'request',
-        defaultValue: {
-          eventEntityId: 10,
-          startDateTimeLocal: '2026-02-20T11:00',
-          endDateTimeLocal: '2026-02-20T11:30',
-          timezone: 'Asia/Tehran'
-        }
+        placeholder: 'OFF20'
       }
     ]
   },
@@ -463,7 +594,7 @@ const OPERATIONS = [
         label: 'Variant ID',
         type: 'number',
         section: 'request',
-        defaultValue: 123,
+        defaultValue: 114706,
         min: 1,
         required: true
       },
@@ -473,7 +604,7 @@ const OPERATIONS = [
         type: 'number',
         section: 'request',
         defaultValue: 2,
-        min: 1,
+        min: 0,
         required: true
       },
       {
@@ -482,6 +613,20 @@ const OPERATIONS = [
         type: 'json',
         section: 'request',
         defaultValue: {}
+      },
+      {
+        key: 'coupon',
+        label: 'Coupon',
+        type: 'text',
+        section: 'request',
+        placeholder: 'OFF20'
+      },
+      {
+        key: 'deleteCoupon',
+        label: 'Delete Coupon',
+        type: 'boolean',
+        section: 'request',
+        defaultValue: ''
       }
     ]
   },
@@ -504,7 +649,7 @@ const OPERATIONS = [
         label: 'Variant ID',
         type: 'number',
         section: 'request',
-        defaultValue: 123,
+        defaultValue: 114706,
         min: 1,
         required: true
       }
@@ -565,7 +710,7 @@ const OPERATIONS = [
         defaultValue: [
           {
             rateId: 1,
-            invoiceItemIds: [1]
+            invoiceItemIds: ['1']
           }
         ],
         required: true
@@ -886,7 +1031,7 @@ const OPERATIONS = [
     description: 'POST /api/v2/invoices/{id}/add_form via invoices.addForm().',
     fields: [
       {
-        key: 'input.invoiceIdentifier',
+        key: 'input.identifier',
         label: 'Invoice Identifier (Optional)',
         type: 'text',
         section: 'request',
@@ -988,7 +1133,7 @@ const OPERATIONS = [
   {
     id: 'payments.getMethods',
     label: 'Payments: Get Methods',
-    description: 'POST /api/v2/payments/list via payments.getMethods().',
+    description: 'POST /api/v2/payments/list via payments.getMethods() (sends invoice_identifier).',
     fields: []
   },
   {
@@ -1016,16 +1161,37 @@ const OPERATIONS = [
   {
     id: 'payments.processStep',
     label: 'Payments: Process Step',
-    description: 'POST /api/v2/payments/{id}/process_payment_step via payments.processStep().',
+    description: 'POST /api/v2/payments/{id}/process_payment_step with JSON (exact application/json) or form mode.',
     fields: [
       {
+        key: 'mode',
+        label: 'Payload Mode',
+        type: 'select',
+        section: 'request',
+        options: [
+          { label: 'JSON (application/json)', value: 'json' },
+          { label: 'Form (non-JSON)', value: 'form' }
+        ],
+        defaultValue: 'json'
+      },
+      {
         key: 'input',
-        label: 'Step Input (JSON)',
+        label: 'JSON Input',
         type: 'json',
         section: 'request',
         defaultValue: {
           imageUrl: 'https://example.com/receipt.jpg',
           code: '123456'
+        }
+      },
+      {
+        key: 'formFields',
+        label: 'Form Fields (JSON)',
+        type: 'json',
+        section: 'request',
+        defaultValue: {
+          code: '123456',
+          image_url: 'https://example.com/receipt.jpg'
         }
       }
     ]
@@ -1402,6 +1568,12 @@ const OPERATIONS = [
   }
 ];
 
+const OPERATION_NAMESPACES = {
+  checkoutFlow: 'Checkout Flow (New)',
+  checkoutModules: 'Checkout Modules (Low-level)',
+  other: 'Other APIs'
+};
+
 const SECTION_LABELS = {
   request: 'Request',
   filters: 'Filters',
@@ -1410,6 +1582,7 @@ const SECTION_LABELS = {
 };
 
 const JWT_STORAGE_KEY = 'sazito.visual-playground.global-jwt';
+const SESSION_STORAGE_KEY = 'sazito.visual-playground.session-id';
 const jwtInput = document.getElementById('jwt');
 const domainInput = document.getElementById('domain');
 const operationSelect = document.getElementById('operation');
@@ -1448,6 +1621,24 @@ function persistJwt(value) {
     window.localStorage.removeItem(JWT_STORAGE_KEY);
   } catch {
     // Ignore localStorage access errors (private mode/security policies)
+  }
+}
+
+function getSessionId() {
+  if (typeof window === 'undefined') return 'playground-session';
+
+  try {
+    const existing = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    if (existing) return existing;
+
+    const generated = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+    window.localStorage.setItem(SESSION_STORAGE_KEY, generated);
+    return generated;
+  } catch {
+    return 'playground-session';
   }
 }
 
@@ -1610,6 +1801,18 @@ function getOperationConfig(operationId) {
   return OPERATIONS.find(op => op.id === operationId);
 }
 
+function getOperationNamespace(operationId) {
+  if (operationId.startsWith('checkout.')) {
+    return OPERATION_NAMESPACES.checkoutFlow;
+  }
+
+  if (/^(cart|invoices|shipping|payments)\./.test(operationId)) {
+    return OPERATION_NAMESPACES.checkoutModules;
+  }
+
+  return OPERATION_NAMESPACES.other;
+}
+
 function toFieldId(key) {
   return `field-${key.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 }
@@ -1706,7 +1909,7 @@ function parseNumberList(rawValue, key) {
 function createInput(field) {
   if (field.type === 'json') {
     const input = document.createElement('textarea');
-    input.value = pretty(field.defaultValue ?? {});
+    input.value = field.defaultValue === undefined ? '' : pretty(field.defaultValue);
     return input;
   }
 
@@ -1817,7 +2020,7 @@ function readInputFields() {
 
     if (type === 'json') {
       if (!rawValue) {
-        parsed = {};
+        parsed = undefined;
       } else {
         try {
           parsed = JSON.parse(rawValue);
@@ -1987,6 +2190,7 @@ async function execute() {
     operation: operationSelect.value,
     domain: domainInput.value.trim(),
     jwt: jwtInput.value.trim(),
+    sessionId: getSessionId(),
     input
   };
 
@@ -2015,7 +2219,8 @@ async function execute() {
     setJsonOutput(requestOutput, data.request || {});
     setJsonOutput(responseOutput, {
       meta: data.meta,
-      response: data.response
+      response: data.response,
+      storage: data.storage || {}
     });
     setJsonOutput(transportOutput, data.transport || {});
 
@@ -2059,11 +2264,31 @@ function bootstrap() {
     });
   }
 
+  const groupedOperations = new Map([
+    [OPERATION_NAMESPACES.checkoutFlow, []],
+    [OPERATION_NAMESPACES.checkoutModules, []],
+    [OPERATION_NAMESPACES.other, []]
+  ]);
+
   for (const operation of OPERATIONS) {
-    const option = document.createElement('option');
-    option.value = operation.id;
-    option.textContent = operation.label;
-    operationSelect.appendChild(option);
+    const namespace = getOperationNamespace(operation.id);
+    groupedOperations.get(namespace).push(operation);
+  }
+
+  for (const [namespace, operations] of groupedOperations.entries()) {
+    if (!operations.length) continue;
+
+    const group = document.createElement('optgroup');
+    group.label = namespace;
+
+    for (const operation of operations) {
+      const option = document.createElement('option');
+      option.value = operation.id;
+      option.textContent = operation.label;
+      group.appendChild(option);
+    }
+
+    operationSelect.appendChild(group);
   }
 
   renderFields();

@@ -182,6 +182,7 @@ sazito.payments.clearPayment();
 The client instance exposes:
 - `products`
 - `categories`
+- `checkout`
 - `cart`
 - `orders`
 - `invoices`
@@ -205,6 +206,7 @@ The client instance exposes:
 |---|---|
 | `products` | `get`, `list`, `search` |
 | `categories` | `get`, `list` |
+| `checkout` | `initialize`, `processPaymentStep`, `pollPaymentUntilSettled`, `clear` |
 | `cart` | `get`, `create`, `addItem`, `updateItem`, `removeItem`, `clearCart` |
 | `orders` | `list`, `get` |
 | `invoices` | `get`, `create`, `refresh`, `addShippingAddress`, `addDiscountCode`, `assignShippingMethod`, `addDetails`, `getApplicableShippingMethods`, `clearInvoice` |
@@ -252,12 +254,16 @@ const search = await sazito.search.query('shoes', {
 ### Guest Checkout Flow
 
 ```ts
-// 1) Add product to cart (creates guest cart automatically if needed)
-await sazito.cart.addItem(12345, 2);
+const checkoutRes = await sazito.checkout.initialize({
+  variantId: 12345,
+  count: 2
+});
 
-// 2) Create invoice from cart
-const invoiceRes = await sazito.invoices.create();
-if (invoiceRes.error) throw new Error(invoiceRes.error.message);
+if (checkoutRes.error) {
+  throw new Error(`${checkoutRes.error.details?.step}: ${checkoutRes.error.message}`);
+}
+
+console.log(checkoutRes.data.paymentAction);
 
 // 3) Add shipping address
 const addrRes = await sazito.shipping.createAddress({
@@ -357,7 +363,7 @@ Notes:
 Run the local visual playground:
 
 ```bash
-yarn visual:apis
+pnpm visual:apis
 ```
 
 Then open:
@@ -374,11 +380,11 @@ Files:
 Project scripts:
 
 ```bash
-yarn build          # Build dist outputs
-yarn dev            # Rollup watch mode
-yarn typecheck      # TypeScript check (no emit)
-yarn lint           # ESLint on src/
-yarn validate       # typecheck + lint
+pnpm build          # Build dist outputs
+pnpm dev            # Rollup watch mode
+pnpm typecheck      # TypeScript check (no emit)
+pnpm lint           # ESLint on src/
+pnpm validate       # typecheck + lint
 ```
 
 ## Fumadocs Documentation Site
@@ -388,15 +394,15 @@ SDK docs are implemented as a separate Fumadocs app in `docs/`.
 Run docs locally from the repository root:
 
 ```bash
-yarn docs:install
-yarn docs:dev
+pnpm docs:install
+pnpm docs:dev
 ```
 
 Build/start docs:
 
 ```bash
-yarn docs:build
-yarn docs:start
+pnpm docs:build
+pnpm docs:start
 ```
 
 This docs app is tracked in GitHub, but it is not included in the published npm package.

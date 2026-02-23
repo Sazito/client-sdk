@@ -20,6 +20,7 @@ import {
 export interface AddInvoiceFormInput {
   formAttributes: Record<string, any>;
   invoiceIdentifier?: string;
+  identifier?: string;
 }
 
 export class InvoicesAPI {
@@ -80,7 +81,7 @@ export class InvoicesAPI {
     const response = await this.http.post<any>(
       INVOICES_API,
       {
-        cart_id: cartCreds.id,
+        cart_id: String(cartCreds.id),
         cart_identifier: cartCreds.identifier
       },
       options
@@ -119,7 +120,7 @@ export class InvoicesAPI {
     const response = await this.http.post<any>(
       `${INVOICES_API}/${invoiceCreds.id}/refresh`,
       {
-        cart_id: cartCreds.id,
+        cart_id: String(cartCreds.id),
         cart_identifier: cartCreds.identifier,
         identifier: invoiceCreds.identifier
       },
@@ -218,11 +219,16 @@ export class InvoicesAPI {
       };
     }
 
+    const normalizedShippings = shippings.map((shipping) => ({
+      ...shipping,
+      invoiceItemIds: shipping.invoiceItemIds.map((invoiceItemId) => String(invoiceItemId))
+    }));
+
     const response = await this.http.post<any>(
       `${INVOICES_API}/${invoiceCreds.id}/add_shipping_method`,
       {
         identifier: invoiceCreds.identifier,
-        shippings
+        shippings: normalizedShippings
       },
       options
     );
@@ -281,7 +287,7 @@ export class InvoicesAPI {
     const response = await this.http.post<any>(
       `${INVOICES_API}/${invoiceCreds.id}/add_form`,
       {
-        invoiceIdentifier: input.invoiceIdentifier || invoiceCreds.identifier,
+        invoiceIdentifier: input.invoiceIdentifier || input.identifier || invoiceCreds.identifier,
         formAttributes: input.formAttributes
       },
       options

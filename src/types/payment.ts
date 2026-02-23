@@ -81,7 +81,15 @@ export interface CreatePaymentInput {
 }
 
 export interface PaymentStepInput {
+  id?: number;
+  paymentIdentifier?: string;
+  payload?: Record<string, any>;
+  tatoken?: string;
+  trackingData?: Record<string, any>;
   isFailed?: string;
   imageUrl?: string;
   code?: string;
 }
+
+export type PaymentStepFormValue = string | number | boolean | null | undefined;
+export type PaymentStepFormFields = Record<string, PaymentStepFormValue>;

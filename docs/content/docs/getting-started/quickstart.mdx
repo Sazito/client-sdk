@@ -35,12 +35,16 @@ const bySlug = await client.products.get('running-shoe-pro');
 ## Minimal guest checkout bootstrap
 
 ```ts
-await client.cart.addItem(12345, 1);
+const checkoutRes = await client.checkout.initialize({
+  variantId: 12345,
+  count: 1,
+});
 
-const invoiceRes = await client.invoices.create();
-if (invoiceRes.error) throw new Error(invoiceRes.error.message);
+if (checkoutRes.error) {
+  throw new Error(`${checkoutRes.error.details?.step}: ${checkoutRes.error.message}`);
+}
 
-const methodsRes = await client.payments.getMethods();
+console.log(checkoutRes.data.paymentAction);
 ```
 
 ## Authenticated profile call

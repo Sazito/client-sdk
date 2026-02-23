@@ -10,10 +10,11 @@ import {
   Payment,
   PaymentAction,
   PaymentStepInput,
+  PaymentStepFormFields,
   RequestOptions
 } from '../types';
 import { PAYMENTS_API, PINCH_API } from '../constants/endpoints';
-import { transformPaymentMethodsResponse } from '../utils/transformers';
+import { transformPaymentMethodsResponse, transformRequestKeys } from '../utils/transformers';
 
 export class PaymentsAPI {
   private readonly pinchedPayments = new Set<number>();
@@ -41,7 +42,6 @@ export class PaymentsAPI {
     const response = await this.http.post<any>(
       `${PAYMENTS_API}/list`,
       {
-        invoice_id: invoiceCreds.id,
         invoice_identifier: invoiceCreds.identifier
       },
       options
@@ -75,7 +75,6 @@ export class PaymentsAPI {
     const response = await this.http.post<any>(
       PAYMENTS_API,
       {
-        invoice_id: invoiceCreds.id,
         invoice_identifier: invoiceCreds.identifier,
         payment_type: paymentTypeId
       },
@@ -114,9 +113,9 @@ export class PaymentsAPI {
     const response = await this.http.post<PaymentAction>(
       `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
       {
-        payment_identifier: paymentCreds.identifier
+        paymentIdentifier: paymentCreds.identifier
       },
-      options
+      this.withExactJsonHeader(options)
     );
 
     if (!response.data) {
@@ -146,12 +145,57 @@ export class PaymentsAPI {
       };
     }
 
+    const { paymentIdentifier, ...restInput } = input;
+
     const response = await this.http.post<PaymentAction>(
       `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
       {
-        payment_identifier: paymentCreds.identifier,
-        ...input
+        paymentIdentifier: paymentIdentifier || paymentCreds.identifier,
+        ...restInput
       },
+      this.withExactJsonHeader(options)
+    );
+
+    if (!response.data) {
+      return response;
+    }
+
+    const normalizedAction = this.normalizeAction(response.data);
+    await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentCreds.id, options);
+    return { data: normalizedAction };
+  }
+
+  /**
+   * Process payment step in form mode (non-JSON content-type).
+   */
+  async processStepForm(
+    input: FormData | PaymentStepFormFields,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<PaymentAction>> {
+    const paymentCreds = this.credentials.getPaymentCredentials();
+
+    if (!paymentCreds) {
+      return {
+        error: {
+          message: 'No payment found',
+          type: 'validation'
+        }
+      };
+    }
+
+    const formData = this.buildProcessStepFormData(input, paymentCreds.identifier);
+    if (!formData) {
+      return {
+        error: {
+          message: 'FormData is not available in this runtime.',
+          type: 'validation'
+        }
+      };
+    }
+
+    const response = await this.http.post<PaymentAction>(
+      `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
+      formData,
       options
     );
 
@@ -199,6 +243,72 @@ export class PaymentsAPI {
    */
   clearPayment(): void {
     this.credentials.clearPaymentCredentials();
+  }
+
+  private withExactJsonHeader(options?: RequestOptions): RequestOptions {
+    const headers = { ...(options?.headers || {}) };
+    delete headers['Content-Type'];
+    delete headers['content-type'];
+
+    return {
+      ...options,
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      }
+    };
+  }
+
+  private buildProcessStepFormData(
+    input: FormData | PaymentStepFormFields,
+    paymentIdentifier: string
+  ): FormData | null {
+    if (typeof FormData === 'undefined') {
+      return null;
+    }
+
+    if (input instanceof FormData) {
+      if (!input.has('payment_identifier')) {
+        input.append('payment_identifier', paymentIdentifier);
+      }
+      return input;
+    }
+
+    const transformedInput = transformRequestKeys(input) as Record<string, any>;
+    const formData = new FormData();
+
+    Object.entries(transformedInput).forEach(([key, value]) => {
+      this.appendFormValue(formData, key, value);
+    });
+
+    if (!formData.has('payment_identifier')) {
+      formData.append('payment_identifier', paymentIdentifier);
+    }
+
+    return formData;
+  }
+
+  private appendFormValue(formData: FormData, key: string, value: any): void {
+    if (value === undefined) {
+      return;
+    }
+
+    if (value === null) {
+      formData.append(key, '');
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((entry) => this.appendFormValue(formData, key, entry));
+      return;
+    }
+
+    if (typeof value === 'object') {
+      formData.append(key, JSON.stringify(value));
+      return;
+    }
+
+    formData.append(key, String(value));
   }
 
   private normalizeAction(action: any): PaymentAction {

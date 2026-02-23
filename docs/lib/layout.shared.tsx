@@ -1,4 +1,5 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
+import Image from 'next/image';
 
 export const gitConfig = {
   user: 'sazito',
@@ -9,7 +10,18 @@ export const gitConfig = {
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
-      title: 'Sazito SDK',
+      title: (
+        <span className="inline-flex items-center gap-2 font-semibold">
+          <Image
+            src="/sazito.png"
+            alt="Sazito"
+            width={24}
+            height={24}
+            className="rounded-md"
+          />
+          <span>Sazito SDK</span>
+        </span>
+      ),
       transparentMode: 'top',
     },
     links: [

@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
+const { AsyncLocalStorage } = require('async_hooks');
 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -11,6 +12,81 @@ const ROOT_DIR = process.cwd();
 const PUBLIC_DIR = path.join(ROOT_DIR, 'scripts', 'visual-api-playground', 'public');
 const DIST_ENTRY = path.join(ROOT_DIR, 'dist', 'index.js');
 const API_BASE = 'http://api.sazito.com:8080';
+const PLAYGROUND_DEFAULT_DOMAIN = 'noel-accessories.ir';
+
+// Persist SDK "localStorage" credentials across requests in this Node process.
+// Storage is isolated per (domain + sessionId) to avoid cross-session leakage.
+const storageContext = new AsyncLocalStorage();
+const storageNamespaces = new Map();
+
+function getNamespaceStorage(namespace) {
+  if (!storageNamespaces.has(namespace)) {
+    storageNamespaces.set(namespace, new Map());
+  }
+  return storageNamespaces.get(namespace);
+}
+
+function getActiveStorage() {
+  const namespace = storageContext.getStore() || 'default';
+  return getNamespaceStorage(namespace);
+}
+
+function parseStoredValue(rawValue) {
+  try {
+    return JSON.parse(rawValue);
+  } catch {
+    return rawValue;
+  }
+}
+
+function getStorageSnapshot(namespace) {
+  const storage = getNamespaceStorage(namespace);
+  const snapshot = {};
+
+  for (const [key, value] of storage.entries()) {
+    snapshot[key] = parseStoredValue(value);
+  }
+
+  return snapshot;
+}
+
+function ensureLocalStorageShim() {
+  const shim = {
+    getItem(key) {
+      const storage = getActiveStorage();
+      return storage.has(String(key)) ? storage.get(String(key)) : null;
+    },
+    setItem(key, value) {
+      const storage = getActiveStorage();
+      storage.set(String(key), String(value));
+    },
+    removeItem(key) {
+      const storage = getActiveStorage();
+      storage.delete(String(key));
+    },
+    clear() {
+      const storage = getActiveStorage();
+      storage.clear();
+    },
+    key(index) {
+      const storage = getActiveStorage();
+      const keys = Array.from(storage.keys());
+      return keys[index] ?? null;
+    },
+    get length() {
+      const storage = getActiveStorage();
+      return storage.size;
+    }
+  };
+
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: shim,
+    writable: true,
+    configurable: true
+  });
+}
+
+ensureLocalStorageShim();
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -67,6 +143,13 @@ function sanitizeDomain(input) {
   const value = input.trim();
   if (!value) return null;
   return value.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+}
+
+function sanitizeSessionId(input) {
+  if (typeof input !== 'string') return null;
+  const value = input.trim();
+  if (!value) return null;
+  return value;
 }
 
 function sanitizeAuthToken(input) {
@@ -126,6 +209,43 @@ function parseRequestBody(body) {
   }
 }
 
+function appendFormField(formData, key, value) {
+  if (value === undefined) return;
+
+  if (value === null) {
+    formData.append(key, '');
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach(item => appendFormField(formData, key, item));
+    return;
+  }
+
+  if (typeof value === 'object') {
+    formData.append(key, JSON.stringify(value));
+    return;
+  }
+
+  formData.append(key, String(value));
+}
+
+function toFormDataFromObject(input) {
+  if (typeof FormData === 'undefined') {
+    return null;
+  }
+
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return new FormData();
+  }
+
+  const formData = new FormData();
+  Object.entries(input).forEach(([key, value]) => {
+    appendFormField(formData, key, value);
+  });
+  return formData;
+}
+
 function summarizeResponse(response) {
   if (!response) {
     return { ok: false, status: null, data: null, error: { message: 'No SDK response returned' } };
@@ -154,7 +274,7 @@ async function executeOperation(payload) {
       statusCode: 500,
       body: {
         error: {
-          message: 'dist/index.js not found. Run `npm run build` first, then restart the visual server.'
+          message: 'dist/index.js not found. Run `pnpm build` first, then restart the visual server.'
         }
       }
     };
@@ -163,7 +283,7 @@ async function executeOperation(payload) {
   const { createSazitoClient } = require(DIST_ENTRY);
 
   const operation = payload.operation;
-  const domain = sanitizeDomain(payload.domain) || 'noel-accessories.ir';
+  const domain = sanitizeDomain(payload.domain) || PLAYGROUND_DEFAULT_DOMAIN;
   const jwt = sanitizeAuthToken(payload.jwt);
   const input = payload.input || {};
 
@@ -320,6 +440,81 @@ async function executeOperation(payload) {
         sdkResponse = await client.booking.getEventAvailabilities(payload);
         break;
       }
+      case 'checkout.initialize': {
+        const parsedPaymentTypeId = Number(input.paymentTypeId);
+        const rawAttributes = input.attributes && typeof input.attributes === 'object'
+          ? input.attributes
+          : undefined;
+        const attributes = rawAttributes
+          ? {
+            formAttributes: rawAttributes.formAttributes || undefined,
+            schedulerBookingAttributes: rawAttributes.schedulerBookingAttributes || undefined
+          }
+          : undefined;
+        const hasAttributes = attributes && (attributes.formAttributes || attributes.schedulerBookingAttributes);
+        const shippingAddress = input.shippingAddress && typeof input.shippingAddress === 'object'
+          ? input.shippingAddress
+          : undefined;
+        const invoiceFormAttributes = input.invoiceFormAttributes && typeof input.invoiceFormAttributes === 'object'
+          ? input.invoiceFormAttributes
+          : undefined;
+
+        const payload = {
+          variantId: Number(input.variantId),
+          count: Number(input.count),
+          attributes: hasAttributes ? attributes : undefined,
+          shippingAddress,
+          discountCode: input.discountCode ? String(input.discountCode).trim() : undefined,
+          comment: input.comment ? String(input.comment).trim() : undefined,
+          invoiceFormAttributes,
+          useWalletCredit: typeof input.useWalletCredit === 'boolean'
+            ? input.useWalletCredit
+            : undefined,
+          paymentTypeId: Number.isFinite(parsedPaymentTypeId) && parsedPaymentTypeId > 0
+            ? parsedPaymentTypeId
+            : undefined
+        };
+
+        sdkRequest.method = 'client.checkout.initialize';
+        sdkRequest.params = payload;
+        sdkResponse = await client.checkout.initialize(payload);
+        break;
+      }
+      case 'checkout.processPaymentStep': {
+        const mode = String(input.mode || 'json').toLowerCase();
+
+        if (mode === 'form') {
+          const formFields = input.formFields && typeof input.formFields === 'object'
+            ? input.formFields
+            : {};
+          const formData = toFormDataFromObject(formFields);
+          sdkRequest.method = 'client.checkout.processPaymentStepForm';
+          sdkRequest.params = { mode, formFields };
+
+          sdkResponse = formData
+            ? await client.checkout.processPaymentStepForm(formData)
+            : {
+              error: {
+                type: 'validation',
+                message: 'FormData is not available in this runtime.'
+              }
+            };
+          break;
+        }
+
+        const payload = input.input || {};
+        sdkRequest.method = 'client.checkout.processPaymentStep';
+        sdkRequest.params = { mode: 'json', input: payload };
+        sdkResponse = await client.checkout.processPaymentStep(payload);
+        break;
+      }
+      case 'checkout.pollPaymentUntilSettled': {
+        const intervalMs = Number(input.intervalMs) || 15000;
+        sdkRequest.method = 'client.checkout.pollPaymentUntilSettled';
+        sdkRequest.params = { intervalMs };
+        sdkResponse = await client.checkout.pollPaymentUntilSettled(undefined, undefined, intervalMs);
+        break;
+      }
       case 'cart.get':
         sdkRequest.method = 'client.cart.get';
         sdkRequest.params = {};
@@ -342,17 +537,22 @@ async function executeOperation(payload) {
         break;
       }
       case 'cart.updateItem': {
-        const cartProductId = Number(input.cartProductId);
+        const cartProductId = String(input.cartProductId || '').trim();
         const variantId = Number(input.variantId);
         const count = Number(input.count);
         const formAttributes = input.formAttributes || undefined;
-        sdkRequest.method = 'client.cart.updateItem';
-        sdkRequest.params = { cartProductId, variantId, count, formAttributes };
-        sdkResponse = await client.cart.updateItem(cartProductId, variantId, count, formAttributes);
+        const coupon = input.coupon ? String(input.coupon).trim() : undefined;
+        const deleteCoupon = typeof input.deleteCoupon === 'boolean'
+          ? input.deleteCoupon
+          : undefined;
+        const attributes = { formAttributes, coupon, deleteCoupon };
+        sdkRequest.method = 'client.cart.updateItemWithAttributes';
+        sdkRequest.params = { cartProductId, variantId, count, attributes };
+        sdkResponse = await client.cart.updateItemWithAttributes(cartProductId, variantId, count, attributes);
         break;
       }
       case 'cart.removeItem': {
-        const cartProductId = Number(input.cartProductId);
+        const cartProductId = String(input.cartProductId || '').trim();
         const variantId = Number(input.variantId);
         sdkRequest.method = 'client.cart.removeItem';
         sdkRequest.params = { cartProductId, variantId };
@@ -482,9 +682,13 @@ async function executeOperation(payload) {
       }
       case 'invoices.addForm': {
         const payload = input.input || {};
+        const normalizedPayload = {
+          formAttributes: payload.formAttributes || {},
+          identifier: payload.identifier ? String(payload.identifier).trim() : undefined
+        };
         sdkRequest.method = 'client.invoices.addForm';
-        sdkRequest.params = payload;
-        sdkResponse = await client.invoices.addForm(payload);
+        sdkRequest.params = normalizedPayload;
+        sdkResponse = await client.invoices.addForm(normalizedPayload);
         break;
       }
       case 'invoices.getApplicableShippingMethods':
@@ -549,9 +753,30 @@ async function executeOperation(payload) {
         sdkResponse = await client.payments.initialize();
         break;
       case 'payments.processStep': {
+        const mode = String(input.mode || 'json').toLowerCase();
+
+        if (mode === 'form') {
+          const formFields = input.formFields && typeof input.formFields === 'object'
+            ? input.formFields
+            : {};
+          const formData = toFormDataFromObject(formFields);
+          sdkRequest.method = 'client.payments.processStepForm';
+          sdkRequest.params = { mode, formFields };
+
+          sdkResponse = formData
+            ? await client.payments.processStepForm(formData)
+            : {
+              error: {
+                type: 'validation',
+                message: 'FormData is not available in this runtime.'
+              }
+            };
+          break;
+        }
+
         const payload = input.input || {};
         sdkRequest.method = 'client.payments.processStep';
-        sdkRequest.params = payload;
+        sdkRequest.params = { mode: 'json', input: payload };
         sdkResponse = await client.payments.processStep(payload);
         break;
       }
@@ -812,7 +1037,16 @@ function serveStatic(req, res, parsedUrl) {
 async function handleApiExecute(req, res) {
   try {
     const payload = await parseJsonBody(req);
-    const result = await executeOperation(payload);
+    const domain = sanitizeDomain(payload.domain) || PLAYGROUND_DEFAULT_DOMAIN;
+    const sessionId = sanitizeSessionId(payload.sessionId) || 'global';
+    const storageNamespace = `${domain}::${sessionId}`;
+    const result = await storageContext.run(storageNamespace, () => executeOperation(payload));
+    if (result?.body && typeof result.body === 'object' && !result.body.error) {
+      result.body.storage = {
+        namespace: storageNamespace,
+        snapshot: getStorageSnapshot(storageNamespace)
+      };
+    }
     writeJson(res, result.statusCode, result.body);
   } catch (error) {
     writeJson(res, 400, {
@@ -858,5 +1092,5 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, HOST, () => {
   console.log('Visual API Playground is running');
   console.log(`Local URL: http://${HOST}:${PORT}`);
-  console.log('Run `npm run build` if you changed SDK source and want fresh dist output.');
+  console.log('Run `pnpm build` if you changed SDK source and want fresh dist output.');
 });

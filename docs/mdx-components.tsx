@@ -44,9 +44,11 @@ function Tab({
   return <CodeBlockTab value={value}>{children}</CodeBlockTab>;
 }
 
-export function getMDXComponents(components?: MDXComponents): MDXComponents {
+export function getMDXComponents(components: MDXComponents = {}): MDXComponents {
+  const baseComponents = defaultMdxComponents as unknown as MDXComponents;
+
   return {
-    ...defaultMdxComponents,
+    ...baseComponents,
     Tabs,
     Tab,
     Files,

@@ -1,7 +1,21 @@
 ---
 title: Shipping
-description: Shipping address lifecycle and shipping method retrieval.
+description: Shipping address and method APIs used during checkout address selection and delivery assignment.
 ---
+
+## Module role in sales flow
+
+`shipping` manages buyer destination data and available delivery channels.
+
+- Use `createAddress` or `updateAddress` to persist checkout address credentials.
+- Use `getMethods` for a global shipping-method list.
+- For checkout-ready, invoice-specific rates, use `invoices.getApplicableShippingMethods()`.
+
+## V2 contract notes
+
+- `address.mobilePhone` is required for create/update flows.
+- `regionId` and `cityId` are optional in request contract.
+- `getAddress()` uses stored `identifier` query behind the scenes.
 
 ## Methods
 
@@ -13,16 +27,29 @@ Use: `shipping.createAddress(address, options?)`.
 | --- | --- | --- | --- |
 | `address.firstName` | `string` | Required | Recipient first name. |
 | `address.lastName` | `string` | Required | Recipient last name. |
-| `address.mobilePhone` | `string` | Optional | Recipient mobile phone. |
-| `address.regionId` | `number` | Required | Region ID. |
-| `address.cityId` | `number` | Required | City ID. |
+| `address.mobilePhone` | `string` | Required | Recipient mobile phone. |
+| `address.regionId` | `number` | Optional | Region ID. |
+| `address.cityId` | `number` | Optional | City ID. |
 | `address.address` | `string` | Required | Street address. |
 | `address.phoneNumber` | `string` | Optional | Secondary phone number. |
 | `address.email` | `string` | Optional | Contact email. |
 | `address.postalCode` | `string` | Optional | Postal code. |
 | `address.latitude` | `number` | Optional | Geo latitude. |
 | `address.longitude` | `number` | Optional | Geo longitude. |
+| `address.showMap` | `boolean` | Optional | Storefront map-visibility flag. |
 | `address.userSetCoordinatesBefore` | `boolean` | Optional | Manual coordinate flag. |
+
+```ts
+const addressRes = await client.shipping.createAddress({
+  firstName: 'John',
+  lastName: 'Doe',
+  mobilePhone: '09123456789',
+  regionId: 1,
+  cityId: 10,
+  address: 'No. 10, Example St',
+  postalCode: '1234567890',
+});
+```
 
 ### Update Address
 
@@ -30,11 +57,27 @@ Use: `shipping.updateAddress(address, options?)`.
 
 Same input schema as `createAddress`.
 
+```ts
+await client.shipping.updateAddress({
+  firstName: 'John',
+  lastName: 'Doe',
+  mobilePhone: '09121234567',
+  regionId: 1,
+  cityId: 10,
+  address: 'Unit 8, Updated Address',
+  postalCode: '1234567890',
+});
+```
+
 ### Get Address
 
 Use: `shipping.getAddress(options?)`.
 
 Returns: `SazitoResponse<ShippingAddress>`.
+
+```ts
+const addressRes = await client.shipping.getAddress();
+```
 
 ### Get Methods
 
@@ -42,11 +85,19 @@ Use: `shipping.getMethods(options?)`.
 
 Returns: `SazitoResponse<ShippingMethod[]>`.
 
+```ts
+const shippingMethodsRes = await client.shipping.getMethods();
+```
+
 ### Clear Address
 
 Use: `shipping.clearAddress()`.
 
 Clears persisted shipping credentials.
+
+```ts
+client.shipping.clearAddress();
+```
 
 ## `ShippingMethod` fields
 
@@ -87,7 +138,15 @@ export default function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.shipping.getMethods().then((res) => setData(res.data ?? null));
+    sazito.shipping.createAddress({
+      firstName: 'John',
+      lastName: 'Doe',
+      mobilePhone: '09123456789',
+      regionId: 1,
+      cityId: 10,
+      address: 'No. 10, Example St',
+      postalCode: '1234567890',
+    }).then((res) => setData(res.data ?? null));
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -114,7 +173,15 @@ import { getSazitoServerClient } from '@/app/lib/sazito-server';
 
 export async function runExample() {
   const client = getSazitoServerClient();
-  const res = await client.shipping.getMethods();
+  const res = await client.shipping.createAddress({
+    firstName: 'John',
+    lastName: 'Doe',
+    mobilePhone: '09123456789',
+    regionId: 1,
+    cityId: 10,
+    address: 'No. 10, Example St',
+    postalCode: '1234567890',
+  });
 
   return res.data;
 }
@@ -142,7 +209,15 @@ export function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.shipping.getMethods().then((res) => setData(res.data ?? null));
+    sazito.shipping.createAddress({
+      firstName: 'John',
+      lastName: 'Doe',
+      mobilePhone: '09123456789',
+      regionId: 1,
+      cityId: 10,
+      address: 'No. 10, Example St',
+      postalCode: '1234567890',
+    }).then((res) => setData(res.data ?? null));
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -173,7 +248,15 @@ import { sazito } from '../lib/sazito';
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await sazito.shipping.getMethods();
+  const res = await sazito.shipping.createAddress({
+    firstName: 'John',
+    lastName: 'Doe',
+    mobilePhone: '09123456789',
+    regionId: 1,
+    cityId: 10,
+    address: 'No. 10, Example St',
+    postalCode: '1234567890',
+  });
   data.value = res.data ?? null;
 });
 </script>
@@ -209,7 +292,15 @@ const { $sazito } = useNuxtApp();
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await $sazito.shipping.getMethods();
+  const res = await $sazito.shipping.createAddress({
+    firstName: 'John',
+    lastName: 'Doe',
+    mobilePhone: '09123456789',
+    regionId: 1,
+    cityId: 10,
+    address: 'No. 10, Example St',
+    postalCode: '1234567890',
+  });
   data.value = res.data ?? null;
 });
 </script>
@@ -239,7 +330,15 @@ import { getSazitoClient } from '../utils/sazito';
 
 export default defineEventHandler(async () => {
   const client = getSazitoClient();
-  const res = await client.shipping.getMethods();
+  const res = await client.shipping.createAddress({
+    firstName: 'John',
+    lastName: 'Doe',
+    mobilePhone: '09123456789',
+    regionId: 1,
+    cityId: 10,
+    address: 'No. 10, Example St',
+    postalCode: '1234567890',
+  });
 
   return res.data;
 });
@@ -319,4 +418,3 @@ Source: `src/types/shipping.ts`
 | `color` | `string` | Optional |
 | `type` | `string` | Optional |
 {/* AUTO_FIELDS_END */}
-

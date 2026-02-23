@@ -3,6 +3,14 @@ title: Orders
 description: Authenticated order listing and detail retrieval.
 ---
 
+## Module role in sales flow
+
+`orders` is for post-checkout access in authenticated sessions.
+
+- Use this module for order history and order detail pages after checkout.
+- For guest checkout completion, immediate order data comes from `payments.initialize()` when `action === 'showOrder'`.
+- After user login, use `orders.list`/`orders.get` for long-term order retrieval.
+
 ## Methods
 
 ### List
@@ -18,6 +26,14 @@ Use: `orders.list(filters?, options?)`.
 
 Returns: `SazitoResponse<OrdersListResponse>`.
 
+```ts
+const ordersRes = await client.orders.list({
+  pageNumber: 1,
+  pageSize: 20,
+  filters: [{ name: 'self_only', value: true }],
+});
+```
+
 ### Get
 
 Use: `orders.get(orderId, options?)`.
@@ -28,6 +44,15 @@ Use: `orders.get(orderId, options?)`.
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<Order>`.
+
+```ts
+const ordersRes = await client.orders.list({ pageNumber: 1, pageSize: 1 });
+const firstOrderId = ordersRes.data?.orders?.[0]?.id;
+
+if (firstOrderId) {
+  const orderRes = await client.orders.get(firstOrderId);
+}
+```
 
 ## `Order` key fields
 
@@ -317,4 +342,3 @@ Source: `src/types/payment.ts`
 | `title` | `string` | Required |
 | `isDefault` | `boolean` | Required |
 {/* AUTO_FIELDS_END */}
-

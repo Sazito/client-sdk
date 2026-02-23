@@ -1,7 +1,22 @@
 ---
 title: Payments
-description: Payment method retrieval, payment creation, and gateway processing.
+description: Checkout payment APIs for gateway selection, payment creation, verification steps, and final order action.
 ---
+
+## Module role in sales flow
+
+`payments` is the final checkout module before order completion.
+
+- Depends on invoice credentials (`invoices.create` must run first).
+- Supports redirect/post gateways and manual step-based flows like card-to-card upload/code verification.
+- When payment reaches `showOrder`, SDK runs checkout finalization automatically.
+
+## V2 contract notes
+
+- `payments.getMethods` sends the current invoice identifier to `/api/v2/payments/list`.
+- `/api/v2/payments/{id}/process_payment_step` behavior depends on exact `Content-Type`.
+- JSON mode must use exact `application/json` when top-level `paymentIdentifier` is needed.
+- Use form mode for gateways that post callback/form payloads.
 
 ## Methods
 
@@ -10,6 +25,10 @@ description: Payment method retrieval, payment creation, and gateway processing.
 Use: `payments.getMethods(options?)`.
 
 Returns available payment methods for current invoice credentials.
+
+```ts
+const methodsRes = await client.payments.getMethods();
+```
 
 ### Create
 
@@ -22,6 +41,13 @@ Use: `payments.create(paymentTypeId, options?)`.
 
 Returns: `SazitoResponse<Payment>`.
 
+```ts
+const methodsRes = await client.payments.getMethods();
+if (methodsRes.data?.length) {
+  await client.payments.create(methodsRes.data[0].id);
+}
+```
+
 ### Initialize
 
 Use: `payments.initialize(options?)`.
@@ -33,16 +59,57 @@ Returns: `SazitoResponse<PaymentAction>`.
 When payment verification succeeds (`action === 'showOrder'`), the SDK automatically
 calls `POST /api/v1/pinch/order` as part of checkout completion.
 
+```ts
+const actionRes = await client.payments.initialize();
+
+if (actionRes.data?.action === 'REDIRECT') {
+  console.log('Redirect to:', actionRes.data.address);
+}
+```
+
 ### Process Step
 
 Use: `payments.processStep(input, options?)`.
 
+Use this for JSON-mode step requests (commonly `cardtocardpayment`) after `create`/`initialize`.
+
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
+| `input.paymentIdentifier` | `string` | Optional | Overrides stored payment identifier in JSON mode. |
+| `input.id` | `number` | Optional | Optional payment ID override in JSON body. |
+| `input.payload` | `Record<string, any>` | Optional | Gateway-specific JSON payload. |
+| `input.tatoken` | `string` | Optional | Gateway/session token. |
+| `input.trackingData` | `Record<string, any>` | Optional | Tracking payload. |
 | `input.isFailed` | `string` | Optional | Mark payment failed (`"true"`). |
 | `input.imageUrl` | `string` | Optional | Uploaded payment proof URL. |
 | `input.code` | `string` | Optional | Verification code (e.g., card-to-card). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
+
+```ts
+const cardToCardStep = await client.payments.processStep({
+  imageUrl: 'https://cdn.example.com/payment-proof.png',
+  code: '894512',
+});
+```
+
+### Process Step (Form Mode)
+
+Use: `payments.processStepForm(input, options?)`.
+
+Use this when gateway flow requires non-JSON form payload handling for
+`/api/v2/payments/{id}/process_payment_step`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `input` | `FormData \| Record<string, string \| number \| boolean \| null \| undefined>` | Required | Form fields sent with non-JSON content type. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+```ts
+const stepRes = await client.payments.processStepForm({
+  code: '894512',
+  imageUrl: 'https://cdn.example.com/payment-proof.png',
+});
+```
 
 ### Poll Until Settled
 
@@ -50,11 +117,19 @@ Use: `payments.pollUntilSettled(options?, intervalMs?)`.
 
 Polls payment state via `process_payment_step` every 15 seconds by default until `action !== 'pending'`.
 
+```ts
+const finalAction = await client.payments.pollUntilSettled(undefined, 5000);
+```
+
 ### Clear Payment
 
 Use: `payments.clearPayment()`.
 
 Clears persisted payment credentials.
+
+```ts
+client.payments.clearPayment();
+```
 
 ## Response key fields
 
@@ -109,7 +184,20 @@ export default function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.payments.getMethods().then((res) => setData(res.data ?? null));
+    (async () => {
+      await sazito.cart.addItem(12001, 1);
+      await sazito.invoices.create();
+      const methods = await sazito.payments.getMethods();
+
+      if (!methods.data?.length) {
+        setData({ message: 'No payment methods available' });
+        return;
+      }
+
+      await sazito.payments.create(methods.data[0].id);
+      const action = await sazito.payments.initialize();
+      setData(action.data ?? null);
+    })();
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -136,7 +224,16 @@ import { getSazitoServerClient } from '@/app/lib/sazito-server';
 
 export async function runExample() {
   const client = getSazitoServerClient();
-  const res = await client.payments.getMethods();
+  await client.cart.addItem(12001, 1);
+  await client.invoices.create();
+  const methods = await client.payments.getMethods();
+
+  if (!methods.data?.length) {
+    return null;
+  }
+
+  await client.payments.create(methods.data[0].id);
+  const res = await client.payments.initialize();
 
   return res.data;
 }
@@ -164,7 +261,20 @@ export function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.payments.getMethods().then((res) => setData(res.data ?? null));
+    (async () => {
+      await sazito.cart.addItem(12001, 1);
+      await sazito.invoices.create();
+      const methods = await sazito.payments.getMethods();
+
+      if (!methods.data?.length) {
+        setData({ message: 'No payment methods available' });
+        return;
+      }
+
+      await sazito.payments.create(methods.data[0].id);
+      const action = await sazito.payments.initialize();
+      setData(action.data ?? null);
+    })();
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -195,8 +305,18 @@ import { sazito } from '../lib/sazito';
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await sazito.payments.getMethods();
-  data.value = res.data ?? null;
+  await sazito.cart.addItem(12001, 1);
+  await sazito.invoices.create();
+  const methods = await sazito.payments.getMethods();
+
+  if (!methods.data?.length) {
+    data.value = { message: 'No payment methods available' };
+    return;
+  }
+
+  await sazito.payments.create(methods.data[0].id);
+  const action = await sazito.payments.initialize();
+  data.value = action.data ?? null;
 });
 </script>
 
@@ -231,8 +351,18 @@ const { $sazito } = useNuxtApp();
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await $sazito.payments.getMethods();
-  data.value = res.data ?? null;
+  await $sazito.cart.addItem(12001, 1);
+  await $sazito.invoices.create();
+  const methods = await $sazito.payments.getMethods();
+
+  if (!methods.data?.length) {
+    data.value = { message: 'No payment methods available' };
+    return;
+  }
+
+  await $sazito.payments.create(methods.data[0].id);
+  const action = await $sazito.payments.initialize();
+  data.value = action.data ?? null;
 });
 </script>
 
@@ -261,7 +391,16 @@ import { getSazitoClient } from '../utils/sazito';
 
 export default defineEventHandler(async () => {
   const client = getSazitoClient();
-  const res = await client.payments.getMethods();
+  await client.cart.addItem(12001, 1);
+  await client.invoices.create();
+  const methods = await client.payments.getMethods();
+
+  if (!methods.data?.length) {
+    return null;
+  }
+
+  await client.payments.create(methods.data[0].id);
+  const res = await client.payments.initialize();
 
   return res.data;
 });
@@ -324,4 +463,3 @@ Source: `src/types/payment.ts`
 | `imageUrl` | `string` | Optional |
 | `code` | `string` | Optional |
 {/* AUTO_FIELDS_END */}
-

@@ -5,8 +5,9 @@
 import { CheckoutProductSnapshot } from './common';
 
 export interface SchedulerBookingAttributes {
-  eventEntityId: number;
+  eventEntityId: string | number;
   eventTitle?: string;
+  eventId?: string;
   startDateTimeLocal: string;
   endDateTimeLocal: string;
   timezone: string;

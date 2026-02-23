@@ -32,15 +32,16 @@ export interface ApplicableShippingMethods {
 export interface ShippingAddressInput {
   firstName: string;
   lastName: string;
-  mobilePhone?: string;
+  mobilePhone: string;
   phoneNumber?: string;
   email?: string;
-  regionId: number;
-  cityId: number;
+  regionId?: number;
+  cityId?: number;
   address: string;
   postalCode?: string;
   latitude?: number;
   longitude?: number;
+  showMap?: boolean;
   userSetCoordinatesBefore?: boolean;
 }
 
@@ -51,5 +52,5 @@ export interface ShippingAddressCredentials {
 
 export interface ShippingAssignment {
   rateId: number;
-  invoiceItemIds: number[];
+  invoiceItemIds: Array<string | number>;
 }

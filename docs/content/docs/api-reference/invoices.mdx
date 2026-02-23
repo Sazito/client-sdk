@@ -3,6 +3,20 @@ title: Invoices
 description: Checkout invoice creation, updates, shipping assignment, and discount flows.
 ---
 
+## Module role in sales flow
+
+`invoices` is the checkout state machine between cart and payment.
+
+- `create` builds checkout state from current cart credentials.
+- Address, shipping method, discount code, notes, and credit are all attached via invoice endpoints.
+- `payments` depends on an existing invoice.
+
+## V2 contract notes
+
+- `create`/`refresh` require a cart identifier from stored cart credentials.
+- `assignShippingMethod` expects each `invoiceItemIds` value as a string.
+- `addCredit` generally requires authenticated user context in `Authorization`.
+
 ## Methods
 
 ### Get
@@ -15,6 +29,10 @@ Returns current invoice from stored invoice credentials.
 | --- | --- | --- | --- |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
+```ts
+const invoiceRes = await client.invoices.get();
+```
+
 ### Create
 
 Use: `invoices.create(options?)`.
@@ -25,11 +43,21 @@ Creates invoice from current cart credentials.
 | --- | --- | --- | --- |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
+```ts
+await client.cart.addItem(12001, 1);
+const invoiceRes = await client.invoices.create();
+```
+
 ### Refresh
 
 Use: `invoices.refresh(options?)`.
 
 Syncs invoice with cart state.
+
+```ts
+await client.cart.addItem(12009, 1);
+const refreshedInvoice = await client.invoices.refresh();
+```
 
 ### Add Shipping Address
 
@@ -41,6 +69,23 @@ Use: `invoices.addShippingAddress(shippingAddressId, shippingAddressIdentifier, 
 | `shippingAddressIdentifier` | `string` | Required | Shipping address identifier. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
+```ts
+const addressRes = await client.shipping.createAddress({
+  firstName: 'John',
+  lastName: 'Doe',
+  regionId: 1,
+  cityId: 10,
+  address: 'No. 10, Example St',
+});
+
+if (addressRes.data) {
+  await client.invoices.addShippingAddress(
+    addressRes.data.id,
+    addressRes.data.identifier
+  );
+}
+```
+
 ### Add Discount Code
 
 Use: `invoices.addDiscountCode(code, options?)`.
@@ -50,6 +95,10 @@ Use: `invoices.addDiscountCode(code, options?)`.
 | `code` | `string` | Required | Discount code (uppercased by SDK). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
+```ts
+await client.invoices.addDiscountCode('WELCOME10');
+```
+
 ### Assign Shipping Method
 
 Use: `invoices.assignShippingMethod(shippings, options?)`.
@@ -57,8 +106,20 @@ Use: `invoices.assignShippingMethod(shippings, options?)`.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `shippings[].rateId` | `number` | Required | Shipping rate ID. |
-| `shippings[].invoiceItemIds` | `number[]` | Required | Invoice item IDs covered by this rate. |
+| `shippings[].invoiceItemIds` | `Array<string \| number>` | Required | Invoice item IDs covered by this rate (sent as strings to backend). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
+
+```ts
+const shippingMethodsRes = await client.invoices.getApplicableShippingMethods();
+const assignments = shippingMethodsRes.data?.itemsShippingRate.map((entry) => ({
+  rateId: entry.shippingRate.id,
+  invoiceItemIds: [entry.invoiceItemId],
+})) ?? [];
+
+if (assignments.length > 0) {
+  await client.invoices.assignShippingMethod(assignments);
+}
+```
 
 ### Add Details
 
@@ -69,17 +130,32 @@ Use: `invoices.addDetails(comment, options?)`.
 | `comment` | `string` | Required | Customer comment for invoice. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
+```ts
+await client.invoices.addDetails('Please deliver between 14:00 and 16:00');
+```
+
 ### Add Form
 
 Use: `invoices.addForm(input, options?)`.
 
 Attaches checkout dynamic form data to invoice via `/api/v2/invoices/{id}/add_form`.
+This is invoice-level checkout form data, not product form answers and not booking schedule fields.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `input.formAttributes` | `Record<string, any>` | Required | Dynamic form data payload. |
-| `input.invoiceIdentifier` | `string` | Optional | Explicit invoice identifier override. |
+| `input.formAttributes` | `Record<string, any>` | Required | Checkout-level form payload (for invoice-level fields such as legal or delivery form steps). |
+| `input.identifier` | `string` | Optional | Explicit invoice identifier override. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
+
+```ts
+await client.invoices.addForm({
+  identifier: 'invoice-identifier-if-needed',
+  formAttributes: {
+    nationalCode: '0012345678',
+    agreeToTerms: true,
+  },
+});
+```
 
 ### Get Applicable Shipping Methods
 
@@ -87,11 +163,20 @@ Use: `invoices.getApplicableShippingMethods(options?)`.
 
 Returns: `SazitoResponse<ApplicableShippingMethods>`.
 
+```ts
+const shippingRatesRes = await client.invoices.getApplicableShippingMethods();
+```
+
 ### Add Credit
 
 Use: `invoices.addCredit(options?)`.
 
 Applies wallet credit to the current invoice.
+In most shops this flow requires authenticated user context.
+
+```ts
+await client.invoices.addCredit();
+```
 
 ### Remove Credit
 
@@ -99,17 +184,29 @@ Use: `invoices.removeCredit(options?)`.
 
 Removes wallet credit from the current invoice.
 
+```ts
+await client.invoices.removeCredit();
+```
+
 ### Toggle Credit
 
 Use: `invoices.toggleCredit(options?)`.
 
 Toggles wallet credit based on current `invoice.creditTotal`.
 
+```ts
+await client.invoices.toggleCredit();
+```
+
 ### Clear Invoice
 
 Use: `invoices.clearInvoice()`.
 
 Clears persisted invoice credentials only.
+
+```ts
+client.invoices.clearInvoice();
+```
 
 ## `Invoice` key fields
 
@@ -156,7 +253,11 @@ export default function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.invoices.get().then((res) => setData(res.data ?? null));
+    (async () => {
+      await sazito.cart.addItem(12001, 1);
+      const res = await sazito.invoices.create();
+      setData(res.data ?? null);
+    })();
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -183,7 +284,8 @@ import { getSazitoServerClient } from '@/app/lib/sazito-server';
 
 export async function runExample() {
   const client = getSazitoServerClient();
-  const res = await client.invoices.get();
+  await client.cart.addItem(12001, 1);
+  const res = await client.invoices.create();
 
   return res.data;
 }
@@ -211,7 +313,11 @@ export function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.invoices.get().then((res) => setData(res.data ?? null));
+    (async () => {
+      await sazito.cart.addItem(12001, 1);
+      const res = await sazito.invoices.create();
+      setData(res.data ?? null);
+    })();
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -242,7 +348,8 @@ import { sazito } from '../lib/sazito';
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await sazito.invoices.get();
+  await sazito.cart.addItem(12001, 1);
+  const res = await sazito.invoices.create();
   data.value = res.data ?? null;
 });
 </script>
@@ -278,7 +385,8 @@ const { $sazito } = useNuxtApp();
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await $sazito.invoices.get();
+  await $sazito.cart.addItem(12001, 1);
+  const res = await $sazito.invoices.create();
   data.value = res.data ?? null;
 });
 </script>
@@ -308,7 +416,8 @@ import { getSazitoClient } from '../utils/sazito';
 
 export default defineEventHandler(async () => {
   const client = getSazitoClient();
-  const res = await client.invoices.get();
+  await client.cart.addItem(12001, 1);
+  const res = await client.invoices.create();
 
   return res.data;
 });
@@ -448,4 +557,3 @@ Source: `src/types/invoice.ts`
 | `lastName` | `string` | Optional |
 | `birthDate` | `string` | Optional |
 {/* AUTO_FIELDS_END */}
-

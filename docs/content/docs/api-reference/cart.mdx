@@ -1,7 +1,31 @@
 ---
 title: Cart
-description: Guest/authenticated cart creation and item mutation APIs.
+description: Cart APIs for guest and authenticated checkout entry, line-item changes, and cart credential lifecycle.
 ---
+
+## Module role in sales flow
+
+`cart` is the first checkout module for both guest and authenticated users.
+
+- Use `create` when you want an explicit initial cart payload (variants, coupon, and optional form/booking attributes).
+- Use `addItem` for quick add-to-cart UX. If no cart exists, SDK creates it automatically.
+- After cart is ready, continue with `invoices.create()` to move into checkout.
+
+## V2 contract notes
+
+- `cart.get()` always sends required query `identifier` from stored cart credentials.
+- Only send `schedulerBookingAttributes` when all required booking fields are present.
+- `updateItem` accepts `count = 0` to remove the target line-item.
+
+## Attribute map (form vs booking)
+
+| Field | Scope | What it is for |
+| --- | --- | --- |
+| `variants[].formAttributes` in `cart.create` | Product line item | Product-specific dynamic form values for that variant (for example engraving text, custom options). |
+| `input.formAttributes` in `cart.create` | Cart add request | Additional dynamic form payload accepted by checkout cart endpoint. |
+| `attributes.formAttributes` in `cart.addItemWithAttributes` | Product line item | Same as above, but for a single add-item action. |
+| `attributes.schedulerBookingAttributes` in `cart.addItemWithAttributes` | Booking product only | Booking/scheduling payload (`eventEntityId`, `startDateTimeLocal`, `endDateTimeLocal`, `timezone`). |
+| `input.formAttributes` in `invoices.addForm` | Invoice/checkout level | Checkout-level form values (not product customization, not booking time). |
 
 ## Methods
 
@@ -15,6 +39,13 @@ Use: `cart.get(options?)`.
 
 Returns: `SazitoResponse<Cart>`.
 
+```ts
+const cartRes = await client.cart.get();
+if (cartRes.error?.type === 'validation') {
+  // No stored cart yet, create one or call addItem.
+}
+```
+
 ### Create
 
 Use: `cart.create(input, options?)`.
@@ -27,6 +58,16 @@ Use: `cart.create(input, options?)`.
 | `input.schedulerBookingAttributes` | `SchedulerBookingAttributes` | Optional | Booking attributes for scheduler products. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
+```ts
+const cartRes = await client.cart.create({
+  variants: [
+    { id: 12001, count: 2 },
+    { id: 12009, count: 1, formAttributes: { engraving: 'SAZITO' } },
+  ],
+  coupon: 'WELCOME10',
+});
+```
+
 ### Add Item
 
 Use: `cart.addItem(variantId, count, formAttributes?, options?)`.
@@ -35,22 +76,44 @@ Use: `cart.addItem(variantId, count, formAttributes?, options?)`.
 | --- | --- | --- | --- |
 | `variantId` | `number` | Required | Variant ID. |
 | `count` | `number` | Required | Quantity to add. |
-| `formAttributes` | `Record<string, any>` | Optional | Dynamic form attributes. |
+| `formAttributes` | `Record<string, any>` | Optional | Product dynamic form attributes (not booking schedule). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
+
+```ts
+const cartRes = await client.cart.addItem(12001, 1);
+```
 
 ### Add Item With Attributes
 
 Use: `cart.addItemWithAttributes(variantId, count, attributes?, options?)`.
 
-Extended add-item flow with both dynamic form and scheduler booking payloads.
+`addItemWithAttributes` is the explicit add-to-cart API when you need to pass
+attributes object(s) in a structured way.
+
+- Use `addItem` for simple quantity-only add.
+- Use `addItemWithAttributes` when the product requires form answers, booking time fields, or both.
+- It can create the cart automatically if no cart exists yet.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `variantId` | `number` | Required | Variant ID. |
 | `count` | `number` | Required | Quantity to add. |
-| `attributes.formAttributes` | `Record<string, any>` | Optional | Product dynamic form attributes. |
-| `attributes.schedulerBookingAttributes` | `SchedulerBookingAttributes` | Optional | Scheduler booking attributes (`eventEntityId`, `startDateTimeLocal`, `endDateTimeLocal`, `timezone`). |
+| `attributes.formAttributes` | `Record<string, any>` | Optional | Product form answers attached to the added line item. |
+| `attributes.schedulerBookingAttributes` | `SchedulerBookingAttributes` | Optional | Booking-only schedule payload for reservable/schedulable products. |
+| `attributes.coupon` | `string` | Optional | Coupon token for this add-to-cart request. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
+
+```ts
+const cartRes = await client.cart.addItemWithAttributes(14022, 1, {
+  formAttributes: { participantName: 'John Doe' },
+  schedulerBookingAttributes: {
+    eventEntityId: 987,
+    startDateTimeLocal: '2026-03-10T10:00:00',
+    endDateTimeLocal: '2026-03-10T11:00:00',
+    timezone: 'Asia/Tehran',
+  },
+});
+```
 
 ### Update Item
 
@@ -60,9 +123,38 @@ Use: `cart.updateItem(cartProductId, variantId, count, formAttributes?, options?
 | --- | --- | --- | --- |
 | `cartProductId` | `number` | Required | Existing cart-product row ID. |
 | `variantId` | `number` | Required | Variant ID being updated. |
-| `count` | `number` | Required | New quantity. |
+| `count` | `number` | Required | New quantity (`0` removes that cart row). |
 | `formAttributes` | `Record<string, any>` | Optional | Updated dynamic form attributes. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
+
+```ts
+const cart = await client.cart.get();
+const first = cart.data?.items[0];
+
+if (first) {
+  await client.cart.updateItem(first.id, first.productVariantId, 3);
+}
+```
+
+### Update Item With Attributes
+
+Use: `cart.updateItemWithAttributes(cartProductId, variantId, count, attributes?, options?)`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cartProductId` | `number \| string` | Required | Cart-product row ID. |
+| `variantId` | `number` | Required | Variant ID being updated. |
+| `count` | `number` | Required | New quantity (`0` removes row). |
+| `attributes.formAttributes` | `Record<string, any>` | Optional | Updated dynamic form values. |
+| `attributes.coupon` | `string` | Optional | Replace active coupon on this request. |
+| `attributes.deleteCoupon` | `boolean` | Optional | Set `true` to remove active coupon. |
+| `options` | `RequestOptions` | Optional | Per-request controls. |
+
+```ts
+await client.cart.updateItemWithAttributes('12', 12001, 0, {
+  deleteCoupon: true,
+});
+```
 
 ### Remove Item
 
@@ -74,11 +166,24 @@ Use: `cart.removeItem(cartProductId, variantId, options?)`.
 | `variantId` | `number` | Required | Variant ID to remove. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
+```ts
+const cart = await client.cart.get();
+const first = cart.data?.items[0];
+
+if (first) {
+  await client.cart.removeItem(first.id, first.productVariantId);
+}
+```
+
 ### Clear Cart
 
 Use: `cart.clearCart()`.
 
 Clears persisted cart credentials only.
+
+```ts
+client.cart.clearCart();
+```
 
 ## `Cart` fields
 
@@ -124,7 +229,7 @@ export default function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.cart.get().then((res) => setData(res.data ?? null));
+    sazito.cart.addItem(12001, 1).then((res) => setData(res.data ?? null));
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -151,7 +256,7 @@ import { getSazitoServerClient } from '@/app/lib/sazito-server';
 
 export async function runExample() {
   const client = getSazitoServerClient();
-  const res = await client.cart.get();
+  const res = await client.cart.addItem(12001, 1);
 
   return res.data;
 }
@@ -179,7 +284,7 @@ export function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.cart.get().then((res) => setData(res.data ?? null));
+    sazito.cart.addItem(12001, 1).then((res) => setData(res.data ?? null));
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -210,7 +315,7 @@ import { sazito } from '../lib/sazito';
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await sazito.cart.get();
+  const res = await sazito.cart.addItem(12001, 1);
   data.value = res.data ?? null;
 });
 </script>
@@ -246,7 +351,7 @@ const { $sazito } = useNuxtApp();
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await $sazito.cart.get();
+  const res = await $sazito.cart.addItem(12001, 1);
   data.value = res.data ?? null;
 });
 </script>
@@ -276,7 +381,7 @@ import { getSazitoClient } from '../utils/sazito';
 
 export default defineEventHandler(async () => {
   const client = getSazitoClient();
-  const res = await client.cart.get();
+  const res = await client.cart.addItem(12001, 1);
 
   return res.data;
 });
@@ -343,4 +448,3 @@ Source: `src/types/cart.ts`
 | `formFields` | `Record<string, any>` | Optional |
 | `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
 {/* AUTO_FIELDS_END */}
-
