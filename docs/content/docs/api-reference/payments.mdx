@@ -139,7 +139,6 @@ client.payments.clearPayment();
 | --- | --- | --- | --- |
 | `id` | `number` | Required | Payment method ID. |
 | `code` | `PaymentGateway` | Required | Gateway code enum. |
-| `title` | `string` | Required | Method title from checkout payment list. |
 | `isDefault` | `boolean` | Required | Default method flag. |
 
 ### Payment Action
@@ -423,7 +422,6 @@ Source: `src/types/payment.ts`
 | --- | --- | --- |
 | `id` | `number` | Required |
 | `code` | `PaymentGateway` | Required |
-| `title` | `string` | Required |
 | `isDefault` | `boolean` | Required |
 
 #### Payment
@@ -434,10 +432,9 @@ Source: `src/types/payment.ts`
 | --- | --- | --- |
 | `id` | `number` | Required |
 | `identifier` | `string` | Required |
-| `paymentType` | `{     id?: number;     code: PaymentGateway;     title?: string;   }` | Required |
+| `paymentType` | `{     id?: number;     code: PaymentGateway;   }` | Required |
 | `paymentType.id` | `number` | Optional |
 | `paymentType.code` | `PaymentGateway` | Required |
-| `paymentType.title` | `string` | Optional |
 | `amount` | `number` | Required |
 
 #### PaymentAction

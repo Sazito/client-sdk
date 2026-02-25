@@ -67,6 +67,15 @@ export class PaymentsAPI {
     paymentTypeId: number,
     options?: RequestOptions
   ): Promise<SazitoResponse<Payment>> {
+    if (!Number.isInteger(paymentTypeId) || paymentTypeId <= 0) {
+      return {
+        error: {
+          message: 'Invalid paymentTypeId. Provide a positive integer from payments.getMethods().',
+          type: 'validation'
+        }
+      };
+    }
+
     const invoiceCreds = this.credentials.getInvoiceCredentials();
 
     if (!invoiceCreds) {
@@ -89,7 +98,7 @@ export class PaymentsAPI {
 
     // Store payment credentials
     if (response.data) {
-      const payment = response.data as Payment;
+      const payment = this.normalizePayment(response.data as Payment | JsonObject);
       this.credentials.setPaymentCredentials({
         id: payment.id,
         identifier: payment.identifier
@@ -315,6 +324,28 @@ export class PaymentsAPI {
     }
 
     formData.append(key, String(value));
+  }
+
+  private normalizePayment(payment: Payment | JsonObject): Payment {
+    if (!payment || typeof payment !== 'object') {
+      return payment as Payment;
+    }
+
+    if (
+      'paymentType' in payment
+      && payment.paymentType
+      && typeof payment.paymentType === 'object'
+      && 'title' in payment.paymentType
+    ) {
+      const paymentTypeWithoutTitle = { ...(payment.paymentType as Record<string, unknown>) };
+      delete (paymentTypeWithoutTitle as { title?: unknown }).title;
+      return {
+        ...(payment as Payment),
+        paymentType: paymentTypeWithoutTitle as Payment['paymentType']
+      };
+    }
+
+    return payment as Payment;
   }
 
   private normalizeAction(action: PaymentAction | JsonObject): PaymentAction {

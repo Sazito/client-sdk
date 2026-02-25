@@ -46,7 +46,6 @@ export type PaymentStatus =
 export interface PaymentMethod {
   id: number;
   code: PaymentGateway;
-  title: string;
   isDefault: boolean;
 }
 
@@ -56,7 +55,6 @@ export interface Payment {
   paymentType: {
     id?: number;
     code: PaymentGateway;
-    title?: string;
   };
   amount: number;
 }

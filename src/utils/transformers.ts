@@ -1655,7 +1655,6 @@ export function transformPaymentMethodsResponse<T = TransformObject[]>(response:
       return {
         id: 0,
         code: '',
-        title: '',
         isDefault: false
       };
     }
@@ -1663,7 +1662,6 @@ export function transformPaymentMethodsResponse<T = TransformObject[]>(response:
     return {
       id: toNumber(method.id) ?? 0,
       code: method.code,
-      title: method.title || method.name || '',
       isDefault: Boolean(method.isDefault)
     };
   }) as T;
