@@ -9,19 +9,20 @@ import {
   SazitoResponse,
   Cart,
   CreateCartInput,
-  RequestOptions
+  RequestOptions,
+  FormAttributeValue
 } from '../types';
 import { CARTS_API } from '../constants/endpoints';
 import { transformCartResponse } from '../utils/transformers';
 
 export interface AddItemAttributesInput {
-  formAttributes?: Record<string, any>;
+  formAttributes?: Record<string, FormAttributeValue>;
   schedulerBookingAttributes?: CreateCartInput['schedulerBookingAttributes'];
   coupon?: string;
 }
 
 export interface UpdateItemAttributesInput {
-  formAttributes?: Record<string, any>;
+  formAttributes?: Record<string, FormAttributeValue>;
   coupon?: string;
   deleteCoupon?: boolean;
 }
@@ -54,13 +55,13 @@ export class CartAPI {
       };
     }
 
-    const response = await this.http.get<any>(`${CARTS_API}/${cartCreds.id}`, {
+    const response = await this.http.get<Cart>(`${CARTS_API}/${cartCreds.id}`, {
       ...options,
       params: { identifier: cartCreds.identifier }
     });
 
     if (response.data) {
-      return { data: transformCartResponse(response.data) as Cart };
+      return { data: transformCartResponse<Cart>(response.data) };
     }
 
     if (response.error) {
@@ -77,13 +78,13 @@ export class CartAPI {
     input: CreateCartInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<Cart>> {
-    const response = await this.http.post<any>(CARTS_API, input, options);
+    const response = await this.http.post<Cart>(CARTS_API, input, options);
 
     if (!response.data) {
       return response;
     }
 
-    const cart = transformCartResponse(response.data) as Cart;
+    const cart = transformCartResponse<Cart>(response.data);
 
     // Store cart credentials for guest users
     this.persistCartCredentials(cart);
@@ -97,7 +98,7 @@ export class CartAPI {
   async addItem(
     variantId: number,
     count: number,
-    formAttributes?: Record<string, any>,
+    formAttributes?: Record<string, FormAttributeValue>,
     options?: RequestOptions
   ): Promise<SazitoResponse<Cart>> {
     return this.addItemWithAttributes(
@@ -132,7 +133,7 @@ export class CartAPI {
       }, options);
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Cart>(
       `${CARTS_API}/${cartCreds.id}/add_products_to_cart`,
       {
         identifier: cartCreds.identifier,
@@ -148,7 +149,7 @@ export class CartAPI {
     );
 
     if (response.data) {
-      const cart = transformCartResponse(response.data) as Cart;
+      const cart = transformCartResponse<Cart>(response.data);
       this.persistCartCredentials(cart);
       return { data: cart };
     }
@@ -167,7 +168,7 @@ export class CartAPI {
     cartProductId: number | string,
     variantId: number,
     count: number,
-    formAttributes?: Record<string, any>,
+    formAttributes?: Record<string, FormAttributeValue>,
     options?: RequestOptions
   ): Promise<SazitoResponse<Cart>> {
     return this.updateItemWithAttributes(
@@ -200,7 +201,7 @@ export class CartAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Cart>(
       `${CARTS_API}/${cartCreds.id}/update_products_in_cart`,
       {
         identifier: cartCreds.identifier,
@@ -217,7 +218,7 @@ export class CartAPI {
     );
 
     if (response.data) {
-      const cart = transformCartResponse(response.data) as Cart;
+      const cart = transformCartResponse<Cart>(response.data);
       this.persistCartCredentials(cart);
       return { data: cart };
     }
@@ -244,7 +245,7 @@ export class CartAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Cart>(
       `${CARTS_API}/${cartCreds.id}/remove_products_from_cart`,
       {
         identifier: cartCreds.identifier,
@@ -257,7 +258,7 @@ export class CartAPI {
     );
 
     if (response.data) {
-      const cart = transformCartResponse(response.data) as Cart;
+      const cart = transformCartResponse<Cart>(response.data);
       this.persistCartCredentials(cart);
       return { data: cart };
     }

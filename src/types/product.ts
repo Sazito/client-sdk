@@ -2,7 +2,7 @@
  * Product-related types
  */
 
-import { Image, ProductAttribute } from './common';
+import { Image, ProductAttribute, JsonObject, JsonValue } from './common';
 
 export interface ProductVariant {
   id: number;
@@ -22,7 +22,7 @@ export interface ProductVariant {
   dynamicFormId?: number;
   sortIndex: number;
   imageId?: number;
-  commercialFiles?: any[];
+  commercialFiles?: JsonValue[];
   createdAt: string;
   updatedAt: string;
 }
@@ -33,7 +33,7 @@ export interface Product {
   url: string;
   enabled: boolean;
   productType: string;
-  themeConfig?: any;
+  themeConfig?: JsonObject;
   dynamicFormId?: number;
   eventEntityId?: number;
   attributes?: ProductAttribute[];
@@ -51,7 +51,7 @@ export interface ProductCategory {
   enabled?: boolean;
   description?: string;
   productsCount?: number;
-  themeConfig?: any;
+  themeConfig?: JsonObject;
   attributes?: ProductAttribute[];
   createdAt?: string;
   updatedAt?: string;

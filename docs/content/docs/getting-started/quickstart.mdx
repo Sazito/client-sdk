@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Fetch products, handle errors, and implement the first checkout calls.
+description: Fetch products, handle errors, and bootstrap cart/invoice state.
 ---
 
 ## Basic read flow
@@ -32,19 +32,20 @@ const byPath = await client.products.get('/product/running-shoe-pro');
 const bySlug = await client.products.get('running-shoe-pro');
 ```
 
-## Minimal guest checkout bootstrap
+## Minimal cart and invoice bootstrap
 
 ```ts
-const checkoutRes = await client.checkout.initialize({
-  variantId: 12345,
-  count: 1,
-});
-
-if (checkoutRes.error) {
-  throw new Error(`${checkoutRes.error.details?.step}: ${checkoutRes.error.message}`);
+const cartRes = await client.cart.addItemWithAttributes(12345, 1);
+if (cartRes.error) {
+  throw new Error(cartRes.error.message);
 }
 
-console.log(checkoutRes.data.paymentAction);
+const invoiceRes = await client.invoices.create();
+if (invoiceRes.error) {
+  throw new Error(invoiceRes.error.message);
+}
+
+console.log(invoiceRes.data.totalPrice);
 ```
 
 ## Authenticated profile call

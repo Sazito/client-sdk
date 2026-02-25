@@ -3,7 +3,7 @@
  */
 
 import { HttpClient } from '../core/http-client';
-import { SazitoResponse, RequestOptions } from '../types';
+import { SazitoResponse, RequestOptions, JsonObject, JsonValue } from '../types';
 import { GENERAL_API } from '../constants/endpoints';
 import { transformGeneralInfoResponse } from '../utils/transformers';
 
@@ -139,10 +139,10 @@ interface RawGeneralInfo {
     registerType?: string;
     showProductStockNumber?: { enabled?: boolean } | boolean;
   };
-  checkout?: unknown;
-  features?: Record<string, unknown>;
-  wallet?: unknown;
-  tajrobe?: unknown;
+  checkout?: JsonValue;
+  features?: JsonObject;
+  wallet?: JsonValue;
+  tajrobe?: JsonValue;
   domain?: DomainInfo;
   enamad?: EnamadInfo;
   google?: GoogleInfo;
@@ -160,7 +160,7 @@ export class GeneralAPI {
     const response = await this.http.get<RawGeneralInfo>(GENERAL_API, options);
 
     if (response.data) {
-      return { data: transformGeneralInfoResponse(response.data) as GeneralInfo };
+      return { data: transformGeneralInfoResponse<GeneralInfo>(response.data) };
     }
 
     if (response.error) {

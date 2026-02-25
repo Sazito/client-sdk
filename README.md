@@ -7,7 +7,7 @@ This SDK is built for application developers who want a typed, framework-agnosti
 - unified response objects (`{ data, error }`)
 - configurable retry/timeout/cache behavior
 - guest checkout credential handling
-- modular API access for products, checkout, user, CMS, analytics, and more
+- modular API access for products, cart, invoices, shipping, payments, user, CMS, analytics, and more
 
 ## Package
 
@@ -182,7 +182,6 @@ sazito.payments.clearPayment();
 The client instance exposes:
 - `products`
 - `categories`
-- `checkout`
 - `cart`
 - `orders`
 - `invoices`
@@ -206,7 +205,6 @@ The client instance exposes:
 |---|---|
 | `products` | `get`, `list`, `search` |
 | `categories` | `get`, `list` |
-| `checkout` | `initialize`, `processPaymentStep`, `pollPaymentUntilSettled`, `clear` |
 | `cart` | `get`, `create`, `addItem`, `updateItem`, `removeItem`, `clearCart` |
 | `orders` | `list`, `get` |
 | `invoices` | `get`, `create`, `refresh`, `addShippingAddress`, `addDiscountCode`, `assignShippingMethod`, `addDetails`, `getApplicableShippingMethods`, `clearInvoice` |
@@ -251,19 +249,16 @@ const search = await sazito.search.query('shoes', {
 });
 ```
 
-### Guest Checkout Flow
+### Checkout Modules Flow
 
 ```ts
-const checkoutRes = await sazito.checkout.initialize({
-  variantId: 12345,
-  count: 2
-});
+// 1) Add product to cart
+const cartRes = await sazito.cart.addItemWithAttributes(12345, 2);
+if (cartRes.error) throw new Error(cartRes.error.message);
 
-if (checkoutRes.error) {
-  throw new Error(`${checkoutRes.error.details?.step}: ${checkoutRes.error.message}`);
-}
-
-console.log(checkoutRes.data.paymentAction);
+// 2) Create invoice from cart
+const invoiceRes = await sazito.invoices.create();
+if (invoiceRes.error) throw new Error(invoiceRes.error.message);
 
 // 3) Add shipping address
 const addrRes = await sazito.shipping.createAddress({
@@ -278,29 +273,31 @@ const addrRes = await sazito.shipping.createAddress({
 if (addrRes.error) throw new Error(addrRes.error.message);
 
 // 4) Attach shipping address to invoice
-await sazito.invoices.addShippingAddress(addrRes.data.id, addrRes.data.identifier);
+const attachRes = await sazito.invoices.addShippingAddress(addrRes.data.id, addrRes.data.identifier);
+if (attachRes.error) throw new Error(attachRes.error.message);
 
 // 5) Fetch methods and assign shipping
 const methodsRes = await sazito.invoices.getApplicableShippingMethods();
-if (methodsRes.data?.length) {
-  const firstRate = methodsRes.data[0]?.rates?.[0];
-  const currentInvoice = await sazito.invoices.get();
+if (methodsRes.error) throw new Error(methodsRes.error.message);
+if (methodsRes.data?.itemsShippingRate?.length) {
+  const assignments = methodsRes.data.itemsShippingRate.map((entry) => ({
+    rateId: entry.shippingRate.id,
+    invoiceItemIds: [entry.invoiceItemId],
+  }));
 
-  if (firstRate && currentInvoice.data) {
-    await sazito.invoices.assignShippingMethod([
-      {
-        rateId: firstRate.id,
-        invoiceItemIds: currentInvoice.data.items.map(i => i.id)
-      }
-    ]);
-  }
+  const assignRes = await sazito.invoices.assignShippingMethod(assignments);
+  if (assignRes.error) throw new Error(assignRes.error.message);
 }
 
 // 6) Payment
 const paymentMethods = await sazito.payments.getMethods();
+if (paymentMethods.error) throw new Error(paymentMethods.error.message);
 if (paymentMethods.data?.length) {
-  await sazito.payments.create(paymentMethods.data[0].id);
+  const paymentCreateRes = await sazito.payments.create(paymentMethods.data[0].id);
+  if (paymentCreateRes.error) throw new Error(paymentCreateRes.error.message);
+
   const action = await sazito.payments.initialize();
+  if (action.error) throw new Error(action.error.message);
   console.log(action.data);
 }
 ```

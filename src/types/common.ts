@@ -2,6 +2,13 @@
  * Common types used throughout the SDK
  */
 
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+export interface JsonObject {
+  [key: string]: JsonValue;
+}
+export type JsonArray = JsonValue[];
+
 /**
  * Unified response pattern for all API calls
  * No exceptions are thrown - errors are returned in the error field
@@ -12,7 +19,7 @@ export interface SazitoResponse<T> {
     status?: number;
     message: string;
     type: 'network' | 'api' | 'validation';
-    details?: any;
+    details?: JsonValue;
   };
 }
 
@@ -27,7 +34,7 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * Request options that can be passed to any API call
+ * Request options that can be passed to an API call
  */
 export interface RequestOptions {
   retries?: number;      // Override retry count (0-3)
@@ -59,7 +66,6 @@ export interface Image {
   alt?: string;
   width?: number;
   height?: number;
-  order?: number;
   createdAt: string;
   updatedAt: string;
 }

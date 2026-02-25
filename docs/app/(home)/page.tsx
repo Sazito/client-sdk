@@ -8,9 +8,9 @@ export default function HomePage() {
       href: '/docs/getting-started/installation',
     },
     {
-      title: 'Checkout Guide',
-      description: 'Run a full guest checkout flow from cart to payment action.',
-      href: '/docs/guides/guest-checkout',
+      title: 'Integration Guides',
+      description: 'Framework-specific integration patterns for production storefronts.',
+      href: '/docs/guides/react',
     },
     {
       title: 'API Reference',
@@ -32,7 +32,7 @@ export default function HomePage() {
           Production-ready commerce docs for global storefront teams.
         </h1>
         <p className="mt-5 max-w-2xl text-base text-fd-muted-foreground md:text-lg">
-          Everything you need to integrate products, checkout, users, wallet, CMS, and analytics with a consistent typed SDK.
+          Everything you need to integrate products, cart, invoices, shipping, payments, users, wallet, CMS, and analytics with a consistent typed SDK.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">

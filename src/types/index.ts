@@ -12,4 +12,3 @@ export * from './order';
 export * from './search';
 export * from './entity-route';
 export * from './menu';
-export * from './checkout';

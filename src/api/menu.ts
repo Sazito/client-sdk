@@ -7,7 +7,7 @@ import {
   SazitoResponse,
   RequestOptions
 } from '../types';
-import { MenuTree, MenuItem } from '../types/menu';
+import { MenuTree, MenuItem, MenuNode } from '../types/menu';
 import { MENU_API } from '../constants/endpoints';
 import { transformMenuResponse } from '../utils/transformers';
 
@@ -32,7 +32,9 @@ export class MenuAPI {
     );
 
     // Transform and clean the response (removes staticUrl, unnecessary fields)
-    const transformed = response.data ? transformMenuResponse(response.data) : response.data;
+    const transformed = response.data
+      ? transformMenuResponse<{ tree: MenuTree }>(response.data)
+      : response.data;
 
     // Transform the raw tree structure into a clean navigation array
     // Response is camelCased by HTTP client: tree.treeStructure.nodes
@@ -49,7 +51,7 @@ export class MenuAPI {
    * Convert raw tree structure to clean navigation items
    * Filters out disabled items and processes nested children recursively
    */
-  private convertRawTreeToNavigation(nodes: any[]): MenuItem[] {
+  private convertRawTreeToNavigation(nodes: MenuNode[]): MenuItem[] {
     if (!nodes || nodes.length === 0) return [];
 
     const output = nodes.map(node => ({
@@ -68,7 +70,7 @@ export class MenuAPI {
   /**
    * Extract the display title for a menu node
    */
-  private findNodeTitle(node: any): string {
+  private findNodeTitle(node: MenuNode): string {
     const { entityType, details, entity } = node;
 
     // If isTitleDefault is true, use entity name/title
@@ -93,7 +95,7 @@ export class MenuAPI {
   /**
    * Extract the URL for a menu node
    */
-  private findNodeUrl(node: any): string {
+  private findNodeUrl(node: MenuNode): string {
     if (
       node.entityType === 'product' ||
       node.entityType === 'product_category' ||
@@ -110,7 +112,7 @@ export class MenuAPI {
   /**
    * Determine if a node should be filtered out (disabled items)
    */
-  private shouldDropNode(node: any): boolean {
+  private shouldDropNode(node: MenuNode): boolean {
     if (
       node.entityType === 'product' ||
       node.entityType === 'product_category' ||

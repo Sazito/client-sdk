@@ -349,142 +349,6 @@ const OPERATIONS = [
     ]
   },
   {
-    id: 'checkout.initialize',
-    label: 'Checkout: Initialize (MVP Flow)',
-    description: 'Headless sales flow orchestration: add item -> invoice -> shipping assignment -> default payment selection -> initialize action.',
-    fields: [
-      {
-        key: 'variantId',
-        label: 'Variant ID',
-        type: 'number',
-        section: 'request',
-        defaultValue: 114706,
-        min: 1,
-        required: true
-      },
-      {
-        key: 'count',
-        label: 'Count',
-        type: 'number',
-        section: 'request',
-        defaultValue: 1,
-        min: 1,
-        required: true
-      },
-      {
-        key: 'attributes.formAttributes',
-        label: 'Item Form Attributes (JSON)',
-        type: 'json',
-        section: 'request',
-        defaultValue: {
-          engraving: 'SDK'
-        }
-      },
-      {
-        key: 'attributes.schedulerBookingAttributes',
-        label: 'Booking Attributes (JSON)',
-        type: 'json',
-        section: 'request',
-        defaultValue: null
-      },
-      {
-        key: 'shippingAddress',
-        label: 'Shipping Address (JSON, optional)',
-        type: 'json',
-        section: 'request',
-        defaultValue: null
-      },
-      {
-        key: 'discountCode',
-        label: 'Discount Code (optional)',
-        type: 'text',
-        section: 'request',
-        placeholder: 'OFF20'
-      },
-      {
-        key: 'comment',
-        label: 'Invoice Comment (optional)',
-        type: 'text',
-        section: 'request',
-        placeholder: 'Please call before delivery'
-      },
-      {
-        key: 'invoiceFormAttributes',
-        label: 'Invoice Form Attributes (JSON, optional)',
-        type: 'json',
-        section: 'request',
-        defaultValue: null
-      },
-      {
-        key: 'useWalletCredit',
-        label: 'Use Wallet Credit',
-        type: 'boolean',
-        section: 'request',
-        defaultValue: ''
-      },
-      {
-        key: 'paymentTypeId',
-        label: 'Payment Type ID (optional)',
-        type: 'number',
-        section: 'request',
-        placeholder: 'leave empty for default payment method'
-      }
-    ]
-  },
-  {
-    id: 'checkout.processPaymentStep',
-    label: 'Checkout: Process Payment Step',
-    description: 'For step-based gateways: JSON mode uses checkout.processPaymentStep(); form mode uses checkout.processPaymentStepForm().',
-    fields: [
-      {
-        key: 'mode',
-        label: 'Payload Mode',
-        type: 'select',
-        section: 'request',
-        options: [
-          { label: 'JSON (application/json)', value: 'json' },
-          { label: 'Form (non-JSON)', value: 'form' }
-        ],
-        defaultValue: 'json'
-      },
-      {
-        key: 'input',
-        label: 'JSON Input',
-        type: 'json',
-        section: 'request',
-        defaultValue: {
-          imageUrl: 'https://example.com/receipt.jpg',
-          code: '123456'
-        }
-      },
-      {
-        key: 'formFields',
-        label: 'Form Fields (JSON)',
-        type: 'json',
-        section: 'request',
-        defaultValue: {
-          code: '123456',
-          image_url: 'https://example.com/receipt.jpg'
-        }
-      }
-    ]
-  },
-  {
-    id: 'checkout.pollPaymentUntilSettled',
-    label: 'Checkout: Poll Payment',
-    description: 'Polls payment action until it leaves pending via checkout.pollPaymentUntilSettled().',
-    fields: [
-      {
-        key: 'intervalMs',
-        label: 'Interval (ms)',
-        type: 'number',
-        section: 'request',
-        defaultValue: 15000,
-        min: 1000
-      }
-    ]
-  },
-  {
     id: 'cart.get',
     label: 'Cart: Get Current',
     description: 'GET /api/v2/carts/{id} with stored cart credentials via cart.get().',
@@ -583,10 +447,9 @@ const OPERATIONS = [
       {
         key: 'cartProductId',
         label: 'Cart Product ID',
-        type: 'number',
+        type: 'text',
         section: 'request',
-        defaultValue: 1,
-        min: 1,
+        defaultValue: '1',
         required: true
       },
       {
@@ -638,10 +501,9 @@ const OPERATIONS = [
       {
         key: 'cartProductId',
         label: 'Cart Product ID',
-        type: 'number',
+        type: 'text',
         section: 'request',
-        defaultValue: 1,
-        min: 1,
+        defaultValue: '1',
         required: true
       },
       {
@@ -658,7 +520,7 @@ const OPERATIONS = [
   {
     id: 'invoices.get',
     label: 'Invoices: Get Current',
-    description: 'GET /api/v2/invoices/{id} with stored invoice credentials via invoices.get().',
+    description: 'Uses POST /api/v2/invoices/{id}/refresh with stored cart+invoice credentials via invoices.get().',
     fields: []
   },
   {
@@ -1087,9 +949,9 @@ const OPERATIONS = [
         defaultValue: {
           firstName: 'Reza',
           lastName: 'Mahmoudi',
-          mobilePhone: '09123456789',
-          regionId: 1,
-          cityId: 1,
+          mobilePhone: '09358109237',
+          regionId: 8,
+          cityId: 2211,
           address: 'Tehran, Valiasr St'
         },
         required: true
@@ -1109,9 +971,9 @@ const OPERATIONS = [
         defaultValue: {
           firstName: 'Reza',
           lastName: 'Mahmoudi',
-          mobilePhone: '09123456789',
-          regionId: 1,
-          cityId: 1,
+          mobilePhone: '09358109237',
+          regionId: 8,
+          cityId: 2211,
           address: 'Tehran, Updated Address'
         },
         required: true
@@ -1569,10 +1431,20 @@ const OPERATIONS = [
 ];
 
 const OPERATION_NAMESPACES = {
-  checkoutFlow: 'Checkout Flow (New)',
-  checkoutModules: 'Checkout Modules (Low-level)',
+  catalog: 'Catalog APIs',
+  content: 'Content APIs',
+  booking: 'Booking APIs',
+  customer: 'Customer & Auth APIs',
+  engagement: 'Feedback & Engagement APIs',
+  platform: 'Platform & Config APIs',
+  salesFlow: 'Sales Flow APIs',
   other: 'Other APIs'
 };
+
+const OPERATION_NAMESPACE_ORDER = Object.values(OPERATION_NAMESPACES)
+  .filter((namespace) => namespace !== OPERATION_NAMESPACES.salesFlow && namespace !== OPERATION_NAMESPACES.other)
+  .sort((left, right) => left.localeCompare(right))
+  .concat([OPERATION_NAMESPACES.salesFlow, OPERATION_NAMESPACES.other]);
 
 const SECTION_LABELS = {
   request: 'Request',
@@ -1725,8 +1597,12 @@ function createContainerNode(value, depth, key, isLast, isArray) {
 
   const closeBracket = document.createElement('span');
   closeBracket.className = 'json-bracket';
-  closeBracket.textContent = hasEntries ? '' : closeToken;
+  closeBracket.textContent = '';
   summary.appendChild(closeBracket);
+
+  const summaryComma = document.createElement('span');
+  summaryComma.className = 'json-punctuation';
+  summary.appendChild(summaryComma);
 
   details.appendChild(summary);
 
@@ -1762,6 +1638,16 @@ function createContainerNode(value, depth, key, isLast, isArray) {
 
     details.appendChild(closing);
   }
+
+  const updateSummaryTokens = () => {
+    const showInlineClose = !hasEntries || !details.open;
+    closeBracket.textContent = showInlineClose ? closeToken : '';
+    summaryComma.textContent = !isLast && showInlineClose ? ',' : '';
+  };
+
+  details.addEventListener('toggle', updateSummaryTokens);
+  updateSummaryTokens();
+
   return details;
 }
 
@@ -1802,12 +1688,34 @@ function getOperationConfig(operationId) {
 }
 
 function getOperationNamespace(operationId) {
-  if (operationId.startsWith('checkout.')) {
-    return OPERATION_NAMESPACES.checkoutFlow;
+  const [moduleName] = String(operationId).split('.');
+
+  if (moduleName === 'booking') {
+    return OPERATION_NAMESPACES.booking;
   }
 
-  if (/^(cart|invoices|shipping|payments)\./.test(operationId)) {
-    return OPERATION_NAMESPACES.checkoutModules;
+  if (moduleName === 'products' || moduleName === 'categories' || moduleName === 'search') {
+    return OPERATION_NAMESPACES.catalog;
+  }
+
+  if (moduleName === 'cms' || moduleName === 'menu') {
+    return OPERATION_NAMESPACES.content;
+  }
+
+  if (moduleName === 'users' || moduleName === 'wallet') {
+    return OPERATION_NAMESPACES.customer;
+  }
+
+  if (moduleName === 'feedbacks' || moduleName === 'visits') {
+    return OPERATION_NAMESPACES.engagement;
+  }
+
+  if (moduleName === 'general') {
+    return OPERATION_NAMESPACES.platform;
+  }
+
+  if (/^(cart|invoices|shipping|payments|dynamicForms|regions)$/.test(moduleName)) {
+    return OPERATION_NAMESPACES.salesFlow;
   }
 
   return OPERATION_NAMESPACES.other;
@@ -2057,7 +1965,7 @@ function updateCopyButtons() {
 }
 
 function escapeSingleQuotedShell(value) {
-  return `'${String(value).replace(/'/g, `'\"'\"'`)}'`;
+  return `'${String(value).replace(/'/g, `'"'"'`)}'`;
 }
 
 function normalizeRequestForExport(request) {
@@ -2264,15 +2172,20 @@ function bootstrap() {
     });
   }
 
-  const groupedOperations = new Map([
-    [OPERATION_NAMESPACES.checkoutFlow, []],
-    [OPERATION_NAMESPACES.checkoutModules, []],
-    [OPERATION_NAMESPACES.other, []]
-  ]);
+  const groupedOperations = new Map(
+    OPERATION_NAMESPACE_ORDER.map((namespace) => [namespace, []])
+  );
 
   for (const operation of OPERATIONS) {
     const namespace = getOperationNamespace(operation.id);
+    if (!groupedOperations.has(namespace)) {
+      groupedOperations.set(namespace, []);
+    }
     groupedOperations.get(namespace).push(operation);
+  }
+
+  for (const operations of groupedOperations.values()) {
+    operations.sort((left, right) => left.label.localeCompare(right.label));
   }
 
   for (const [namespace, operations] of groupedOperations.entries()) {

@@ -9,7 +9,8 @@ import {
   Invoice,
   ApplicableShippingMethods,
   ShippingAssignment,
-  RequestOptions
+  RequestOptions,
+  JsonObject
 } from '../types';
 import { INVOICES_API } from '../constants/endpoints';
 import {
@@ -18,7 +19,7 @@ import {
 } from '../utils/transformers';
 
 export interface AddInvoiceFormInput {
-  formAttributes: Record<string, any>;
+  formAttributes: JsonObject;
   invoiceIdentifier?: string;
   identifier?: string;
 }
@@ -29,7 +30,7 @@ export class InvoicesAPI {
     private credentials: CredentialsManager
   ) {}
 
-  private normalizeInvoiceResponse(response: SazitoResponse<any>): SazitoResponse<Invoice> {
+  private normalizeInvoiceResponse(response: SazitoResponse<Invoice>): SazitoResponse<Invoice> {
     if (!response.data) {
       if (response.error?.status === 423) {
         this.credentials.clearInvoiceCredentials();
@@ -44,6 +45,7 @@ export class InvoicesAPI {
    * Get current invoice
    */
   async get(options?: RequestOptions): Promise<SazitoResponse<Invoice>> {
+    const cartCreds = this.credentials.getCartCredentials();
     const invoiceCreds = this.credentials.getInvoiceCredentials();
 
     if (!invoiceCreds) {
@@ -55,10 +57,25 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.get<any>(`${INVOICES_API}/${invoiceCreds.id}`, {
-      ...options,
-      params: { identifier: invoiceCreds.identifier }
-    });
+    if (!cartCreds) {
+      return {
+        error: {
+          message: 'No cart found. Please create or restore cart credentials first.',
+          type: 'validation'
+        }
+      };
+    }
+
+    // v2 has no stable `GET /invoices/{id}` endpoint; use refresh contract to read current invoice.
+    const response = await this.http.post<Invoice>(
+      `${INVOICES_API}/${invoiceCreds.id}/refresh`,
+      {
+        cart_id: String(cartCreds.id),
+        cart_identifier: cartCreds.identifier,
+        identifier: invoiceCreds.identifier
+      },
+      options
+    );
 
     return this.normalizeInvoiceResponse(response);
   }
@@ -78,7 +95,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       INVOICES_API,
       {
         cart_id: String(cartCreds.id),
@@ -117,7 +134,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/refresh`,
       {
         cart_id: String(cartCreds.id),
@@ -150,7 +167,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/add_shipping_address`,
       {
         identifier: invoiceCreds.identifier,
@@ -183,7 +200,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/add_discount_code`,
       {
         identifier: invoiceCreds.identifier,
@@ -224,7 +241,7 @@ export class InvoicesAPI {
       invoiceItemIds: shipping.invoiceItemIds.map((invoiceItemId) => String(invoiceItemId))
     }));
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/add_shipping_method`,
       {
         identifier: invoiceCreds.identifier,
@@ -254,7 +271,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/add_invoice_details`,
       {
         identifier: invoiceCreds.identifier,
@@ -284,7 +301,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/add_form`,
       {
         invoiceIdentifier: input.invoiceIdentifier || input.identifier || invoiceCreds.identifier,
@@ -311,7 +328,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/add_credit`,
       { identifier: invoiceCreds.identifier },
       options
@@ -335,7 +352,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/remove_credit`,
       { identifier: invoiceCreds.identifier },
       options
@@ -377,7 +394,7 @@ export class InvoicesAPI {
       };
     }
 
-    const response = await this.http.get<any>(
+    const response = await this.http.get<ApplicableShippingMethods>(
       `${INVOICES_API}/${invoiceCreds.id}/applicable_shipping_methods`,
       {
         ...options,

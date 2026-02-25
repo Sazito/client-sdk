@@ -3,6 +3,7 @@
  */
 
 import type { Order } from './order';
+import type { JsonObject } from './common';
 
 export type PaymentGateway =
   | 'mellatpayment'      // Bank Mellat
@@ -63,7 +64,7 @@ export interface Payment {
 export interface PaymentAction {
   action: 'POST' | 'REDIRECT' | 'UPLOAD' | 'pending' | 'showOrder' | 'StockViolated' | 'FAIL';
   address?: string;
-  payload?: Record<string, any>;
+  payload?: JsonObject;
   order?: Order;
   time?: number;
   message?: string;
@@ -83,9 +84,9 @@ export interface CreatePaymentInput {
 export interface PaymentStepInput {
   id?: number;
   paymentIdentifier?: string;
-  payload?: Record<string, any>;
+  payload?: JsonObject;
   tatoken?: string;
-  trackingData?: Record<string, any>;
+  trackingData?: JsonObject;
   isFailed?: string;
   imageUrl?: string;
   code?: string;

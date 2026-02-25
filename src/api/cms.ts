@@ -6,7 +6,8 @@ import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
   PaginatedResponse,
-  RequestOptions
+  RequestOptions,
+  EntityRouteResponse
 } from '../types';
 import { CmsPage, CMSPageType } from '../types/search';
 import { CMS_PAGES_API, ENTITY_ROUTE_API } from '../constants/endpoints';
@@ -50,7 +51,7 @@ export class CMSAPI {
     urlPath: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<CMSPage>> {
-    const response = await this.http.get<any>(
+    const response = await this.http.get<EntityRouteResponse>(
       ENTITY_ROUTE_API,
       {
         ...options,
@@ -59,11 +60,14 @@ export class CMSAPI {
     );
 
     // Transform entity route response and extract the entity
-    const transformed = transformEntityRouteResponse(response.data);
+    const transformed = transformEntityRouteResponse<EntityRouteResponse>(response.data);
 
     // Verify it's a CMS page (not blog, product, etc.)
-    if (transformed.entityType !== 'cms_page' || transformed.entity?.cmsPageType === 'blog') {
+    if (transformed.entityType !== 'cms_page') {
       throw new Error(`Expected CMS page at ${urlPath}, but got ${transformed.entityType}`);
+    }
+    if (transformed.entity.cmsPageType === 'blog') {
+      throw new Error(`Expected CMS page at ${urlPath}, but got blog page`);
     }
 
     return {
@@ -99,7 +103,7 @@ export class CMSAPI {
 
     return {
       ...response,
-      data: transformCMSListResponse(response.data)
+      data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data)
     };
   }
 
@@ -113,7 +117,7 @@ export class CMSAPI {
     urlPath: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<CMSPage>> {
-    const response = await this.http.get<any>(
+    const response = await this.http.get<EntityRouteResponse>(
       ENTITY_ROUTE_API,
       {
         ...options,
@@ -122,11 +126,14 @@ export class CMSAPI {
     );
 
     // Transform entity route response and extract the entity
-    const transformed = transformEntityRouteResponse(response.data);
+    const transformed = transformEntityRouteResponse<EntityRouteResponse>(response.data);
 
     // Verify it's a blog post
-    if (transformed.entityType !== 'cms_page' || transformed.entity?.cmsPageType !== 'blog') {
+    if (transformed.entityType !== 'cms_page') {
       throw new Error(`Expected blog post at ${urlPath}, but got ${transformed.entityType}`);
+    }
+    if (transformed.entity.cmsPageType !== 'blog') {
+      throw new Error(`Expected blog post at ${urlPath}, but got CMS page`);
     }
 
     return {
@@ -162,7 +169,7 @@ export class CMSAPI {
 
     return {
       ...response,
-      data: transformCMSListResponse(response.data)
+      data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data)
     };
   }
 
@@ -187,7 +194,7 @@ export class CMSAPI {
 
     return {
       ...response,
-      data: transformCMSListResponse(response.data)
+      data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data)
     };
   }
 }

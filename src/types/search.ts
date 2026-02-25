@@ -3,7 +3,7 @@
  */
 
 import { Product, ProductCategory } from './product';
-import { Image, ProductAttribute } from './common';
+import { Image, ProductAttribute, JsonObject } from './common';
 
 /**
  * CMS Page types
@@ -22,7 +22,7 @@ export interface BlogPage {
   content?: string;
   summary?: string;
   image?: Image;
-  themeConfig?: any;
+  themeConfig?: JsonObject;
   attributes?: ProductAttribute[];
   createdAt: string;
   updatedAt: string;
@@ -40,7 +40,7 @@ export interface CmsPage {
   content?: string;
   summary?: string;
   image?: Image;
-  themeConfig?: any;
+  themeConfig?: JsonObject;
   attributes?: ProductAttribute[];
   createdAt: string;
   updatedAt: string;

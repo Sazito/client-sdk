@@ -21,6 +21,7 @@ coverage/
 node_modules/
 dist/
 dist/**/*.map
+references/
 .next/
 out/
 .source/

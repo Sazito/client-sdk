@@ -20,13 +20,13 @@ export class EntityRoutesAPI {
     urlPart: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<EntityRouteResponse>> {
-    const response = await this.http.get<any>(ENTITY_ROUTE_API, {
+    const response = await this.http.get<EntityRouteResponse>(ENTITY_ROUTE_API, {
       ...options,
       params: { url_part: urlPart }
     });
 
     if (response.data) {
-      const transformed = transformEntityRouteResponse(response.data);
+      const transformed = transformEntityRouteResponse<EntityRouteResponse>(response.data);
       return { data: transformed };
     }
 

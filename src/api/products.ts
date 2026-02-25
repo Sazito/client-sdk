@@ -9,7 +9,9 @@ import {
   Product,
   ProductFilters,
   RequestOptions,
-  SearchResponse
+  SearchResponse,
+  EntityRouteResponse,
+  JsonValue
 } from '../types';
 import { PRODUCTS_API, SEARCH_API, ENTITY_ROUTE_API } from '../constants/endpoints';
 import { transformProductListResponse, transformSearchResponse, transformEntityRouteResponse } from '../utils/transformers';
@@ -38,11 +40,11 @@ export class ProductsAPI {
   /**
    * Transform filters to API request params
    */
-  private transformFilters(filters?: ProductFilters): Record<string, any> {
+  private transformFilters(filters?: ProductFilters): Record<string, JsonValue> {
     if (!filters) return {};
 
-    const params: Record<string, any> = {};
-    const filterArray: Array<{ name: string; value?: any }> = [];
+    const params: Record<string, JsonValue> = {};
+    const filterArray: Array<{ name: string; value?: JsonValue }> = [];
 
     // Build filters array
     if (filters.categories) {
@@ -120,13 +122,13 @@ export class ProductsAPI {
       ? slugOrPath
       : `/product/${slugOrPath}`;
 
-    const response = await this.http.get<any>(ENTITY_ROUTE_API, {
+    const response = await this.http.get<EntityRouteResponse>(ENTITY_ROUTE_API, {
       ...options,
       params: { url_part: urlPart }
     });
 
     if (response.data) {
-      const route = transformEntityRouteResponse(response.data);
+      const route = transformEntityRouteResponse<EntityRouteResponse>(response.data);
 
       if (route.entityType === 'product' && route.entity) {
         return { data: route.entity };
@@ -151,7 +153,16 @@ export class ProductsAPI {
       };
     }
 
-    return response;
+    if (response.error) {
+      return { error: response.error };
+    }
+
+    return {
+      error: {
+        message: 'No data returned from product endpoint',
+        type: 'api'
+      }
+    };
   }
 
   /**
@@ -163,13 +174,13 @@ export class ProductsAPI {
   ): Promise<SazitoResponse<PaginatedResponse<Product>>> {
     const params = this.transformFilters(filters);
 
-    const response = await this.http.get<any>(PRODUCTS_API, {
+    const response = await this.http.get<PaginatedResponse<Product>>(PRODUCTS_API, {
       ...options,
       params
     });
 
     if (response.data) {
-      const transformed = transformProductListResponse(response.data);
+      const transformed = transformProductListResponse<PaginatedResponse<Product>>(response.data);
       return { data: transformed };
     }
 
@@ -185,20 +196,20 @@ export class ProductsAPI {
     options?: RequestOptions
   ): Promise<SazitoResponse<SearchResponse>> {
     // Search API uses different parameter names
-    const params: Record<string, any> = {
+    const params: Record<string, JsonValue> = {
       query,
       search_direction: 'center',
       page_size: filters?.pageSize || 20,
       page_number: filters?.page || 1
     };
 
-    const response = await this.http.get<any>(SEARCH_API, {
+    const response = await this.http.get<SearchResponse>(SEARCH_API, {
       ...options,
       params
     });
 
     if (response.data) {
-      const transformed = transformSearchResponse(response.data);
+      const transformed = transformSearchResponse<SearchResponse>(response.data);
       return { data: transformed };
     }
 

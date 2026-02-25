@@ -2,7 +2,7 @@
  * Cart-related types
  */
 
-import { CheckoutProductSnapshot } from './common';
+import { CheckoutProductSnapshot, JsonObject } from './common';
 
 export interface SchedulerBookingAttributes {
   eventEntityId: string | number;
@@ -21,14 +21,14 @@ export interface UploadedFormFileAttribute {
 export type FormAttributeValue = string | number | boolean | null | UploadedFormFileAttribute;
 
 export interface CartProduct {
-  id: number;
+  id: number | string;
   productVariantId: number;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
   product: CheckoutProductSnapshot;
   formAttributes?: Record<string, FormAttributeValue>;
-  formFields?: Record<string, any>;
+  formFields?: JsonObject;
   bookingAttributes?: SchedulerBookingAttributes;
 }
 

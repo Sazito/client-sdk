@@ -76,7 +76,6 @@ Clears auth token, cache, and credentials.
 
 | Module | Purpose |
 | --- | --- |
-| `checkout` | Headless orchestration of the full MVP sales flow (cart, invoice, shipping assignment, payment initialization). |
 | `cart` | Start checkout for guest or authenticated users, add/update/remove line items, and persist cart credentials. |
 | `invoices` | Build checkout invoice from cart, attach shipping address/method, apply discount/credit, and prepare payment state. |
 | `shipping` | Create/update buyer address and read shipping method catalog used during checkout. |
@@ -114,16 +113,16 @@ You can import module factories directly from the package root when you do not
 need a full client instance.
 
 ```ts
-import { products, categories, cart, checkout } from '@sazito/client-sdk';
+import { products, categories, cart, invoices } from '@sazito/client-sdk';
 
 const productsApi = products({ domain: 'mystore.sazito.com' });
 const categoriesApi = categories({ domain: 'mystore.sazito.com' });
 const cartApi = cart({ domain: 'mystore.sazito.com' });
-const checkoutApi = checkout({ domain: 'mystore.sazito.com' });
+const invoicesApi = invoices({ domain: 'mystore.sazito.com' });
 ```
 
 All available aliases:
-`products`, `categories`, `cart`, `checkout`, `orders`, `invoices`, `shipping`,
+`products`, `categories`, `cart`, `orders`, `invoices`, `shipping`,
 `payments`, `users`, `search`, `feedbacks`, `wallet`, `cms`, `images`,
 `visits`, `booking`, `dynamicForms`, `regions`, `entityRoutes`, `menu`, `general`.
 

@@ -3,6 +3,7 @@
 
 # generated content
 .source
+references/
 
 # test & build
 /coverage

@@ -5,6 +5,7 @@
 import { HttpClient } from '../core/http-client';
 import { SazitoResponse, User, RequestOptions } from '../types';
 import { USERS_API, SESSIONS_API } from '../constants/endpoints';
+import { transformUserResponse } from '../utils/transformers';
 
 /**
  * Login input (SDK uses camelCase)
@@ -99,6 +100,33 @@ export interface LoginResponse {
 export class UsersAPI {
   constructor(private http: HttpClient) {}
 
+  private normalizeUserResponse(response: SazitoResponse<User>): SazitoResponse<User> {
+    if (!response.data) {
+      return response;
+    }
+
+    const normalized = transformUserResponse(response.data) as User | undefined;
+    return normalized ? { data: normalized } : response;
+  }
+
+  private normalizeLoginResponse(response: SazitoResponse<LoginResponse>): SazitoResponse<LoginResponse> {
+    if (!response.data || !response.data.user) {
+      return response;
+    }
+
+    const normalizedUser = transformUserResponse(response.data.user) as User | undefined;
+    if (!normalizedUser) {
+      return response;
+    }
+
+    return {
+      data: {
+        ...response.data,
+        user: normalizedUser
+      }
+    };
+  }
+
   /**
    * Login with email and password
    */
@@ -106,7 +134,8 @@ export class UsersAPI {
     input: LoginInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<LoginResponse>> {
-    return this.http.post<LoginResponse>(`${SESSIONS_API}/login`, input, options);
+    const response = await this.http.post<LoginResponse>(`${SESSIONS_API}/login`, input, options);
+    return this.normalizeLoginResponse(response);
   }
 
   /**
@@ -126,11 +155,13 @@ export class UsersAPI {
     input: VerifyMobileInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<LoginResponse>> {
-    return this.http.post<LoginResponse>(
+    const response = await this.http.post<LoginResponse>(
       `${SESSIONS_API}/login_request_verification`,
       input,
       options
     );
+
+    return this.normalizeLoginResponse(response);
   }
 
   /**
@@ -150,14 +181,16 @@ export class UsersAPI {
     input: RegisterInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<User>> {
-    return this.http.post<User>(`${USERS_API}/register`, input, options);
+    const response = await this.http.post<User>(`${USERS_API}/register`, input, options);
+    return this.normalizeUserResponse(response);
   }
 
   /**
    * Get current user (requires authentication)
    */
   async getCurrentUser(options?: RequestOptions): Promise<SazitoResponse<User>> {
-    return this.http.get<User>(`${USERS_API}/current`, options);
+    const response = await this.http.get<User>(`${USERS_API}/current`, options);
+    return this.normalizeUserResponse(response);
   }
 
   /**
@@ -168,7 +201,8 @@ export class UsersAPI {
     data: UpdateProfileInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<User>> {
-    return this.http.put<User>(`${USERS_API}/${userId}`, data, options);
+    const response = await this.http.put<User>(`${USERS_API}/${userId}`, data, options);
+    return this.normalizeUserResponse(response);
   }
 
   /**
@@ -188,7 +222,8 @@ export class UsersAPI {
     input: UpdateMobilePhoneVerificationInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<User>> {
-    return this.http.post<User>(`${USERS_API}/update_mobile_phone_verification`, input, options);
+    const response = await this.http.post<User>(`${USERS_API}/update_mobile_phone_verification`, input, options);
+    return this.normalizeUserResponse(response);
   }
 
   /**
@@ -208,7 +243,8 @@ export class UsersAPI {
     input: ResetPasswordInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<LoginResponse>> {
-    return this.http.post<LoginResponse>(`${USERS_API}/revive_password`, input, options);
+    const response = await this.http.post<LoginResponse>(`${USERS_API}/revive_password`, input, options);
+    return this.normalizeLoginResponse(response);
   }
 
   /**

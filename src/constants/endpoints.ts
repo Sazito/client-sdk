@@ -63,6 +63,6 @@ export const FEEDBACKS_COMMENT_DETAILS_API = '/api/v1/feedbacks/comments/details
 export const FEEDBACKS_PUBLIC_UPLOAD_API = '/api/v1/service/filemanager/uploads/public/tajrobe';
 
 // Regions
-export const REGIONS_API = '/api/v1/regions';
+export const REGIONS_API = '/api/v2/regions';
 
 // All endpoints exported above

@@ -6,7 +6,8 @@ import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
   ProductCategory,
-  RequestOptions
+  RequestOptions,
+  JsonObject
 } from '../types';
 import { PRODUCT_CATEGORIES_API } from '../constants/endpoints';
 import { transformCategoryListResponse, transformCategoryResponse } from '../utils/transformers';
@@ -19,7 +20,7 @@ export interface CategoryTreeNode {
   entityType: 'product_category';
   entityId: number;
   entity: ProductCategory;
-  details: any;
+  details: JsonObject;
   children: CategoryTreeNode[];
   createdAt: string;
   updatedAt: string;
@@ -63,13 +64,13 @@ export class CategoriesAPI {
     idOrSlug: string | number,
     options?: RequestOptions
   ): Promise<SazitoResponse<ProductCategory>> {
-    const response = await this.http.get<any>(
+    const response = await this.http.get<ProductCategory>(
       `${PRODUCT_CATEGORIES_API}/${idOrSlug}`,
       options
     );
 
     if (response.data) {
-      const transformed = transformCategoryResponse(response.data);
+      const transformed = transformCategoryResponse<ProductCategory>(response.data);
       return { data: transformed };
     }
 
@@ -85,7 +86,7 @@ export class CategoriesAPI {
     filters?: CategoryFilters,
     options?: RequestOptions
   ): Promise<SazitoResponse<CategoryListResponse>> {
-    const params: any = {};
+    const params: Record<string, number> = {};
 
     if (filters?.page !== undefined) {
       params.page_number = filters.page;
@@ -94,7 +95,7 @@ export class CategoriesAPI {
       params.page_size = filters.pageSize;
     }
 
-    const response = await this.http.get<any>(
+    const response = await this.http.get<CategoryListResponse>(
       PRODUCT_CATEGORIES_API,
       {
         ...options,
@@ -103,7 +104,7 @@ export class CategoriesAPI {
     );
 
     if (response.data) {
-      const transformed = transformCategoryListResponse(response.data);
+      const transformed = transformCategoryListResponse<CategoryListResponse>(response.data);
       return { data: transformed };
     }
 

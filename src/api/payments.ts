@@ -11,7 +11,9 @@ import {
   PaymentAction,
   PaymentStepInput,
   PaymentStepFormFields,
-  RequestOptions
+  RequestOptions,
+  JsonValue,
+  JsonObject
 } from '../types';
 import { PAYMENTS_API, PINCH_API } from '../constants/endpoints';
 import { transformPaymentMethodsResponse, transformRequestKeys } from '../utils/transformers';
@@ -39,7 +41,7 @@ export class PaymentsAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<JsonValue>(
       `${PAYMENTS_API}/list`,
       {
         invoice_identifier: invoiceCreds.identifier
@@ -48,10 +50,14 @@ export class PaymentsAPI {
     );
 
     if (response.data) {
-      return { data: transformPaymentMethodsResponse(response.data) as PaymentMethod[] };
+      return { data: transformPaymentMethodsResponse<PaymentMethod[]>(response.data) };
     }
 
-    return response;
+    if (response.error) {
+      return { error: response.error };
+    }
+
+    return { data: [] };
   }
 
   /**
@@ -72,7 +78,7 @@ export class PaymentsAPI {
       };
     }
 
-    const response = await this.http.post<any>(
+    const response = await this.http.post<Payment>(
       PAYMENTS_API,
       {
         invoice_identifier: invoiceCreds.identifier,
@@ -274,7 +280,7 @@ export class PaymentsAPI {
       return input;
     }
 
-    const transformedInput = transformRequestKeys(input) as Record<string, any>;
+    const transformedInput = transformRequestKeys(input) as Record<string, JsonValue>;
     const formData = new FormData();
 
     Object.entries(transformedInput).forEach(([key, value]) => {
@@ -288,7 +294,7 @@ export class PaymentsAPI {
     return formData;
   }
 
-  private appendFormValue(formData: FormData, key: string, value: any): void {
+  private appendFormValue(formData: FormData, key: string, value: JsonValue): void {
     if (value === undefined) {
       return;
     }
@@ -311,7 +317,7 @@ export class PaymentsAPI {
     formData.append(key, String(value));
   }
 
-  private normalizeAction(action: any): PaymentAction {
+  private normalizeAction(action: PaymentAction | JsonObject): PaymentAction {
     if (action?.action === 'show_order') {
       return {
         ...action,
@@ -336,7 +342,7 @@ export class PaymentsAPI {
     }
 
     this.pinchedPayments.add(paymentId);
-    const pinchResponse = await this.http.post<any>(`${PINCH_API}/order`, {}, options);
+    const pinchResponse = await this.http.post<JsonValue>(`${PINCH_API}/order`, {}, options);
     if (pinchResponse.error) {
       this.pinchedPayments.delete(paymentId);
     }

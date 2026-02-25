@@ -6,7 +6,8 @@ import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
   SearchResponse,
-  RequestOptions
+  RequestOptions,
+  JsonValue
 } from '../types';
 import { SEARCH_API } from '../constants/endpoints';
 import { transformSearchResponse } from '../utils/transformers';
@@ -22,10 +23,10 @@ export interface SearchFilters {
 export class SearchAPI {
   constructor(private http: HttpClient) {}
 
-  private transformFilters(filters?: SearchFilters): Record<string, any> {
+  private transformFilters(filters?: SearchFilters): Record<string, JsonValue> {
     if (!filters) return {};
 
-    const params: Record<string, any> = {};
+    const params: Record<string, JsonValue> = {};
 
     if (filters.page !== undefined) params.page_number = filters.page;
     if (filters.pageSize !== undefined) params.page_size = filters.pageSize;
@@ -46,7 +47,7 @@ export class SearchAPI {
   ): Promise<SazitoResponse<SearchResponse>> {
     const transformedFilters = this.transformFilters(filters);
 
-    const response = await this.http.get<any>(SEARCH_API, {
+    const response = await this.http.get<SearchResponse>(SEARCH_API, {
       ...options,
       params: {
         ...transformedFilters,
@@ -59,7 +60,7 @@ export class SearchAPI {
 
     // Transform and clean the response
     if (response.data) {
-      const transformed = transformSearchResponse(response.data);
+      const transformed = transformSearchResponse<SearchResponse>(response.data);
       return { data: transformed };
     }
 

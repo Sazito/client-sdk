@@ -43,3 +43,4 @@ coverage/
 .npm/
 .pnpm-store/
 *.tgz
+references/

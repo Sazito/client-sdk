@@ -19,7 +19,7 @@ export interface ShippingRate {
 }
 
 export interface ItemShippingRate {
-  invoiceItemId: number;
+  invoiceItemId: number | string;
   shippingRate: ShippingRate;
 }
 

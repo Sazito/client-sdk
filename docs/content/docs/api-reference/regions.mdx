@@ -21,6 +21,11 @@ Returns: `SazitoResponse<RegionWithCities[]>`.
 
 - Regions are returned sorted alphabetically by `name`.
 - Each region's `cities` array is also sorted alphabetically by `name`.
+- SDK output is normalized to essential fields only.
+- Region fields: `id`, `name`, `cities`.
+- City fields: `id`, `name`, `latitude`, `longitude`.
+- Metadata fields like `createdAt`/`updatedAt` are removed.
+- Nested city `region` objects are removed if present in backend payload.
 
 ## Types
 

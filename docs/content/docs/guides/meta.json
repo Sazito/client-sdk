@@ -1,7 +1,6 @@
 {
   "title": "Guides",
   "pages": [
-    "guest-checkout",
     "nextjs",
     "nuxt",
     "react",

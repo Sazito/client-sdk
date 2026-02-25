@@ -121,7 +121,7 @@ Use: `cart.updateItem(cartProductId, variantId, count, formAttributes?, options?
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `cartProductId` | `number` | Required | Existing cart-product row ID. |
+| `cartProductId` | `number \| string` | Required | Existing cart-product row ID. |
 | `variantId` | `number` | Required | Variant ID being updated. |
 | `count` | `number` | Required | New quantity (`0` removes that cart row). |
 | `formAttributes` | `Record<string, any>` | Optional | Updated dynamic form attributes. |
@@ -162,7 +162,7 @@ Use: `cart.removeItem(cartProductId, variantId, options?)`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `cartProductId` | `number` | Required | Existing cart-product row ID. |
+| `cartProductId` | `number \| string` | Required | Existing cart-product row ID. |
 | `variantId` | `number` | Required | Variant ID to remove. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
