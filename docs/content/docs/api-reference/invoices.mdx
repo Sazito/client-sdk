@@ -13,9 +13,12 @@ description: Checkout invoice creation, updates, shipping assignment, and discou
 
 ## V2 contract notes
 
+- `get` uses the `refresh` contract under the hood in v2 (`POST /api/v2/invoices/{id}/refresh`).
 - `create`/`refresh` require a cart identifier from stored cart credentials.
 - `assignShippingMethod` expects each `invoiceItemIds` value as a string.
 - `addCredit` generally requires authenticated user context in `Authorization`.
+- `shippingAddress` is normalized by SDK to remove duplicated/noisy fields.
+- `Invoice` responses intentionally exclude `user`/`userData` profile objects.
 
 ## Methods
 
@@ -23,7 +26,7 @@ description: Checkout invoice creation, updates, shipping assignment, and discou
 
 Use: `invoices.get(options?)`.
 
-Returns current invoice from stored invoice credentials.
+Returns current invoice using stored cart + invoice credentials.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -215,12 +218,14 @@ client.invoices.clearInvoice();
 | `id` | `number` | Required | Invoice ID. |
 | `identifier` | `string` | Required | Invoice identifier token. |
 | `items` | `InvoiceItem[]` | Required | Invoice items. |
-| `shippingAddress` | `ShippingAddress` | Optional | Selected address. |
+| `shippingAddress` | `InvoiceShippingAddress` | Optional | Selected address. |
 | `shippingItems` | `ShippingItem[]` | Required | Shipping assignments. |
 | `netTotal` | `number` | Required | Net total from backend invoice pricing. |
 | `finalTotal` | `number` | Required | Final checkout total. |
 | `creditTotal` | `number` | Required | Applied wallet credit amount. |
 | `discountCode` | `string` | Optional | Applied discount code. |
+
+For user profile data, use `users.getCurrentUser()` instead of relying on invoice payloads.
 
 ## Known errors
 
@@ -439,7 +444,7 @@ Source: `src/types/shipping.ts`
 | Field | Type | Required |
 | --- | --- | --- |
 | `rateId` | `number` | Required |
-| `invoiceItemIds` | `number[]` | Required |
+| `invoiceItemIds` | `Array<string \| number>` | Required |
 
 #### ApplicableShippingMethods
 
@@ -460,7 +465,7 @@ Source: `src/types/invoice.ts`
 | `id` | `number` | Required |
 | `identifier` | `string` | Required |
 | `items` | `InvoiceItem[]` | Required |
-| `shippingAddress` | `ShippingAddress` | Optional |
+| `shippingAddress` | `InvoiceShippingAddress` | Optional |
 | `shippingItems` | `ShippingItem[]` | Required |
 | `needsShipping` | `boolean` | Required |
 | `userComment` | `string` | Optional |
@@ -476,7 +481,6 @@ Source: `src/types/invoice.ts`
 | `couponTotal` | `number` | Required |
 | `shippingTotal` | `number` | Required |
 | `creditTotal` | `number` | Required |
-| `user` | `User` | Optional |
 | `discountUsages` | `Array<{     discountCode: {       code: string;       userSegment?: string;     };   }>` | Required |
 | `discountUsages.[].discountCode` | `{       code: string;       userSegment?: string;     }` | Required |
 | `discountUsages.[].discountCode.code` | `string` | Required |
@@ -491,7 +495,7 @@ Source: `src/types/invoice.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `id` | `number` | Required |
+| `id` | `number \| string` | Required |
 | `productVariantId` | `number` | Required |
 | `name` | `string` | Required |
 | `quantity` | `number` | Required |
@@ -512,7 +516,7 @@ Source: `src/types/invoice.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `invoiceItemIds` | `number[]` | Required |
+| `invoiceItemIds` | `Array<number \| string>` | Required |
 | `rate` | `{     id: number;     name: string;     price: number;     icon?: string;     color?: string;     type?: string;   }` | Required |
 | `rate.id` | `number` | Required |
 | `rate.name` | `string` | Required |
@@ -541,19 +545,5 @@ Source: `src/types/invoice.ts`
 | `latitude` | `number` | Optional |
 | `longitude` | `number` | Optional |
 | `userSetCoordinatesBefore` | `boolean` | Optional |
-| `createdAt` | `string` | Optional |
-| `updatedAt` | `string` | Optional |
 
-#### User
-
-Source: `src/types/invoice.ts`
-
-| Field | Type | Required |
-| --- | --- | --- |
-| `id` | `number` | Optional |
-| `email` | `string` | Optional |
-| `mobilePhone` | `string` | Optional |
-| `firstName` | `string` | Optional |
-| `lastName` | `string` | Optional |
-| `birthDate` | `string` | Optional |
 {/* AUTO_FIELDS_END */}

@@ -2,37 +2,43 @@
  * Invoice and checkout-related types
  */
 
-import { CheckoutProductSnapshot, Image, Region, City } from './common';
+import { Image, JsonObject, JsonValue, ProductAttribute } from './common';
 import { SchedulerBookingAttributes, FormAttributeValue } from './cart';
 
 export interface InvoiceItemFormAttributes {
   formId?: number;
   formData: Record<string, {
     label: string;
-    value: any;
+    value: JsonValue;
     type: string;
   }>;
 }
 
 export interface InvoiceItem {
-  id: number;
+  id: number | string;
   productVariantId: number;
+  productId?: number;
   name: string;
+  url?: string;
+  attributes: ProductAttribute[];
+  productType?: string;
+  hasMaxOrder?: boolean;
+  maxOrderQuantity?: number;
+  minOrderQuantity?: number;
+  image?: Image;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
   rawPrice: number;
   customerProfit: number;
-  image: Image;
-  product: CheckoutProductSnapshot;
-  commercialFiles?: any;
+  commercialFiles?: JsonValue;
   formAttributes?: Record<string, FormAttributeValue> | InvoiceItemFormAttributes;
   bookingAttributes?: SchedulerBookingAttributes;
-  formFields?: Record<string, any>;
+  formFields?: JsonObject;
 }
 
 export interface ShippingItem {
-  invoiceItemIds: number[];
+  invoiceItemIds: Array<number | string>;
   rate: {
     id: number;
     name: string;
@@ -43,6 +49,19 @@ export interface ShippingItem {
   };
 }
 
+export interface ShippingAddressRegion {
+  id: number;
+  name: string;
+}
+
+export interface ShippingAddressCity {
+  id: number;
+  name: string;
+  regionId?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
 export interface ShippingAddress {
   id: number;
   identifier: string;
@@ -51,21 +70,39 @@ export interface ShippingAddress {
   mobilePhone?: string;
   phoneNumber?: string;
   email?: string;
-  region?: Region;
-  city: City;
+  region?: ShippingAddressRegion;
+  city: ShippingAddressCity;
   address: string;
   postalCode?: string;
   latitude?: number;
   longitude?: number;
   userSetCoordinatesBefore?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+}
+
+export interface InvoiceShippingAddressRegion extends ShippingAddressRegion {
+  city: ShippingAddressCity;
+}
+
+export interface InvoiceShippingAddress {
+  identifier: string;
+  firstName: string;
+  lastName: string;
+  mobilePhone?: string;
+  phoneNumber?: string;
+  email?: string;
+  region?: InvoiceShippingAddressRegion;
+  address: string;
+  postalCode?: string;
+  latitude?: number;
+  longitude?: number;
+  userSetCoordinatesBefore?: boolean;
 }
 
 export interface User {
   id?: number;
   email?: string;
   mobilePhone?: string;
+  phoneNumber?: string;
   firstName?: string;
   lastName?: string;
   birthDate?: string;
@@ -75,7 +112,7 @@ export interface Invoice {
   id: number;
   identifier: string;
   items: InvoiceItem[];
-  shippingAddress?: ShippingAddress;
+  shippingAddress?: InvoiceShippingAddress;
   shippingItems: ShippingItem[];
   needsShipping: boolean;
   userComment?: string;
@@ -91,7 +128,6 @@ export interface Invoice {
   couponTotal: number;
   shippingTotal: number;
   creditTotal: number;
-  user?: User;
   discountUsages: Array<{
     discountCode: {
       code: string;
