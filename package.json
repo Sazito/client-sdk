@@ -1,6 +1,6 @@
 {
   "name": "@sazito/client-sdk",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "packageManager": "pnpm@10.28.2",
   "description": "Official JavaScript/TypeScript SDK for Sazito e-commerce platform - Client Edition",
   "main": "dist/index.js",
