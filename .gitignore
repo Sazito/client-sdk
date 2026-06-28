@@ -17,6 +17,7 @@ pnpm-debug.log*
 # Editor directories
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
