@@ -57,13 +57,13 @@ export class SazitoClient {
   public readonly dynamicForms: DynamicFormsAPI;
   public readonly regions: RegionsAPI;
 
-  constructor(config: SazitoConfig) {
+  constructor(config: SazitoConfig, credentialsManager?: CredentialsManager) {
     const mergedConfig = mergeConfig(config);
 
     // Initialize core components
     this.http = new HttpClient(mergedConfig);
     this.tokenStorage = this.http.getTokenStorage();
-    this.credentialsManager = new CredentialsManager();
+    this.credentialsManager = credentialsManager ?? new CredentialsManager();
 
     // Initialize API modules
     this.products = new ProductsAPI(this.http);
@@ -131,6 +131,15 @@ export class SazitoClient {
   }
 
   /**
+   * Access the guest credential store used by checkout-related modules.
+   * Useful for integrations that receive an SDK client from the host app and
+   * need to restore cart/invoice/payment credentials on that same instance.
+   */
+  getCredentialsManager(): CredentialsManager {
+    return this.credentialsManager;
+  }
+
+  /**
    * Clear everything (auth + cache + credentials)
    */
   clearAll(): void {
@@ -154,6 +163,6 @@ export class SazitoClient {
 /**
  * Create a new Sazito SDK client instance
  */
-export function createSazitoClient(config: SazitoConfig): SazitoClient {
-  return new SazitoClient(config);
+export function createSazitoClient(config: SazitoConfig, credentialsManager?: CredentialsManager): SazitoClient {
+  return new SazitoClient(config, credentialsManager);
 }

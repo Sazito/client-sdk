@@ -18,6 +18,17 @@ interface ApiResponseEnvelope {
   };
 }
 
+const PHONE_REQUEST_FIELDS = new Set(['mobile_phone', 'phone_number']);
+
+/** Convert Persian and Arabic-Indic numerals to ASCII digits. */
+export function toEnglishDigits(input: string): string {
+  return input.replace(/[۰-۹٠-٩]/g, (digit) => {
+    const code = digit.charCodeAt(0);
+    const value = code >= 0x06f0 ? code - 0x06f0 : code - 0x0660;
+    return String(value);
+  });
+}
+
 /**
  * Field name mapping for beautification
  * Maps backend field names to more developer-friendly SDK names
@@ -358,7 +369,9 @@ export function transformRequestKeys(obj: TransformValue | object): TransformVal
     } else if (Array.isArray(value)) {
       transformed[newKey] = value.map(item => transformRequestKeys(item));
     } else {
-      transformed[newKey] = value;
+      transformed[newKey] = typeof value === 'string' && PHONE_REQUEST_FIELDS.has(newKey)
+        ? toEnglishDigits(value)
+        : value;
     }
   }
 
@@ -429,18 +442,6 @@ export function transformGeneralInfoResponse<T = TransformObject>(data: Transfor
     ...shopWithoutSettings
   } = mergedShop || {};
 
-  let normalizedCheckout = checkout;
-  if (isPlainObject(checkout)) {
-    const checkoutCopy = { ...checkout };
-
-    if (checkoutCopy.preventRedirect === undefined && checkoutCopy.manual !== undefined) {
-      checkoutCopy.preventRedirect = checkoutCopy.manual;
-    }
-
-    delete checkoutCopy.manual;
-    normalizedCheckout = checkoutCopy;
-  }
-
   const transformed = {
     ...rest,
     scripts: {
@@ -454,7 +455,7 @@ export function transformGeneralInfoResponse<T = TransformObject>(data: Transfor
       social
     }),
     settings: {
-      checkout: normalizedCheckout,
+      checkout: normalizeGeneralCheckout(checkout),
       features: normalizeGeneralFeatures(features),
       wallet: normalizeGeneralWallet(wallet),
       tajrobe: normalizeGeneralTajrobe(tajrobe),
@@ -464,6 +465,40 @@ export function transformGeneralInfoResponse<T = TransformObject>(data: Transfor
   };
 
   return transformed as T;
+}
+
+function normalizeGeneralCheckout(checkout: TransformValue): TransformObject {
+  if (!isPlainObject(checkout)) {
+    return {};
+  }
+
+  const minBasket = isPlainObject(checkout.minBasket) ? checkout.minBasket : {};
+  const minAmountValue = minBasket.minAmount ?? minBasket.minBasket;
+  const minAmount = typeof minAmountValue === 'number'
+    ? minAmountValue
+    : Number(minAmountValue);
+
+  const normalized: TransformObject = {
+    ...checkout,
+    addToCartAlert: normalizeGeneralShowProductStockNumber(checkout.addToCartAlert),
+    dynamicForm: normalizeGeneralShowProductStockNumber(checkout.dynamicForm),
+    emailOptional: normalizeGeneralShowProductStockNumber(
+      checkout.emailOptional ?? checkout.email_optional
+    ),
+    preventRedirect: normalizeGeneralShowProductStockNumber(
+      checkout.preventRedirect ?? checkout.manual
+    ),
+    minBasket: {
+      enabled: normalizeGeneralShowProductStockNumber(minBasket.enabled),
+      minAmount: Number.isFinite(minAmount) ? minAmount : 0
+    },
+    miniCart: normalizeGeneralShowProductStockNumber(checkout.miniCart),
+    postalCodeMandatory: normalizeGeneralShowProductStockNumber(checkout.postalCodeMandatory),
+    quickAddToCart: normalizeGeneralShowProductStockNumber(checkout.quickAddToCart)
+  };
+
+  delete normalized.manual;
+  return normalized;
 }
 
 function normalizeGeneralRegisterType(registerType: TransformValue): string {
@@ -808,6 +843,7 @@ interface RawShippingAddress {
   cityId?: NumericLike;
   address?: string;
   postalCode?: string;
+  description?: string;
   latitude?: NumericLike;
   longitude?: NumericLike;
   userSetCoordinatesBefore?: BooleanLike;
@@ -844,6 +880,7 @@ interface NormalizedShippingAddress {
   city: NormalizedAddressCity;
   address: string;
   postalCode?: string;
+  description?: string;
   latitude?: number;
   longitude?: number;
   userSetCoordinatesBefore?: boolean;
@@ -863,6 +900,7 @@ interface NormalizedInvoiceShippingAddress {
   region?: NormalizedInvoiceAddressRegion;
   address: string;
   postalCode?: string;
+  description?: string;
   latitude?: number;
   longitude?: number;
   userSetCoordinatesBefore?: boolean;
@@ -1065,6 +1103,11 @@ function normalizeShippingAddress(address?: RawShippingAddress): NormalizedShipp
   const postalCode = toOptionalString(address.postalCode);
   if (postalCode) {
     normalized.postalCode = postalCode;
+  }
+
+  const description = toOptionalString(address.description);
+  if (description) {
+    normalized.description = description;
   }
 
   const latitude = toNumber(address.latitude);
@@ -1655,6 +1698,11 @@ export function transformPaymentMethodsResponse<T = TransformObject[]>(response:
       return {
         id: 0,
         code: '',
+        title: '',
+        titleFa: '',
+        description: null,
+        paymentSubType: null,
+        order: 0,
         isDefault: false
       };
     }
@@ -1662,6 +1710,11 @@ export function transformPaymentMethodsResponse<T = TransformObject[]>(response:
     return {
       id: toNumber(method.id) ?? 0,
       code: method.code,
+      title: typeof method.title === 'string' ? method.title : '',
+      titleFa: typeof method.titleFa === 'string' ? method.titleFa : '',
+      description: typeof method.description === 'string' ? method.description : null,
+      paymentSubType: toNumber(method.paymentSubType) ?? null,
+      order: toNumber(method.order) ?? 0,
       isDefault: Boolean(method.isDefault)
     };
   }) as T;
@@ -1694,17 +1747,36 @@ export function transformApplicableShippingMethodsResponse<T = TransformObject>(
     } as T;
   }
 
-  const groupedShippingRates = isPlainObject(result.groupedShippingRates)
-    ? Object.entries(result.groupedShippingRates).reduce((acc, [key, rates]) => {
-      acc[key] = Array.isArray(rates) ? rates.map((rate: TransformValue) => normalizeShippingRate(rate)) : [];
-      return acc;
-    }, {} as Record<string, TransformValue[]>)
-    : {};
+  // The real API returns `shippingMethods` as an array of item-group objects:
+  //   [{ invoiceItemIds: [...], shippingRate: [rate1, rate2, ...] }]
+  // Each entry represents a group of items and ALL their available rates.
+  // We convert this to Record<groupKey, ShippingRate[]> for deriveShippingGroups.
+  const groupedShippingRates: Record<string, TransformValue[]> = {};
+
+  if (Array.isArray(result.shippingMethods)) {
+    result.shippingMethods.forEach((entry: TransformValue, idx: number) => {
+      if (!isPlainObject(entry)) return;
+      const rates = Array.isArray(entry.shippingRate)
+        ? entry.shippingRate.map((r: TransformValue) => normalizeShippingRate(r))
+        : [];
+      if (rates.length === 0) return;
+      const itemIds: (string | number)[] = Array.isArray(entry.invoiceItemIds) ? entry.invoiceItemIds : [];
+      const key = itemIds.length > 0 ? itemIds.map(String).sort().join(',') : String(idx);
+      groupedShippingRates[key] = rates;
+    });
+  }
+
+  // Also support older API shape: groupedShippingRates as a plain object
+  if (Object.keys(groupedShippingRates).length === 0 && isPlainObject(result.groupedShippingRates)) {
+    for (const [key, rates] of Object.entries(result.groupedShippingRates)) {
+      groupedShippingRates[key] = Array.isArray(rates)
+        ? rates.map((rate: TransformValue) => normalizeShippingRate(rate))
+        : [];
+    }
+  }
 
   return {
-    shippingMethods: Array.isArray(result.shippingMethods)
-      ? result.shippingMethods.map((method: TransformValue) => normalizeShippingMethod(method))
-      : [],
+    shippingMethods: [],
     groupedShippingRates,
     itemsShippingRate: Array.isArray(result.itemsShippingRate)
       ? result.itemsShippingRate.map((entry: TransformValue) => {
@@ -1755,8 +1827,9 @@ function normalizeShippingRate(rate: TransformValue): TransformObject {
     id: toNumber(rate.id ?? rate.rateId) ?? 0,
     name: toOptionalString(rate.name) ?? '',
     price: toNumber(rate.price ?? rate.amount) ?? 0,
-    icon: toOptionalString(rate.icon),
-    color: toOptionalString(rate.color),
+    description: toOptionalString(rate.description ?? rate.deliveryDescription ?? rate.details),
+    icon: toOptionalString(rate.icon ?? rate.iconUrl ?? rate.logo),
+    color: toOptionalString(rate.color ?? rate.bgColor ?? rate.backgroundColor ?? rate.iconColor),
     type: toOptionalString(rate.type)
   };
 }

@@ -42,6 +42,7 @@ export interface RequestOptions {
   cache?: boolean;       // Override cache behavior
   headers?: Record<string, string>;
   signal?: AbortSignal;  // For request cancellation
+  skipTransform?: boolean; // Return the raw parsed body (no result-unwrap / key transform)
 }
 
 /**
@@ -73,9 +74,20 @@ export interface Image {
 /**
  * Product attribute (e.g., color, size)
  */
+/**
+ * Rich attribute value for typed fields like color swatches.
+ * `value` is the human-readable label; `extra` carries the payload
+ * (e.g. a hex color when `fieldType` is `'color'`).
+ */
+export interface ProductAttributeValueObject {
+  value: string;
+  extra?: string;
+  fieldType?: string;
+}
+
 export interface ProductAttribute {
   name: string;
-  value: string;
+  value: string | ProductAttributeValueObject;
 }
 
 /**

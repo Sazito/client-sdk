@@ -74,6 +74,7 @@ export interface ShippingAddress {
   city: ShippingAddressCity;
   address: string;
   postalCode?: string;
+  description?: string;
   latitude?: number;
   longitude?: number;
   userSetCoordinatesBefore?: boolean;
@@ -93,6 +94,7 @@ export interface InvoiceShippingAddress {
   region?: InvoiceShippingAddressRegion;
   address: string;
   postalCode?: string;
+  description?: string;
   latitude?: number;
   longitude?: number;
   userSetCoordinatesBefore?: boolean;
@@ -146,12 +148,10 @@ export interface InvoiceCredentials {
 }
 
 export interface CreateInvoiceInput {
-  cartId: number;
   cartIdentifier: string;
 }
 
 export interface RefreshInvoiceInput {
-  cartId: number;
   cartIdentifier: string;
   identifier: string;
 }

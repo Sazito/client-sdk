@@ -44,7 +44,6 @@ export interface Cart {
 }
 
 export interface CartCredentials {
-  id: number;
   identifier: string;
 }
 

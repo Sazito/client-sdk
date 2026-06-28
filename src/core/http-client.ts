@@ -187,6 +187,12 @@ export class HttpClient {
         data = await response.text();
       }
 
+      // Caller wants the raw parsed body (no result-unwrap / key transform).
+      // Used where the generic transform is lossy (e.g. colliding *_identifier keys).
+      if (options?.skipTransform && response.ok) {
+        return { data: data as T };
+      }
+
       // Extract result from data.result if present
       const result = data?.result !== undefined ? data.result : data;
 

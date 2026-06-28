@@ -1,6 +1,8 @@
 /**
  * Credentials Manager for guest users
- * Manages cart, invoice, shipping, and payment credentials in localStorage
+ * Manages cart, invoice, shipping, and payment credentials.
+ * Accepts an optional StorageAdapter — defaults to localStorage in browsers,
+ * in-memory otherwise (SSR / server actions).
  */
 
 import {
@@ -10,6 +12,30 @@ import {
   PaymentCredentials
 } from '../types';
 
+export interface StorageAdapter {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+export class MemoryStorage implements StorageAdapter {
+  private data = new Map<string, string>();
+  getItem(key: string) { return this.data.get(key) ?? null; }
+  setItem(key: string, value: string) { this.data.set(key, value); }
+  removeItem(key: string) { this.data.delete(key); }
+}
+
+function defaultStorage(): StorageAdapter {
+  if (
+    typeof window !== 'undefined' &&
+    typeof localStorage !== 'undefined' &&
+    typeof localStorage.getItem === 'function'
+  ) {
+    return localStorage as StorageAdapter;
+  }
+  return new MemoryStorage();
+}
+
 export class CredentialsManager {
   private readonly CART_KEY = 'CART_CREDENTIALS';
   private readonly INVOICE_KEY = 'INVOICE_CREDENTIALS';
@@ -17,15 +43,29 @@ export class CredentialsManager {
   private readonly PAYMENT_KEY = 'PAYMENT_CREDENTIALS';
   private readonly DISCOUNT_KEY = 'DISCOUNT_CODE_INFO';
 
+  private storage: StorageAdapter;
+
+  constructor(storage?: StorageAdapter) {
+    this.storage = storage ?? defaultStorage();
+  }
+
   /**
    * Cart Credentials
    */
   getCartCredentials(): CartCredentials | null {
-    return this.getItem<CartCredentials>(this.CART_KEY);
+    const credentials = this.getItem<CartCredentials & { id?: unknown }>(this.CART_KEY);
+    const identifier = credentials?.identifier?.trim();
+    return identifier ? { identifier } : null;
   }
 
-  setCartCredentials(credentials: CartCredentials): void {
-    this.setItem(this.CART_KEY, credentials);
+  setCartCredentials(credentials: CartCredentials & { id?: number }): void {
+    const identifier = credentials.identifier.trim();
+
+    if (!identifier) {
+      throw new Error('Cart identifier is required.');
+    }
+
+    this.setItem(this.CART_KEY, { identifier });
   }
 
   clearCartCredentials(): void {
@@ -103,51 +143,28 @@ export class CredentialsManager {
     this.clearDiscountCode();
   }
 
-  /**
-   * Get item from localStorage
-   */
   private getItem<T>(key: string): T | null {
-    if (typeof localStorage === 'undefined') {
-      return null;
-    }
-
     try {
-      const item = localStorage.getItem(key);
+      const item = this.storage.getItem(key);
       return item ? JSON.parse(item) : null;
-    } catch (error) {
-      console.error(`[Sazito SDK] Error reading ${key} from localStorage:`, error);
+    } catch {
       return null;
     }
   }
 
-  /**
-   * Set item in localStorage
-   */
   private setItem<T>(key: string, value: T): void {
-    if (typeof localStorage === 'undefined') {
-      console.warn('[Sazito SDK] localStorage not available');
-      return;
-    }
-
     try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error(`[Sazito SDK] Error writing ${key} to localStorage:`, error);
+      this.storage.setItem(key, JSON.stringify(value));
+    } catch {
+      // noop — storage may be unavailable
     }
   }
 
-  /**
-   * Remove item from localStorage
-   */
   private removeItem(key: string): void {
-    if (typeof localStorage === 'undefined') {
-      return;
-    }
-
     try {
-      localStorage.removeItem(key);
-    } catch (error) {
-      console.error(`[Sazito SDK] Error removing ${key} from localStorage:`, error);
+      this.storage.removeItem(key);
+    } catch {
+      // noop
     }
   }
 }

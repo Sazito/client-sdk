@@ -87,33 +87,99 @@ export class PaymentsAPI {
       };
     }
 
-    const response = await this.http.post<Payment>(
+    // Use the raw response: the generic transform maps BOTH `payment_identifier`
+    // and `invoice_identifier` to `identifier`, so the invoice value clobbers the
+    // payment one. We must read `payment_identifier` directly.
+    const response = await this.http.post<JsonObject>(
       PAYMENTS_API,
       {
         invoice_identifier: invoiceCreds.identifier,
         payment_type: paymentTypeId
       },
-      options
+      { ...options, skipTransform: true }
     );
 
-    // Store payment credentials
-    if (response.data) {
-      const payment = this.normalizePayment(response.data as Payment | JsonObject);
-      this.credentials.setPaymentCredentials({
-        id: payment.id,
-        identifier: payment.identifier
-      });
-
-      return { data: payment };
+    if (response.error) {
+      return { error: response.error };
     }
 
-    return response;
+    if (response.data) {
+      const envelope = response.data as JsonObject;
+      const rawPayment = (
+        envelope && typeof envelope === 'object' && 'result' in envelope
+          ? (envelope.result as JsonObject)?.payment
+          : envelope.payment
+      ) as JsonObject | undefined;
+
+      if (rawPayment && typeof rawPayment === 'object') {
+        const identifier = String(rawPayment.payment_identifier ?? '');
+        const id = Number(rawPayment.id ?? 0);
+        const rawType = rawPayment.payment_type as JsonObject | undefined;
+
+        const payment: Payment = {
+          id,
+          identifier,
+          amount: Number(rawPayment.payment_amount ?? 0),
+          paymentType: {
+            id: rawType?.id != null ? Number(rawType.id) : undefined,
+            code: (rawType?.reference_code ?? '') as Payment['paymentType']['code']
+          }
+        };
+
+        if (identifier) {
+          this.credentials.setPaymentCredentials({ id, identifier });
+        }
+
+        return { data: payment };
+      }
+    }
+
+    return { data: response.data as unknown as Payment };
   }
 
   /**
-   * Initialize payment (get payment action)
+   * Initialize payment: start the payment step before redirecting the user to
+   * the gateway. Returns the next {@link PaymentAction} (typically REDIRECT or
+   * POST for hosted gateways, or showOrder for zero-amount/instant payments).
    */
   async initialize(options?: RequestOptions): Promise<SazitoResponse<PaymentAction>> {
+    return this.submitPaymentStep(undefined, options);
+  }
+
+  /**
+   * Verify payment after the user returns from the gateway. Forwards the
+   * gateway callback parameters (e.g. `tatoken`, `trackingData`, `isFailed`,
+   * `code`) to the same payment-step endpoint and returns the settled
+   * {@link PaymentAction} (showOrder on success, FAIL/StockViolated otherwise,
+   * or pending if the gateway has not reported back yet).
+   */
+  async verify(
+    input?: PaymentStepInput,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<PaymentAction>> {
+    return this.submitPaymentStep(input, options);
+  }
+
+  /**
+   * Process payment step (for card-to-card or multi-step payments).
+   *
+   * @deprecated Prefer {@link verify} for gateway-return verification.
+   */
+  async processStep(
+    input: PaymentStepInput,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<PaymentAction>> {
+    return this.submitPaymentStep(input, options);
+  }
+
+  /**
+   * Shared core for the `process_payment_step` endpoint used by
+   * {@link initialize}, {@link verify} and {@link processStep}.
+   */
+  private async submitPaymentStep(
+    input: PaymentStepInput | undefined,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<PaymentAction>> {
     const paymentCreds = this.credentials.getPaymentCredentials();
 
     if (!paymentCreds) {
@@ -125,42 +191,7 @@ export class PaymentsAPI {
       };
     }
 
-    const response = await this.http.post<PaymentAction>(
-      `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
-      {
-        paymentIdentifier: paymentCreds.identifier
-      },
-      this.withExactJsonHeader(options)
-    );
-
-    if (!response.data) {
-      return response;
-    }
-
-    const normalizedAction = this.normalizeAction(response.data);
-    await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentCreds.id, options);
-    return { data: normalizedAction };
-  }
-
-  /**
-   * Process payment step (for card-to-card or multi-step payments)
-   */
-  async processStep(
-    input: PaymentStepInput,
-    options?: RequestOptions
-  ): Promise<SazitoResponse<PaymentAction>> {
-    const paymentCreds = this.credentials.getPaymentCredentials();
-
-    if (!paymentCreds) {
-      return {
-        error: {
-          message: 'No payment found',
-          type: 'validation'
-        }
-      };
-    }
-
-    const { paymentIdentifier, ...restInput } = input;
+    const { paymentIdentifier, ...restInput } = input ?? {};
 
     const response = await this.http.post<PaymentAction>(
       `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
@@ -171,13 +202,7 @@ export class PaymentsAPI {
       this.withExactJsonHeader(options)
     );
 
-    if (!response.data) {
-      return response;
-    }
-
-    const normalizedAction = this.normalizeAction(response.data);
-    await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentCreds.id, options);
-    return { data: normalizedAction };
+    return this.finalizeStepResponse(response, paymentCreds.id, options);
   }
 
   /**
@@ -214,13 +239,7 @@ export class PaymentsAPI {
       options
     );
 
-    if (!response.data) {
-      return response;
-    }
-
-    const normalizedAction = this.normalizeAction(response.data);
-    await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentCreds.id, options);
-    return { data: normalizedAction };
+    return this.finalizeStepResponse(response, paymentCreds.id, options);
   }
 
   /**
@@ -232,7 +251,7 @@ export class PaymentsAPI {
   ): Promise<SazitoResponse<PaymentAction>> {
     let isPending = true;
     while (isPending) {
-      const response = await this.initialize(options);
+      const response = await this.verify(undefined, options);
       if (!response.data) {
         return response;
       }
@@ -326,26 +345,59 @@ export class PaymentsAPI {
     formData.append(key, String(value));
   }
 
-  private normalizePayment(payment: Payment | JsonObject): Payment {
-    if (!payment || typeof payment !== 'object') {
-      return payment as Payment;
+  /**
+   * Post-process a `process_payment_step` response. The exact-JSON endpoint
+   * returns an envelope `{ result: PaymentAction, error, error_code, status }`;
+   * unwrap `result`, surface envelope-level errors, and run the pinch hook.
+   */
+  private async finalizeStepResponse(
+    response: SazitoResponse<PaymentAction>,
+    paymentId: number,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<PaymentAction>> {
+    if (!response.data) {
+      return response;
     }
 
-    if (
-      'paymentType' in payment
-      && payment.paymentType
-      && typeof payment.paymentType === 'object'
-      && 'title' in payment.paymentType
-    ) {
-      const paymentTypeWithoutTitle = { ...(payment.paymentType as Record<string, unknown>) };
-      delete (paymentTypeWithoutTitle as { title?: unknown }).title;
-      return {
-        ...(payment as Payment),
-        paymentType: paymentTypeWithoutTitle as Payment['paymentType']
-      };
+    const isObj = (v: unknown): v is JsonObject =>
+      !!v && typeof v === 'object' && !Array.isArray(v);
+
+    // The backend often replies with `text/plain`, so the body arrives as a raw
+    // JSON string. Parse it before unwrapping.
+    let parsed: unknown = response.data;
+    if (typeof parsed === 'string') {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch {
+        return {
+          error: { message: 'Invalid payment step response', type: 'api' }
+        };
+      }
+    }
+    const envelope = parsed as JsonObject;
+
+    if (isObj(envelope)) {
+      const envError = typeof envelope.error === 'string' ? envelope.error : '';
+      const envCode = Number(envelope.error_code ?? 0);
+      if (envError || envCode) {
+        return {
+          error: {
+            message: envError || 'Payment step failed',
+            type: 'api',
+            status: Number(envelope.status) || undefined
+          }
+        };
+      }
     }
 
-    return payment as Payment;
+    const actionPayload =
+      isObj(envelope) && isObj(envelope.result)
+        ? envelope.result
+        : (envelope as JsonObject);
+
+    const normalizedAction = this.normalizeAction(actionPayload);
+    await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentId, options);
+    return { data: normalizedAction };
   }
 
   private normalizeAction(action: PaymentAction | JsonObject): PaymentAction {

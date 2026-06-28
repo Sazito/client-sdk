@@ -16,7 +16,7 @@ export type { SearchFilters } from './api/search';
 // For advanced usage
 export { HttpClient } from './core/http-client';
 export { TokenStorage } from './utils/token-storage';
-export { CredentialsManager } from './utils/credentials-manager';
+export { CredentialsManager, MemoryStorage, type StorageAdapter } from './utils/credentials-manager';
 
 // Module factories
 export {
@@ -70,6 +70,7 @@ export {
 export {
   transformResponseKeys,
   transformRequestKeys,
+  toEnglishDigits,
   transformApiResponse,
   transformCartResponse,
   transformInvoiceResponse,

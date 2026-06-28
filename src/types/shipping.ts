@@ -13,6 +13,7 @@ export interface ShippingRate {
   id: number;
   name: string;
   price: number;
+  description?: string;
   icon?: string;
   color?: string;
   type?: string;
@@ -39,6 +40,7 @@ export interface ShippingAddressInput {
   cityId?: number;
   address: string;
   postalCode?: string;
+  description?: string;
   latitude?: number;
   longitude?: number;
   showMap?: boolean;

@@ -46,6 +46,16 @@ export type PaymentStatus =
 export interface PaymentMethod {
   id: number;
   code: PaymentGateway;
+  /** Backend display title (English). */
+  title: string;
+  /** Backend display title (Persian). */
+  titleFa: string;
+  /** Backend description; often null. */
+  description: string | null;
+  /** Backend payment sub-type id; null when not provided. */
+  paymentSubType: number | null;
+  /** Display order from backend. */
+  order: number;
   isDefault: boolean;
 }
 

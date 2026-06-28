@@ -13,6 +13,7 @@ import {
   JsonObject
 } from '../types';
 import { INVOICES_API } from '../constants/endpoints';
+import { CART_ID } from '../constants/cart';
 import {
   transformApplicableShippingMethodsResponse,
   transformInvoiceResponse
@@ -70,7 +71,7 @@ export class InvoicesAPI {
     const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/refresh`,
       {
-        cart_id: String(cartCreds.id),
+        cart_id: String(CART_ID),
         cart_identifier: cartCreds.identifier,
         identifier: invoiceCreds.identifier
       },
@@ -98,7 +99,7 @@ export class InvoicesAPI {
     const response = await this.http.post<Invoice>(
       INVOICES_API,
       {
-        cart_id: String(cartCreds.id),
+        cart_id: String(CART_ID),
         cart_identifier: cartCreds.identifier
       },
       options
@@ -137,7 +138,7 @@ export class InvoicesAPI {
     const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/refresh`,
       {
-        cart_id: String(cartCreds.id),
+        cart_id: String(CART_ID),
         cart_identifier: cartCreds.identifier,
         identifier: invoiceCreds.identifier
       },
@@ -173,7 +174,7 @@ export class InvoicesAPI {
         identifier: invoiceCreds.identifier,
         shipping_address_id: shippingAddressId,
         shipping_address_identifier: shippingAddressIdentifier,
-        cart_id: cartCreds.id,
+        cart_id: CART_ID,
         cart_identifier: cartCreds.identifier
       },
       options

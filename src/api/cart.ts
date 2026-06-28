@@ -13,6 +13,7 @@ import {
   FormAttributeValue
 } from '../types';
 import { CARTS_API } from '../constants/endpoints';
+import { CART_ID } from '../constants/cart';
 import { transformCartResponse } from '../utils/transformers';
 
 export interface AddItemAttributesInput {
@@ -35,7 +36,6 @@ export class CartAPI {
 
   private persistCartCredentials(cart: Cart): void {
     this.credentials.setCartCredentials({
-      id: cart.id,
       identifier: cart.identifier
     });
   }
@@ -55,7 +55,7 @@ export class CartAPI {
       };
     }
 
-    const response = await this.http.get<Cart>(`${CARTS_API}/${cartCreds.id}`, {
+    const response = await this.http.get<Cart>(`${CARTS_API}/${CART_ID}`, {
       ...options,
       params: { identifier: cartCreds.identifier }
     });
@@ -134,7 +134,7 @@ export class CartAPI {
     }
 
     const response = await this.http.post<Cart>(
-      `${CARTS_API}/${cartCreds.id}/add_products_to_cart`,
+      `${CARTS_API}/${CART_ID}/add_products_to_cart`,
       {
         identifier: cartCreds.identifier,
         variants: [{
@@ -202,7 +202,7 @@ export class CartAPI {
     }
 
     const response = await this.http.post<Cart>(
-      `${CARTS_API}/${cartCreds.id}/update_products_in_cart`,
+      `${CARTS_API}/${CART_ID}/update_products_in_cart`,
       {
         identifier: cartCreds.identifier,
         cartProductId: String(cartProductId),
@@ -246,7 +246,7 @@ export class CartAPI {
     }
 
     const response = await this.http.post<Cart>(
-      `${CARTS_API}/${cartCreds.id}/remove_products_from_cart`,
+      `${CARTS_API}/${CART_ID}/remove_products_from_cart`,
       {
         identifier: cartCreds.identifier,
         cartProductId: String(cartProductId),
