@@ -189,7 +189,7 @@ client.cart.clearCart();
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `number` | Required | Cart ID. |
+| `id` | `number` | Required | Backend response field. Cart API requests always use the internal ID `0`; callers use `identifier` for cart identity. |
 | `identifier` | `string` | Required | Guest cart identifier. |
 | `items` | `CartProduct[]` | Required | Cart line items. |
 | `netTotal` | `number` | Required | Net total from backend checkout pricing. |

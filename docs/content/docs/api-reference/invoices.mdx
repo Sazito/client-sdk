@@ -98,9 +98,30 @@ Use: `invoices.addDiscountCode(code, options?)`.
 | `code` | `string` | Required | Discount code (uppercased by SDK). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
+Returns: `SazitoResponse<Invoice>`.
+
 ```ts
-await client.invoices.addDiscountCode('WELCOME10');
+const res = await client.invoices.addDiscountCode('WELCOME10');
+if (res.error) {
+  // Invalid / expired code — show res.error.message to the user.
+  console.warn(res.error.message); // e.g. "کد تخفیف معتبر نیست"
+}
 ```
+
+**Error response.** When the code is invalid or expired, the backend replies with a single field:
+
+```json
+{ "message": "کد تخفیف معتبر نیست" }
+```
+
+The SDK surfaces it on `res.error`:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `message` | `string` | Backend message, ready to display (localized server-side, e.g. `کد تخفیف معتبر نیست`). |
+| `type` | `'api'` | Invalid/expired code is an API error. |
+| `status` | `number` | HTTP status from the gateway. |
+| `details` | `JsonValue` | Raw backend body (`{ message }`). |
 
 ### Assign Shipping Method
 
@@ -232,6 +253,7 @@ For user profile data, use `users.getCurrentUser()` instead of relying on invoic
 | Type | When it happens |
 | --- | --- |
 | `validation` | Missing cart/invoice credentials for dependent steps. |
+| `api` | Invalid or expired discount code (`addDiscountCode`); `error.message` carries the server text. |
 
 ## Examples
 

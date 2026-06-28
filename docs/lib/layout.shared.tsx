@@ -1,6 +1,8 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 import Image from 'next/image';
 
+export const sdkVersion = process.env.NEXT_PUBLIC_SDK_VERSION ?? 'latest';
+
 export const gitConfig = {
   user: 'sazito',
   repo: 'client-sdk',
@@ -20,11 +22,19 @@ export function baseOptions(): BaseLayoutProps {
             className="rounded-md"
           />
           <span>Sazito SDK</span>
+          <span className="rounded-md border border-fd-border bg-fd-muted px-1.5 py-0.5 text-[11px] font-normal leading-none text-fd-muted-foreground">
+            v{sdkVersion}
+          </span>
         </span>
       ),
       transparentMode: 'top',
     },
     links: [
+      {
+        text: 'Checkout Demo',
+        url: '/checkout-demo',
+        active: 'url',
+      },
       {
         text: 'npm',
         url: 'https://www.npmjs.com/package/@sazito/client-sdk',

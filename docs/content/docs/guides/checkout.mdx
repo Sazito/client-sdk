@@ -1,0 +1,463 @@
+---
+title: Checkout
+description: Drop-in multi-step checkout UI for Next.js apps built on the Sazito SDK.
+---
+
+## Overview
+
+`@sazito/checkout` is a ready-made, fully typed checkout flow with built-in state management. It handles:
+
+- Cart review (edit quantities, remove items, apply discount codes)
+- Shipping address form with region / city cascading selects
+- Shipping method selection (multiple groups supported)
+- Payment method selection and gateway redirect
+- Post-payment result screen (success, pending, failed, stock violated)
+- Automatic pending-payment polling after gateway return
+
+Steps run in order: **cart → shipping → payment → result**
+
+The payment step is the last interactive step: its CTA (**پایان خرید** / "Finish purchase") finalizes the order directly — there is no separate review step.
+
+## Installation
+
+```bash
+pnpm add @sazito/checkout
+```
+
+Import the stylesheet once — typically in your root layout:
+
+```ts
+import '@sazito/checkout/styles.css';
+```
+
+## Setup
+
+Create the Sazito SDK once and wrap your app (or checkout route) with `SazitoProvider`. Every `SazitoCheckoutPage` inside reads that same SDK client from context.
+
+```tsx
+// app/providers.tsx
+'use client';
+
+import { createSazitoClient } from '@sazito/client-sdk';
+import { SazitoProvider } from '@sazito/checkout/next';
+
+const sazito = createSazitoClient({ domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN! });
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <SazitoProvider client={sazito}>
+      {children}
+    </SazitoProvider>
+  );
+}
+```
+
+## Basic usage
+
+With `SazitoProvider` in place, the checkout page only needs credentials and config:
+
+```tsx
+import { SazitoCheckoutPage } from '@sazito/checkout/next';
+
+export default function CheckoutPage() {
+  return (
+    <SazitoCheckoutPage
+      credentials={{ cart: { identifier: '<cart-identifier>' } }}
+      config={{
+        locale: 'fa',
+        continueShoppingUrl: '/',
+        theme: { accent: '#4f46e5', radius: 16 },
+      }}
+    />
+  );
+}
+```
+
+## Props reference
+
+### `SazitoProvider`
+
+Wraps the app once. Accepts either `domain` (Next.js CORS-free path) or `client` (existing SDK client).
+
+| Prop | Type | Description |
+|---|---|---|
+| `domain` | `string` | Store domain. Checkout routes API calls through Next.js server actions. |
+| `client` | `unknown` | Pre-built `SazitoClient`. Used directly — no server action routing. |
+
+### `SazitoCheckoutPage`
+
+| Prop | Type | Description |
+|---|---|---|
+| `credentials` | `CheckoutCredentials` | Cart (and optionally invoice) identifiers to attach to. |
+| `config` | `CheckoutConfig` | Locale, theme, URLs, event hook, behaviour flags. |
+| `paymentReturnParams` | `Record<string, string>` | Query params from a returning payment gateway. Triggers result-resolution mode instead of bootstrapping a fresh flow. |
+| `className` | `string` | Extra class on the root element. |
+| `renderNextButton` | `(props: RenderButtonProps) => ReactNode` | Replace the continue / next button across all steps. |
+| `renderBackButton` | `(props: RenderButtonProps) => ReactNode` | Replace the back button across all steps. |
+
+### `CheckoutCredentials`
+
+```ts
+interface CheckoutCredentials {
+  cart?: { id?: number; identifier: string };
+  invoice?: { id: number; identifier: string };
+}
+```
+
+Typically only `cart.identifier` is needed. Supply `invoice` to re-attach to an already-created invoice (e.g. returning from a gateway).
+
+### `CheckoutConfig`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `locale` | `'fa' \| 'en'` | `'fa'` | UI language. Controls all labels, RTL/LTR layout, and number formatting. |
+| `direction` | `'rtl' \| 'ltr'` | derived from locale | Override text direction explicitly. |
+| `theme` | `CheckoutTheme` | — | Visual overrides — see [Theming](#theming). |
+| `continueShoppingUrl` | `string` | — | URL for the back button on the cart step and the "continue shopping" link on the result screen. |
+| `returnUrl` | `string` | current URL | URL the payment gateway redirects to. |
+| `pollIntervalMs` | `number` | `15000` | How often (ms) to poll for a pending payment result after gateway return. |
+| `currencyLabel` | `string` | locale default | Override the currency unit label (e.g. `'تومان'`). |
+| `onEvent` | `(event: CheckoutEvent) => void` | — | Analytics hook — called for every checkout lifecycle event. See [Analytics](#analytics). |
+
+## Theming
+
+All visual tokens are CSS custom properties. Pass a `theme` object to override them:
+
+```tsx
+config={{
+  theme: {
+    accent: '#7c3aed',           // primary colour — buttons, active states, selected rows
+    accentForeground: '#ffffff', // text rendered on top of accent
+    accentSoft: '#ede9fe',       // subtle accent tint — hover, selection background
+    background: '#ffffff',       // page background
+    foreground: '#0f172a',       // primary text
+    muted: '#f1f5f9',            // muted surface background
+    mutedForeground: '#64748b',  // secondary text
+    border: '#e2e8f0',           // borders and dividers
+    card: '#ffffff',             // form, product card, shipping card background
+    summaryBackground: '#f8fafc', // order-summary sidebar background
+    danger: '#ef4444',           // error and destructive states
+    success: '#22c55e',          // success and completed states
+    radius: 12,                  // base border-radius in px (scaled per element)
+    fontFamily: 'inherit',       // font — defaults to host page font
+  },
+}}
+```
+
+## Payment gateway return
+
+When a gateway redirects back, render `SazitoCheckoutPage` with `paymentReturnParams`. The checkout auto-resolves the outcome and shows the result screen.
+
+```tsx
+// app/checkout/return/page.tsx
+import { SazitoCheckoutPage } from '@sazito/checkout/next';
+
+export default function ReturnPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string>;
+}) {
+  return (
+    <SazitoCheckoutPage
+      credentials={{ cart: { identifier: '<cart-identifier>' } }}
+      config={{ locale: 'fa', returnUrl: '/checkout/return' }}
+      paymentReturnParams={searchParams}
+    />
+  );
+}
+```
+
+If the gateway returns `status: 'pending'`, the checkout polls every `pollIntervalMs` until it resolves.
+
+## Analytics
+
+Pass `onEvent` to receive structured events at every step. Use it to send to any analytics provider:
+
+```ts
+config={{
+  onEvent(event) {
+    analytics.track(event.name, {
+      step: event.step,
+      value: event.value,         // order total in Rials where applicable
+      ...event.metadata,
+      timestamp: event.timestamp,
+    });
+  },
+}}
+```
+
+### Event names
+
+| Event | Fired when |
+|---|---|
+| `checkout_viewed` | Checkout mounts |
+| `step_viewed` | User lands on a step |
+| `address_submitted` | Shipping address saved |
+| `shipping_rate_selected` | User picks a shipping method |
+| `discount_applied` | Discount code accepted |
+| `discount_removed` | Discount code removed |
+| `payment_method_selected` | User picks a payment gateway |
+| `payment_initiated` | Order placed, gateway redirect started |
+| `payment_succeeded` | Gateway return resolved as success |
+| `payment_failed` | Gateway return resolved as failed |
+| `payment_pending` | Gateway return resolved as pending (polling starts) |
+
+## Validation gates
+
+The next button disables automatically — no configuration needed:
+
+| Step | Disabled when |
+|---|---|
+| Cart | Cart is empty |
+| Shipping | Shipping rates loaded but no rate selected (skipped for digital-only orders) |
+| Payment | No payment methods available, or none selected |
+
+## Replacing footer buttons
+
+Use `renderNextButton` / `renderBackButton` to swap built-in footer buttons for components from your own design system. Both receive pre-computed checkout state.
+
+```tsx
+import type { RenderButtonProps } from '@sazito/checkout/next';
+
+<SazitoCheckoutPage
+  credentials={{ cart: { identifier: '<cart-identifier>' } }}
+  config={{ locale: 'fa' }}
+  renderNextButton={({ loading, disabled, onClick, children }) => (
+    <MyButton loading={loading} disabled={disabled} onClick={onClick}>
+      {children}
+    </MyButton>
+  )}
+  renderBackButton={({ onClick, children }) => (
+    <MyGhostButton onClick={onClick}>{children}</MyGhostButton>
+  )}
+/>
+```
+
+### `RenderButtonProps`
+
+| Prop | Type | Description |
+|---|---|---|
+| `loading` | `boolean` | Action is in-flight — show a spinner |
+| `disabled` | `boolean` | Validation not met — button should be inert |
+| `onClick` | `() => void` | Triggers the checkout action for this step |
+| `children` | `ReactNode` | Localised label for the current step |
+
+The `children` label changes per step: **ادامه**, **ذخیره اطلاعات ارسال**, **ادامه به پرداخت**, **نهایی کردن سفارش** (Persian) or the equivalent English strings.
+
+## Replacing primitives with `asChild`
+
+All built-in primitives accept an `asChild` prop. When set, the component merges its behaviour props onto your single child element instead of rendering its own DOM node — the same pattern used by Radix UI and shadcn/ui.
+
+Class names are merged (primitive class + child class). Event handlers are composed (both called).
+
+### `Button`
+
+```tsx
+import { Button } from '@sazito/checkout/next';
+
+<Button asChild loading={isLoading} disabled={isDisabled} onClick={handleClick}>
+  <MyButton variant="filled">Continue</MyButton>
+</Button>
+```
+
+Props forwarded: `className`, `disabled`, `aria-busy`, `onClick`, and all standard button attributes.
+
+### `Field`
+
+Keeps the label, optional marker, and error message. Swaps the `<input>` element.
+
+```tsx
+import { Field } from '@sazito/checkout/next';
+
+<Field label="Email" id="email" error={errors.email} asChild>
+  <MyInput placeholder="you@example.com" />
+</Field>
+```
+
+### `Spinner`
+
+```tsx
+import { Spinner } from '@sazito/checkout/next';
+
+<Spinner asChild>
+  <MyLoadingIndicator />
+</Spinner>
+```
+
+### `ErrorBanner`
+
+Merges `role="alert"` and class onto your component.
+
+```tsx
+import { ErrorBanner } from '@sazito/checkout/next';
+
+<ErrorBanner message={errorMessage} asChild>
+  <MyAlert />
+</ErrorBanner>
+```
+
+### `SectionTitle`
+
+Swaps the default `<h3>` for any heading element or typography component.
+
+```tsx
+import { SectionTitle } from '@sazito/checkout/next';
+
+<SectionTitle asChild>
+  <h2 className="text-xl font-bold">Payment method</h2>
+</SectionTitle>
+```
+
+### `ProductPlaceholder`
+
+Replaces the default box icon shown when a product has no image.
+
+```tsx
+import { ProductPlaceholder } from '@sazito/checkout/next';
+
+<ProductPlaceholder asChild>
+  <img src="/fallback-product.png" alt="" />
+</ProductPlaceholder>
+```
+
+## Programmatic control with `useCheckout`
+
+Use `useCheckout` inside any component rendered within `CheckoutProvider` to read state or trigger actions directly.
+
+```tsx
+'use client';
+
+import { useCheckout } from '@sazito/checkout/next';
+
+export function DiscountWidget() {
+  const { state, actions } = useCheckout();
+
+  return (
+    <div>
+      <input
+        value={state.discountCode}
+        onChange={(e) => actions.setDiscountCode(e.target.value)}
+      />
+      <button
+        onClick={() => actions.applyDiscount()}
+        disabled={state.flags.applyingDiscount}
+      >
+        Apply
+      </button>
+      {/* Invalid/expired codes set an inline error, not the global banner. */}
+      {state.discountError ? <p role="alert">{state.discountError}</p> : null}
+      {state.appliedDiscountCode ? (
+        <button onClick={() => actions.removeDiscount()}>
+          Remove {state.appliedDiscountCode}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+```
+
+### `CheckoutState` fields
+
+| Field | Type | Description |
+|---|---|---|
+| `step` | `CheckoutStep` | Active step: `cart \| shipping \| payment \| result` |
+| `status` | `CheckoutStatus` | Coarse engine status: `idle \| bootstrapping \| working \| redirecting \| polling \| error` |
+| `cart` | `Cart \| null` | Current cart |
+| `invoice` | `Invoice \| null` | Current invoice |
+| `addressForm` | `AddressFormValues` | Live shipping address form values |
+| `shippingGroups` | `ShippingGroup[]` | Grouped shipping rates for each item bundle |
+| `paymentMethods` | `PaymentMethod[]` | Available payment gateways |
+| `selectedPaymentMethodId` | `number \| null` | Selected gateway |
+| `discountCode` | `string` | Input value of the discount field |
+| `appliedDiscountCode` | `string \| null` | Successfully applied code |
+| `discountError` | `string \| null` | Inline error for the discount field (e.g. invalid code); cleared on edit/apply/remove |
+| `result` | `CheckoutResult \| null` | Post-payment result (`status`, `order`, `message`) |
+| `error` | `CheckoutError \| null` | Last error with `message`, `code`, `step` |
+| `flags` | `CheckoutFlags` | Granular async flags (see below) |
+
+### `CheckoutFlags`
+
+| Flag | Fires during |
+|---|---|
+| `bootstrapping` | Initial cart + invoice load |
+| `updatingCart` | Quantity change or item remove |
+| `savingAddress` | Shipping form submit |
+| `loadingShipping` | Fetching applicable rates after address save |
+| `selectingRate` | Selecting a shipping rate |
+| `applyingDiscount` | Discount code submission |
+| `loadingPayments` | Fetching payment methods |
+| `placingOrder` | Order placement + gateway redirect |
+
+### `CheckoutActions`
+
+| Method | Description |
+|---|---|
+| `start()` | Bootstrap cart and invoice. Called automatically. |
+| `next()` | Advance to the next step (validates current step). |
+| `back()` | Return to the previous step. |
+| `goToStep(step)` | Jump to any step directly. |
+| `updateItemQuantity(cartProductId, variantId, quantity)` | Update a cart line quantity. |
+| `removeItem(cartProductId, variantId)` | Remove a cart line. |
+| `setAddressField(key, value)` | Update a single address form field. |
+| `submitAddress()` | Save address and load applicable shipping rates. |
+| `selectShippingRate(groupKey, rateId)` | Select a rate within a shipping group. |
+| `setDiscountCode(code)` | Update the discount code input. |
+| `applyDiscount()` | Submit the discount code. |
+| `removeDiscount()` | Remove the applied discount. |
+| `selectPaymentMethod(id)` | Select a payment method. |
+| `placeOrder()` | Place the order and redirect to the gateway. |
+| `resolvePaymentReturn(params)` | Resolve a return from the payment gateway. |
+| `reset()` | Reset checkout state to initial. |
+
+## Custom layout with `CheckoutProvider`
+
+`SazitoCheckoutPage` bundles provider + UI. To build a fully custom layout, use the primitives directly:
+
+```tsx
+import {
+  CheckoutProvider,
+  SazitoCheckout,
+  OrderSummary,
+  Stepper,
+} from '@sazito/checkout/next';
+
+// SazitoProvider must still wrap the tree above this component.
+export default function CheckoutPage() {
+  return (
+    <CheckoutProvider
+      credentials={{ cart: { identifier: '<cart-identifier>' } }}
+      config={{ locale: 'fa' }}
+    >
+      <div className="my-layout">
+        <Stepper />
+        <main>
+          <SazitoCheckout />
+        </main>
+        <aside>
+          <OrderSummary />
+        </aside>
+      </div>
+    </CheckoutProvider>
+  );
+}
+```
+
+## Error codes
+
+`CheckoutError.code` gives a machine-readable reason:
+
+| Code | Meaning |
+|---|---|
+| `no_cart` | Cart identifier not found |
+| `no_invoice` | Invoice could not be created or found |
+| `min_basket` | Cart total below store minimum |
+| `rate_limited` | Too many requests |
+| `cart_invalid` | Cart is empty or contains invalid items |
+| `invoice_locked` | Invoice is locked (already placed or expired) |
+| `stock_violated` | One or more items went out of stock during checkout |
+| `shipping_required` | Cart requires shipping but no address or rate provided |
+| `address_required` | Shipping address missing |
+| `payment_failed` | Gateway reported payment failure |
+| `network` | Network or server error |
+| `validation` | Invalid input sent to the API |
+| `unknown` | Unclassified error |

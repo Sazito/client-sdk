@@ -138,7 +138,12 @@ client.payments.clearPayment();
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `id` | `number` | Required | Payment method ID. |
-| `code` | `PaymentGateway` | Required | Gateway code enum. |
+| `code` | `PaymentGateway` | Required | Gateway code enum (from `reference_code`). |
+| `title` | `string` | Required | Display title (English). |
+| `titleFa` | `string` | Required | Display title (Persian). |
+| `description` | `string \| null` | Required | Method description; often `null`. |
+| `paymentSubType` | `number \| null` | Required | Payment sub-type id; `null` when absent. |
+| `order` | `number` | Required | Display order. |
 | `isDefault` | `boolean` | Required | Default method flag. |
 
 ### Payment Action
@@ -422,6 +427,11 @@ Source: `src/types/payment.ts`
 | --- | --- | --- |
 | `id` | `number` | Required |
 | `code` | `PaymentGateway` | Required |
+| `title` | `string` | Required |
+| `titleFa` | `string` | Required |
+| `description` | `string \| null` | Required |
+| `paymentSubType` | `number \| null` | Required |
+| `order` | `number` | Required |
 | `isDefault` | `boolean` | Required |
 
 #### Payment

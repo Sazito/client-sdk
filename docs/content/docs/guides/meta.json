@@ -1,6 +1,7 @@
 {
   "title": "Guides",
   "pages": [
+    "checkout",
     "nextjs",
     "nuxt",
     "react",
