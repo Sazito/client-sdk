@@ -1,0 +1,804 @@
+/**
+ * The checkout engine: a framework-agnostic port of the legacy `operateCart`
+ * state machine on top of @sazito/client-sdk. Owns the store, serializes
+ * mutations, and emits typed side-effects for the host to perform.
+ */
+import type { PaymentAction, PaymentStepInput, ShippingAddressInput, Cart, Invoice } from '@sazito/client-sdk';
+import { createStore, type Store } from './store';
+import { createSdkBinding, type CheckoutSdkBinding } from './sdk-binding';
+import { fromSdkError, makeError } from './errors';
+import { makeEvent } from './events';
+import { noopEffectExecutor } from './effects';
+import {
+  addressFormFromInvoice,
+  buildShippingAssignments,
+  deriveShippingGroups,
+  emptyAddressForm,
+  isAddressComplete,
+  isAddressDirty,
+  isShippingComplete,
+  reconcileAddressWithRegions
+} from './selectors';
+import type {
+  AddressFormValues,
+  CheckoutActions,
+  CheckoutConfig,
+  CheckoutEffect,
+  CheckoutEffectExecutor,
+  CheckoutEngineOptions,
+  CheckoutError,
+  CheckoutFlags,
+  CheckoutRegion,
+  CheckoutState,
+  CheckoutStep,
+  ShippingGroup
+} from './types';
+
+export interface CheckoutEngine {
+  getState(): CheckoutState;
+  subscribe(listener: () => void): () => void;
+  actions: CheckoutActions;
+  setEffectExecutor(executor: CheckoutEffectExecutor): void;
+  destroy(): void;
+}
+
+const STEP_ORDER: CheckoutStep[] = ['cart', 'shipping', 'payment', 'result'];
+
+function initialFlags(): CheckoutFlags {
+  return {
+    bootstrapping: false,
+    updatingCart: false,
+    savingAddress: false,
+    loadingShipping: false,
+    selectingRate: false,
+    applyingDiscount: false,
+    loadingPayments: false,
+    placingOrder: false
+  };
+}
+
+function initialState(config: CheckoutConfig): CheckoutState {
+  const locale = config.locale ?? 'fa';
+  return {
+    step: 'cart',
+    status: 'idle',
+    locale,
+    direction: config.direction ?? (locale === 'fa' ? 'rtl' : 'ltr'),
+    cart: null,
+    invoice: null,
+    regions: [],
+    addressForm: emptyAddressForm(),
+    postalCodeMandatory: false,
+    emailMandatory: false,
+    addressDirty: true,
+    applicable: null,
+    shippingGroups: [],
+    paymentMethods: [],
+    selectedPaymentMethodId: null,
+    discountCode: '',
+    appliedDiscountCode: null,
+    discountError: null,
+    result: null,
+    error: null,
+    flags: initialFlags()
+  };
+}
+
+export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEngine {
+  const config: CheckoutConfig = options.config ?? {};
+  const binding: CheckoutSdkBinding = createSdkBinding(options);
+  const store: Store<CheckoutState> = createStore(initialState(config));
+
+  let effectExecutor: CheckoutEffectExecutor = noopEffectExecutor;
+  let lock: Promise<unknown> = Promise.resolve();
+
+  // ---- internal helpers -------------------------------------------------
+
+  const get = () => store.getState();
+  const set = store.setState;
+
+  function runEffect(effect: CheckoutEffect): void {
+    effectExecutor(effect);
+  }
+
+  function emit(...args: Parameters<typeof makeEvent>): void {
+    runEffect({ type: 'emit', event: makeEvent(...args) });
+  }
+
+  function setFlag(flag: keyof CheckoutFlags, value: boolean): void {
+    set((prev) => ({ flags: { ...prev.flags, [flag]: value } }));
+  }
+
+  function setError(error: CheckoutState['error']): void {
+    set({ error, status: error ? 'error' : 'idle' });
+  }
+
+  function withLock<T>(fn: () => Promise<T>): Promise<T> {
+    const next = lock.then(fn, fn);
+    lock = next.then(
+      () => undefined,
+      () => undefined
+    );
+    return next as Promise<T>;
+  }
+
+  function recomputeGroups(): ShippingGroup[] {
+    const { invoice, applicable } = get();
+    const groups = deriveShippingGroups(invoice, applicable);
+    set({ shippingGroups: groups });
+    return groups;
+  }
+
+  // ---- SDK steps --------------------------------------------------------
+
+  /** Fetch cart; returns false (and sets error) when unavailable. */
+  async function loadCart(): Promise<boolean> {
+    if (!binding.hasCart()) {
+      setError(makeError('no_cart', get().locale, 'cart'));
+      return false;
+    }
+    const res = await binding.client.cart.get();
+    if (res.error || !res.data) {
+      setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'cart'));
+      return false;
+    }
+    set({ cart: res.data });
+    return true;
+  }
+
+  /** Create invoice when missing (checked via state), otherwise refresh it. */
+  async function ensureInvoice(): Promise<boolean> {
+    const res = get().invoice != null
+      ? await binding.client.invoices.refresh()
+      : await binding.client.invoices.create();
+    if (res.error || !res.data) {
+      setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'shipping'));
+      return false;
+    }
+    set({ invoice: res.data });
+    return true;
+  }
+
+  async function loadRegions(): Promise<void> {
+    const res = await binding.client.regions.list();
+    if (res.data) {
+      set({ regions: res.data as unknown as CheckoutRegion[] });
+    }
+  }
+
+  async function loadGeneralInfo(): Promise<void> {
+    const getInfo = binding.client.general?.getInfo;
+    if (!getInfo) {
+      return;
+    }
+    const res = await getInfo.call(binding.client.general);
+    if (res.data) {
+      const postalCodeMandatory = readPostalCodeMandatory(res.data);
+      if (postalCodeMandatory !== undefined) {
+        set({ postalCodeMandatory });
+      }
+      const emailMandatory = readEmailMandatory(res.data);
+      if (emailMandatory !== undefined) {
+        set({ emailMandatory });
+      }
+    }
+  }
+
+  async function refreshInvoice(): Promise<void> {
+    const res = await binding.client.invoices.refresh();
+    if (res.data) {
+      set({ invoice: res.data });
+      recomputeGroups();
+    }
+  }
+
+  async function loadApplicableShipping(): Promise<boolean> {
+    setFlag('loadingShipping', true);
+    const res = await binding.client.invoices.getApplicableShippingMethods();
+    setFlag('loadingShipping', false);
+    if (res.error || !res.data) {
+      setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'shipping'));
+      return false;
+    }
+    set({ applicable: res.data });
+    recomputeGroups();
+    return true;
+  }
+
+  async function assignCurrentShipping(): Promise<void> {
+    const groups = get().shippingGroups;
+    const assignments = buildShippingAssignments(groups);
+    if (assignments.length === 0) {
+      return;
+    }
+    const res = await binding.client.invoices.assignShippingMethod(assignments);
+    if (res.error || !res.data) {
+      setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'shipping'));
+      return;
+    }
+    set({ invoice: res.data });
+    recomputeGroups();
+  }
+
+  async function loadPaymentMethods(): Promise<void> {
+    setFlag('loadingPayments', true);
+    const res = await binding.client.payments.getMethods();
+    setFlag('loadingPayments', false);
+    if (res.error || !res.data) {
+      setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'payment'));
+      return;
+    }
+    const methods = res.data;
+    const current = get().selectedPaymentMethodId;
+    const preferred =
+      current ?? methods.find((m) => m.isDefault)?.id ?? methods[0]?.id ?? null;
+    set({ paymentMethods: methods, selectedPaymentMethodId: preferred });
+  }
+
+  // ---- payment resolution ----------------------------------------------
+
+  // Push a terminal failure onto the result step (step 4) with a visible message.
+  function failResult(message: string, err?: CheckoutError): void {
+    set({
+      step: 'result',
+      status: 'idle',
+      result: { status: 'failed', message },
+      error: err ?? null
+    });
+    emit('payment_failed', { step: 'result' });
+  }
+
+  function handlePaymentAction(action: PaymentAction): void {
+    switch (action.action) {
+      case 'REDIRECT':
+        if (!action.address) {
+          console.error('[Sazito Checkout] REDIRECT action has no address:', action);
+          failResult(makeError('payment_failed', get().locale, 'result').message);
+          return;
+        }
+        set({ status: 'redirecting' });
+        runEffect({ type: 'redirect', url: action.address });
+        return;
+      case 'POST':
+        if (!action.address) {
+          console.error('[Sazito Checkout] POST action has no address:', action);
+          failResult(makeError('payment_failed', get().locale, 'result').message);
+          return;
+        }
+        set({ status: 'redirecting' });
+        runEffect({
+          type: 'post-form',
+          url: action.address,
+          fields: stringifyFields(action.payload)
+        });
+        return;
+      case 'showOrder':
+        set({
+          step: 'result',
+          status: 'idle',
+          result: { status: 'success', order: action.order }
+        });
+        emit('payment_succeeded', { step: 'result' });
+        return;
+      case 'FAIL':
+        set({
+          step: 'result',
+          status: 'idle',
+          result: { status: 'failed', message: action.message }
+        });
+        emit('payment_failed', { step: 'result' });
+        return;
+      case 'StockViolated':
+        set({
+          step: 'result',
+          status: 'idle',
+          result: { status: 'stock_violated', message: action.message }
+        });
+        setError(makeError('stock_violated', get().locale, 'result'));
+        return;
+      case 'pending':
+        set({ step: 'result', status: 'polling', result: { status: 'pending' } });
+        emit('payment_pending', { step: 'result' });
+        void pollPending();
+        return;
+      case 'UPLOAD':
+        // Card-to-card upload is out of scope for v1; surface a clear failure.
+        set({
+          step: 'result',
+          status: 'idle',
+          result: { status: 'failed', message: action.message }
+        });
+        return;
+      default:
+        // Unknown/unhandled action from the gateway — never stall silently.
+        console.error('[Sazito Checkout] Unhandled payment action:', action);
+        failResult(action.message || makeError('payment_failed', get().locale, 'result').message);
+        return;
+    }
+  }
+
+  async function pollPending(): Promise<void> {
+    const interval = config.pollIntervalMs ?? 15000;
+    const res = await binding.client.payments.pollUntilSettled(undefined, interval);
+    if (res.error || !res.data) {
+      setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'result'));
+      return;
+    }
+    handlePaymentAction(res.data);
+  }
+
+  // ---- public actions ---------------------------------------------------
+
+  function goToStep(step: CheckoutStep): void {
+    set({ step, error: null });
+    emit('step_viewed', { step });
+    // When landing on shipping with a complete address but no methods fetched yet,
+    // auto-submit so methods appear without requiring a manual Continue press.
+    if (step === 'shipping') {
+      const { addressForm, invoice, applicable } = get();
+      if (!applicable && isAddressComplete(
+        addressForm,
+        invoice?.needsShipping ?? true,
+        get().postalCodeMandatory,
+        get().emailMandatory
+      )) {
+        void withLock(submitAddressInternal);
+      }
+    }
+  }
+
+  const actions: CheckoutActions = {
+    async start() {
+      await withLock(async () => {
+        setFlag('bootstrapping', true);
+        set({ status: 'bootstrapping', error: null });
+
+        const [cartOk, , , invoiceOk] = await Promise.all([
+          loadCart(),
+          loadRegions(),
+          loadGeneralInfo(),
+          ensureInvoice()
+        ]);
+        setFlag('bootstrapping', false);
+        if (!cartOk || !invoiceOk) {
+          return;
+        }
+
+        const invoice = get().invoice;
+        const rawForm = addressFormFromInvoice(invoice);
+        const savedCityName = invoice?.shippingAddress?.region?.city?.name;
+        set({
+          status: 'idle',
+          addressForm: reconcileAddressWithRegions(rawForm, get().regions, savedCityName),
+          addressDirty: !invoice?.shippingAddress
+        });
+        emit('checkout_viewed', { step: 'cart' });
+        emit('step_viewed', { step: 'cart' });
+      });
+    },
+
+    goToStep,
+
+    back() {
+      const idx = STEP_ORDER.indexOf(get().step);
+      if (idx > 0) {
+        goToStep(STEP_ORDER[idx - 1]);
+      }
+    },
+
+    async next() {
+      await withLock(async () => {
+        const state = get();
+        setError(null);
+
+        if (state.step === 'cart') {
+          set({ status: 'working' });
+          const ok = await ensureInvoice();
+          set({ status: 'idle' });
+          if (ok) {
+            set({ addressForm: addressFormFromInvoice(get().invoice) });
+            goToStep('shipping');
+          }
+          return;
+        }
+
+        if (state.step === 'shipping') {
+          // Phase 1: address not saved yet (or changed) → save it and reveal the
+          // shipping methods, staying on the shipping step.
+          const needsSave = state.addressDirty || !state.applicable;
+          if (needsSave) {
+            const saved = await submitAddressInternal();
+            if (!saved) return;
+            // Stay on the step so the customer can pick / switch a method.
+            if (state.invoice?.needsShipping) {
+              return;
+            }
+          }
+          // Phase 2: methods resolved → validate and proceed to payment.
+          const invoice = get().invoice;
+          if (!isShippingComplete(invoice, get().shippingGroups)) {
+            setError(makeError('shipping_required', state.locale, 'shipping'));
+            return;
+          }
+          set({ status: 'working' });
+          await loadPaymentMethods();
+          set({ status: 'idle' });
+          if (!get().error) goToStep('payment');
+          return;
+        }
+
+        if (state.step === 'payment') {
+          if (state.selectedPaymentMethodId == null) {
+            setError(makeError('validation', state.locale, 'payment'));
+            return;
+          }
+          // No review step — finalize directly from payment.
+          await placeOrderInternal();
+          return;
+        }
+      });
+    },
+
+    async updateItemQuantity(cartProductId, variantId, quantity) {
+      await withLock(async () => {
+        if (quantity < 1) return;
+        setFlag('updatingCart', true);
+        const res = await binding.client.cart.updateItem(cartProductId, variantId, quantity);
+        if (res.data) {
+          set({ cart: res.data });
+          // Optimistically update summary from cart data, then confirm with server.
+          const inv = get().invoice;
+          if (inv) set({ invoice: applyCartToInvoice(inv, res.data) });
+          await refreshInvoice();
+        } else if (res.error) {
+          setError(fromSdkError(res.error, get().locale, 'cart'));
+        }
+        setFlag('updatingCart', false);
+      });
+    },
+
+    async removeItem(cartProductId, variantId) {
+      await withLock(async () => {
+        setFlag('updatingCart', true);
+        const res = await binding.client.cart.removeItem(cartProductId, variantId);
+        if (res.data) {
+          set({ cart: res.data });
+          const inv = get().invoice;
+          if (inv) set({ invoice: applyCartToInvoice(inv, res.data) });
+          await refreshInvoice();
+        } else if (res.error) {
+          setError(fromSdkError(res.error, get().locale, 'cart'));
+        }
+        setFlag('updatingCart', false);
+      });
+    },
+
+    setAddressField(key, value) {
+      set((prev) => {
+        const addressForm: AddressFormValues = { ...prev.addressForm, [key]: value };
+        // Reset city when region changes.
+        if (key === 'regionId') {
+          addressForm.cityId = null;
+        }
+        return { addressForm, addressDirty: isAddressDirty(addressForm, prev.invoice) };
+      });
+      // After any field change, if the form just became complete and shipping
+      // methods haven't been fetched yet, auto-submit so they appear without
+      // requiring a manual Continue press.
+      if (get().step === 'shipping') {
+        const { addressForm, invoice, applicable } = get();
+        if (!applicable && isAddressComplete(
+          addressForm,
+          invoice?.needsShipping ?? true,
+          get().postalCodeMandatory,
+          get().emailMandatory
+        )) {
+          void withLock(submitAddressInternal);
+        }
+      }
+    },
+
+    async submitAddress() {
+      return withLock(submitAddressInternal);
+    },
+
+    async selectShippingRate(groupKey, rateId) {
+      await withLock(async () => {
+        setFlag('selectingRate', true);
+        set((prev) => ({
+          shippingGroups: prev.shippingGroups.map((group) =>
+            group.key === groupKey ? { ...group, selectedRateId: rateId } : group
+          )
+        }));
+        await assignCurrentShipping();
+        await refreshInvoice();
+        setFlag('selectingRate', false);
+        emit('shipping_rate_selected', { step: 'shipping', metadata: { groupKey, rateId } });
+      });
+    },
+
+    setDiscountCode(code) {
+      set({ discountCode: code, discountError: null });
+    },
+
+    async applyDiscount() {
+      await withLock(async () => {
+        const code = get().discountCode.trim();
+        if (!code) return;
+        setFlag('applyingDiscount', true);
+        set({ discountError: null });
+        const res = await binding.client.invoices.addDiscountCode(code);
+        setFlag('applyingDiscount', false);
+        if (res.error || !res.data) {
+          // Inline error on the discount field instead of the global banner.
+          const err = fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'payment');
+          set({ discountError: err.message });
+          return;
+        }
+        set({ invoice: res.data, appliedDiscountCode: code.toUpperCase(), discountError: null });
+        recomputeGroups();
+        emit('discount_applied', { step: 'payment', metadata: { code } });
+      });
+    },
+
+    async removeDiscount() {
+      await withLock(async () => {
+        // No dedicated remove endpoint; clear the saved code and re-sync.
+        binding.credentials.clearDiscountCode();
+        set({ appliedDiscountCode: null, discountCode: '', discountError: null });
+        await refreshInvoice();
+        emit('discount_removed', { step: 'payment' });
+      });
+    },
+
+    selectPaymentMethod(id) {
+      set({ selectedPaymentMethodId: id });
+      emit('payment_method_selected', { step: 'payment', metadata: { id } });
+    },
+
+    async placeOrder() {
+      await withLock(placeOrderInternal);
+    },
+
+    async resolvePaymentReturn(params) {
+      await withLock(async () => {
+        set({ step: 'result', status: 'polling', result: { status: 'pending' } });
+        const action = await binding.client.payments.verify(paymentReturnInput(params));
+        if (action.error || !action.data) {
+          setError(fromSdkError(action.error ?? { message: '', type: 'api' }, get().locale, 'result'));
+          return;
+        }
+        handlePaymentAction(action.data);
+      });
+    },
+
+    reset() {
+      set(initialState(config));
+    }
+  };
+
+  // Internal (lock-free) order placement shared by `placeOrder` & `next` (payment step).
+  async function placeOrderInternal(): Promise<void> {
+    const { selectedPaymentMethodId, locale } = get();
+    if (selectedPaymentMethodId == null) {
+      setError(makeError('validation', locale, 'payment'));
+      return;
+    }
+
+    setFlag('placingOrder', true);
+    setError(null);
+    try {
+      const created = await binding.client.payments.create(selectedPaymentMethodId);
+      if (created.error || !created.data) {
+        console.error('[Sazito Checkout] payments.create failed:', created.error);
+        const err = fromSdkError(created.error ?? { message: '', type: 'api' }, locale, 'result');
+        failResult(err.message, err);
+        return;
+      }
+
+      emit('payment_initiated', { step: 'payment', value: get().invoice?.finalTotal });
+      const action = await binding.client.payments.initialize();
+      if (action.error || !action.data) {
+        console.error('[Sazito Checkout] payments.initialize failed:', action.error);
+        const err = fromSdkError(action.error ?? { message: '', type: 'api' }, locale, 'result');
+        failResult(err.message, err);
+        return;
+      }
+      console.debug('[Sazito Checkout] payment init action:', action.data);
+      handlePaymentAction(action.data);
+    } catch (e) {
+      // Network/unexpected throw — never leave the button spinning silently.
+      console.error('[Sazito Checkout] place order threw:', e);
+      const err = fromSdkError({ message: (e as Error)?.message || '', type: 'network' }, locale, 'result');
+      failResult(err.message, err);
+    } finally {
+      setFlag('placingOrder', false);
+    }
+  }
+
+  // Internal (lock-free) address submission shared by `submitAddress` & `next`.
+  async function submitAddressInternal(): Promise<boolean> {
+    const state = get();
+    const needsShipping = state.invoice?.needsShipping ?? true;
+
+    if (!isAddressComplete(state.addressForm, needsShipping, state.postalCodeMandatory, state.emailMandatory)) {
+      setError(makeError('address_required', state.locale, 'shipping'));
+      return false;
+    }
+
+    // Skip the round-trip if nothing changed and shipping is already resolved.
+    if (!state.addressDirty && state.applicable && isShippingComplete(state.invoice, state.shippingGroups)) {
+      return true;
+    }
+
+    setFlag('savingAddress', true);
+    const input = toAddressInput(state.addressForm);
+    const addrRes = await binding.client.shipping.updateAddress(input);
+    if (addrRes.error || !addrRes.data) {
+      setFlag('savingAddress', false);
+      setError(fromSdkError(addrRes.error ?? { message: '', type: 'api' }, state.locale, 'shipping'));
+      return false;
+    }
+
+    const address = addrRes.data;
+    const linkRes = await binding.client.invoices.addShippingAddress(address.id, address.identifier);
+    if (linkRes.error || !linkRes.data) {
+      setFlag('savingAddress', false);
+      setError(fromSdkError(linkRes.error ?? { message: '', type: 'api' }, state.locale, 'shipping'));
+      return false;
+    }
+    set({ invoice: linkRes.data, addressDirty: false });
+
+    if (needsShipping) {
+      const ok = await loadApplicableShipping();
+      if (ok) {
+        await assignCurrentShipping();
+        await refreshInvoice();
+      }
+    }
+
+    setFlag('savingAddress', false);
+    emit('address_submitted', { step: 'shipping' });
+    return !get().error;
+  }
+
+  return {
+    getState: store.getState,
+    subscribe: store.subscribe,
+    actions,
+    setEffectExecutor(executor) {
+      effectExecutor = executor;
+    },
+    destroy() {
+      effectExecutor = noopEffectExecutor;
+    }
+  };
+}
+
+function readEmailMandatory(data: unknown): boolean | undefined {
+  const root = asRecord(data);
+  const general = asRecord(root.general);
+  const generalInfo = asRecord(
+    general.generalInfo ?? general.general_info ?? root.generalInfo ?? root.general_info
+  );
+  const normalizedSettings = asRecord(root.settings);
+  const checkout = asRecord(
+    generalInfo.checkout ?? root.checkout ?? normalizedSettings.checkout
+  );
+
+  const optional = readCheckoutSettingBoolean(
+    checkout.emailOptional ?? checkout.email_optional
+  );
+  if (optional !== undefined) return !optional;
+  return readCheckoutSettingBoolean(
+    checkout.emailMandatory ?? checkout.email_mandatory
+  );
+}
+
+function readPostalCodeMandatory(data: unknown): boolean | undefined {
+  const root = asRecord(data);
+  const general = asRecord(root.general);
+  const generalInfo = asRecord(
+    general.generalInfo ?? general.general_info ?? root.generalInfo ?? root.general_info
+  );
+  const normalizedSettings = asRecord(root.settings);
+  const checkout = asRecord(
+    generalInfo.checkout ?? root.checkout ?? normalizedSettings.checkout
+  );
+
+  return readCheckoutSettingBoolean(
+    checkout.postalCodeMandatory ?? checkout.postal_code_mandatory
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object'
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function readCheckoutSettingBoolean(value: unknown): boolean | undefined {
+  if (value && typeof value === 'object' && 'enabled' in value) {
+    return readCheckoutSettingBoolean((value as { enabled: unknown }).enabled);
+  }
+  if (value === true || value === 1 || value === '1' || value === 'true') return true;
+  if (value === false || value === 0 || value === '0' || value === 'false') return false;
+  return undefined;
+}
+
+function toAddressInput(form: AddressFormValues): ShippingAddressInput {
+  return {
+    firstName: form.firstName.trim(),
+    lastName: form.lastName.trim(),
+    mobilePhone: form.mobilePhone.trim(),
+    email: form.email.trim() || undefined,
+    phoneNumber: form.phoneNumber.trim() || undefined,
+    regionId: form.regionId ?? undefined,
+    cityId: form.cityId ?? undefined,
+    address: form.address.trim(),
+    postalCode: form.postalCode.trim() || undefined,
+    description: form.description.trim() || undefined
+  };
+}
+
+/**
+ * Immediately derive updated invoice item quantities and totals from a fresh
+ * cart response so the summary panel doesn't wait for the invoice refresh.
+ */
+function applyCartToInvoice(invoice: Invoice, cart: Cart): Invoice {
+  const byVariant = new Map(cart.items.map((i) => [i.productVariantId, i]));
+  const newItems = invoice.items
+    .filter((item) => byVariant.has(item.productVariantId))
+    .map((item) => {
+      const ci = byVariant.get(item.productVariantId)!;
+      return { ...item, quantity: ci.quantity, lineTotal: ci.lineTotal };
+    });
+  const subtotal = newItems.reduce((s, i) => s + i.lineTotal, 0);
+  const discount = (invoice.itemsDiscount || 0) + (invoice.discountTotal || 0) + (invoice.couponTotal || 0);
+  const finalTotal = Math.max(0, subtotal - discount + (invoice.shippingTotal || 0) + (invoice.vat || 0) - (invoice.creditTotal || 0));
+  return { ...invoice, items: newItems, itemsTotalRawPrice: subtotal, netTotal: subtotal, finalTotal };
+}
+
+// Map raw gateway-return query params into the typed payment-step input.
+// Only the string-valued callback fields are forwarded; `trackingData` /
+// `payload` are parsed from JSON when the gateway sends them encoded.
+function paymentReturnInput(params: Record<string, string>): PaymentStepInput | undefined {
+  if (!params || Object.keys(params).length === 0) {
+    return undefined;
+  }
+
+  const input: PaymentStepInput = {};
+  if (params.tatoken != null) input.tatoken = params.tatoken;
+  if (params.isFailed != null) input.isFailed = params.isFailed;
+  if (params.code != null) input.code = params.code;
+  if (params.imageUrl != null) input.imageUrl = params.imageUrl;
+  if (params.id != null && Number.isFinite(Number(params.id))) input.id = Number(params.id);
+  if (params.paymentIdentifier != null) input.paymentIdentifier = params.paymentIdentifier;
+
+  const trackingData = parseJsonObject(params.trackingData);
+  if (trackingData) input.trackingData = trackingData as PaymentStepInput['trackingData'];
+  const payload = parseJsonObject(params.payload);
+  if (payload) input.payload = payload as PaymentStepInput['payload'];
+
+  return Object.keys(input).length > 0 ? input : undefined;
+}
+
+function parseJsonObject(value: string | undefined): Record<string, unknown> | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function stringifyFields(payload: PaymentAction['payload']): Record<string, string> {
+  const fields: Record<string, string> = {};
+  if (payload && typeof payload === 'object') {
+    for (const [key, value] of Object.entries(payload)) {
+      fields[key] = value == null ? '' : String(value);
+    }
+  }
+  return fields;
+}

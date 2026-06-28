@@ -17,6 +17,10 @@
     "incremental": true,
     "paths": {
       "@/*": ["./*"],
+      "@sazito/client-sdk": ["../src/index.ts"],
+      "@sazito/checkout/core": ["../packages/checkout/src/core/index.ts"],
+      "@sazito/checkout/next": ["../packages/checkout/src/next/index.ts"],
+      "@sazito/checkout/react": ["../packages/checkout/src/react/index.ts"],
       "fumadocs-mdx:collections/*": [".source/*"]
     },
     "plugins": [
