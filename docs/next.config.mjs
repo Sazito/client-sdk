@@ -12,6 +12,7 @@ const sdkVersion = JSON.parse(
 
 /** @type {import('next').NextConfig} */
 const config = {
+  output: 'standalone',
   reactStrictMode: true,
   transpilePackages: ['@sazito/checkout'],
   env: {

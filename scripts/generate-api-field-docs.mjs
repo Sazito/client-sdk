@@ -346,6 +346,13 @@ function escapeType(typeText) {
   return typeText.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 }
 
+// Template-literal types contain backticks, which would terminate a
+// single-backtick inline code span and leave `${...}` exposed to MDX
+// as a JSX expression. Use a double-backtick span in that case.
+function inlineCode(text) {
+  return text.includes('`') ? `\`\` ${text} \`\`` : `\`${text}\``;
+}
+
 function renderTypeSection(typeKey) {
   const typeDef = typeIndex.get(typeKey);
   if (!typeDef) {
@@ -371,7 +378,7 @@ function renderTypeSection(typeKey) {
       '',
       source,
       '',
-      `Type: \`${escapeType(aliasText)}\``,
+      `Type: ${inlineCode(escapeType(aliasText))}`,
       '',
     ].join('\n');
   }
@@ -388,7 +395,7 @@ function renderTypeSection(typeKey) {
   const tableLines = [
     '| Field | Type | Required |',
     '| --- | --- | --- |',
-    ...uniqueRows.map((row) => `| \`${row.field}\` | \`${escapeType(row.typeText)}\` | ${row.required} |`),
+    ...uniqueRows.map((row) => `| \`${row.field}\` | ${inlineCode(escapeType(row.typeText))} | ${row.required} |`),
   ];
 
   return [
