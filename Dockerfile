@@ -26,7 +26,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
+ENV PORT=3002
 
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 
@@ -37,6 +37,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/docs/.next/static ./docs/.next/st
 COPY --from=builder --chown=nextjs:nodejs /app/docs/public ./docs/public
 
 USER nextjs
-EXPOSE 3000
+EXPOSE 3002
 
 CMD ["node", "docs/server.js"]

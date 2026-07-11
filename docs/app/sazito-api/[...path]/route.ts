@@ -8,7 +8,8 @@ async function proxyRequest(request: Request, context: ProxyContext): Promise<Re
   const { path } = await context.params;
   const incomingUrl = new URL(request.url);
   const upstreamUrl = new URL(`/${path.join('/')}${incomingUrl.search}`, SAZITO_API_ORIGIN);
-  const shopDomain = request.headers.get('x-sazito-shop-domain');
+  const shopDomain = request.headers.get('x-sazito-shop-domain')
+    ?? request.headers.get('x-forwarded-host');
 
   if (!shopDomain) {
     return Response.json({ message: 'Shop domain is required.' }, { status: 400 });
