@@ -1,0 +1,129 @@
+stages:
+  - build
+  - deploy
+
+workflow:
+  rules:
+    # Run once for commits on any branch, including the default branch.
+    - if: $CI_COMMIT_BRANCH
+    # Do not create pipelines for tags or other pipeline types.
+    - when: never
+
+variables:
+  CONTAINER_NAME: "sazito-client-sdk"
+  APP_PORT: "3002"
+  DEPLOY_PORT: "22"
+
+build-image:
+  stage: build
+  tags:
+    - builder-01
+  before_script:
+    - printf '%s' "$CI_REGISTRY_PASSWORD" | docker login --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build --pull --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+        docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE:latest"
+        docker push "$CI_REGISTRY_IMAGE:latest"
+      fi
+  after_script:
+    - docker logout "$CI_REGISTRY" || true
+
+deploy-devtools:
+  stage: deploy
+  tags:
+    - builder-01
+  needs:
+    - build-image
+  resource_group: client-sdk-devtools
+  environment:
+    name: devtools
+  before_script:
+    - test -n "$DEPLOY_HOST"
+    - test -n "$DEPLOY_USER"
+    - test -n "$SSH_PRIVATE_KEY"
+    - test -n "$SSH_KNOWN_HOSTS"
+    - test -f "$SSH_PRIVATE_KEY"
+    - test -f "$SSH_KNOWN_HOSTS"
+    - chmod 400 "$SSH_PRIVATE_KEY"
+  script:
+    - |
+      printf '%s' "$CI_REGISTRY_PASSWORD" | ssh \
+        -i "$SSH_PRIVATE_KEY" \
+        -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=yes \
+        -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
+        -p "$DEPLOY_PORT" \
+        "$DEPLOY_USER@$DEPLOY_HOST" \
+        docker login --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - |
+      ssh \
+        -i "$SSH_PRIVATE_KEY" \
+        -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=yes \
+        -o UserKnownHostsFile="$SSH_KNOWN_HOSTS" \
+        -p "$DEPLOY_PORT" \
+        "$DEPLOY_USER@$DEPLOY_HOST" \
+        bash -s -- "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$CONTAINER_NAME" "$APP_PORT" <<'REMOTE'
+      set -eu
+
+      image="$1"
+      container="$2"
+      port="$3"
+      old_image="$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null || true)"
+
+      rollback() {
+        echo "Deployment failed; restoring the previous container."
+        docker rm -f "$container" >/dev/null 2>&1 || true
+        if [ -n "$old_image" ]; then
+          docker run -d \
+            --name "$container" \
+            --restart unless-stopped \
+            -e PORT="$port" \
+            -p "$port:$port" \
+            "$old_image"
+        fi
+      }
+
+      docker pull "$image"
+      docker rm -f "$container" >/dev/null 2>&1 || true
+
+      if ! docker run -d \
+        --name "$container" \
+        --restart unless-stopped \
+        -e PORT="$port" \
+        -p "$port:$port" \
+        "$image"; then
+        rollback
+        exit 1
+      fi
+
+      healthy=false
+      attempts=0
+      while [ "$attempts" -lt 30 ]; do
+        if docker exec "$container" node -e \
+          'fetch(`http://127.0.0.1:${process.argv[1]}`).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))' \
+          "$port"; then
+          healthy=true
+          break
+        fi
+        attempts=$((attempts + 1))
+        sleep 2
+      done
+
+      if [ "$healthy" != true ]; then
+        docker logs --tail 100 "$container" || true
+        rollback
+        exit 1
+      fi
+
+      echo "Deployed $image as $container on port $port."
+      REMOTE
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - when: never
