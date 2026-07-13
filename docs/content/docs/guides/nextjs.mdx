@@ -137,7 +137,34 @@ export default async function WalletPage() {
 }
 ```
 
-## 6. Checklist
+## 6. Drop-in checkout component
+
+For a complete cart-to-payment flow, use `SazitoCheckoutPage` on a dedicated
+client-facing route. Set up the shared `SazitoProvider` once, then pass the
+cart credentials to the component:
+
+```tsx
+// app/checkout/page.tsx
+import { SazitoCheckoutPage } from '@sazito/checkout/next';
+
+export default function CheckoutPage() {
+  return (
+    <SazitoCheckoutPage
+      credentials={{ cart: { identifier: '<cart-identifier>' } }}
+      config={{
+        locale: 'fa',
+        continueShoppingUrl: '/',
+      }}
+    />
+  );
+}
+```
+
+Import `@sazito/checkout/styles.css` from the root layout, and see the
+[Checkout guide](/docs/guides/checkout) for provider setup, theming, payment
+returns, and custom button rendering.
+
+## 7. Checklist
 
 - Keep `NEXT_PUBLIC_SAZITO_DOMAIN` for browser code and `SAZITO_STORE_DOMAIN` for server code.
 - Use Server Components for initial page payload and SEO-critical data.
