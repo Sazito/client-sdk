@@ -2,6 +2,8 @@
 
 Official JavaScript/TypeScript SDK for Sazito storefronts.
 
+Read the full developer documentation at [developers.sazito.com](https://developers.sazito.com).
+
 This SDK is built for application developers who want a typed, framework-agnostic client with:
 - automatic request/response key transformation
 - unified response objects (`{ data, error }`)
@@ -55,6 +57,54 @@ if (res.error) {
   console.log(res.data.items);
 }
 ```
+
+## Checkout component
+
+For a ready-made React/Next.js checkout UI, install the companion package:
+
+```bash
+pnpm add @sazito/client-sdk @sazito/checkout
+```
+
+Create one SDK client, provide it to the checkout, and import the checkout
+stylesheet once:
+
+```tsx
+'use client';
+
+import '@sazito/checkout/styles.css';
+import { createSazitoClient } from '@sazito/client-sdk';
+import { SazitoCheckoutPage, SazitoProvider } from '@sazito/checkout/next';
+
+const sazito = createSazitoClient({ domain: 'mystore.sazito.com' });
+
+export default function CheckoutPage() {
+  return (
+    <SazitoProvider client={sazito}>
+      <SazitoCheckoutPage
+        credentials={{ cart: { identifier: 'cart-identifier' } }}
+        config={{
+          locale: 'fa',
+          continueShoppingUrl: '/',
+          theme: {
+            accent: '#4f46e5',
+            accentForeground: '#ffffff',
+            radius: 16
+          }
+        }}
+      />
+    </SazitoProvider>
+  );
+}
+```
+
+The component provides a typed, RTL-first flow for `cart → shipping → payment → result`,
+including cart editing, address and shipping-rate selection, discounts, payment
+gateway redirects, and pending-payment polling. It reuses the credentials stored
+by the SDK client, so credentials created through `sazito.cart` and
+`sazito.invoices` can be used by the component. For theming, custom buttons,
+analytics, payment returns, and a fully custom layout, see the
+[checkout guide](https://developers.sazito.com/docs/guides/checkout).
 
 ## Core Response Model
 
@@ -198,6 +248,8 @@ The client instance exposes:
 - `entityRoutes`
 - `menu`
 - `general`
+- `dynamicForms`
+- `regions`
 
 ### Methods by Module
 
@@ -205,14 +257,14 @@ The client instance exposes:
 |---|---|
 | `products` | `get`, `list`, `search` |
 | `categories` | `get`, `list` |
-| `cart` | `get`, `create`, `addItem`, `updateItem`, `removeItem`, `clearCart` |
+| `cart` | `get`, `create`, `addItem`, `addItemWithAttributes`, `updateItem`, `updateItemWithAttributes`, `removeItem`, `clearCart` |
 | `orders` | `list`, `get` |
-| `invoices` | `get`, `create`, `refresh`, `addShippingAddress`, `addDiscountCode`, `assignShippingMethod`, `addDetails`, `getApplicableShippingMethods`, `clearInvoice` |
+| `invoices` | `get`, `create`, `refresh`, `addShippingAddress`, `addDiscountCode`, `assignShippingMethod`, `addDetails`, `addForm`, `addCredit`, `removeCredit`, `toggleCredit`, `getApplicableShippingMethods`, `clearInvoice` |
 | `shipping` | `createAddress`, `updateAddress`, `getAddress`, `getMethods`, `clearAddress` |
-| `payments` | `getMethods`, `create`, `initialize`, `processStep`, `clearPayment` |
+| `payments` | `getMethods`, `create`, `initialize`, `verify`, `processStep`, `processStepForm`, `pollUntilSettled`, `clearPayment` |
 | `users` | `login`, `requestMobileOTP`, `verifyMobileOTP`, `requestEmailLogin`, `register`, `getCurrentUser`, `updateProfile`, `requestMobilePhoneUpdate`, `verifyMobilePhoneUpdate`, `forgotPassword`, `revivePassword`, `mergeUser` |
-| `search` | `search` |
-| `feedbacks` | `list`, `create`, `get` |
+| `search` | `query` |
+| `feedbacks` | `getSeed`, `createOrderRating`, `submitProductReview`, `getProductStatistics`, `getProductReviews`, `uploadReviewImages`, `list`, `create`, `get` |
 | `wallet` | `getBalance`, `applyCredit`, `removeCredit`, `listTransactions` |
 | `cms` | `getPage`, `listPages`, `getBlogPost`, `listBlogPosts`, `listAll` |
 | `images` | `upload`, `delete` |
@@ -221,6 +273,8 @@ The client instance exposes:
 | `entityRoutes` | `resolve` |
 | `menu` | `getHeaderMenu` |
 | `general` | `getInfo`, `getFeatures`, `getCheckoutConfig`, `getWalletConfig`, `getTajrobeConfig` |
+| `dynamicForms` | `getForm`, `uploadProductFormFile` |
+| `regions` | `list` |
 
 ## Usage Examples
 

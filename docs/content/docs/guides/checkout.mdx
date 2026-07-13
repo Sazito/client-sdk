@@ -409,16 +409,15 @@ export function DiscountWidget() {
 | `resolvePaymentReturn(params)` | Resolve a return from the payment gateway. |
 | `reset()` | Reset checkout state to initial. |
 
-## Custom layout with `CheckoutProvider`
+## Using `SazitoCheckout` directly
 
-`SazitoCheckoutPage` bundles provider + UI. To build a fully custom layout, use the primitives directly:
+`SazitoCheckoutPage` bundles the provider and UI. If you already have a
+`CheckoutProvider` in your tree, render `SazitoCheckout` directly:
 
 ```tsx
 import {
   CheckoutProvider,
   SazitoCheckout,
-  OrderSummary,
-  Stepper,
 } from '@sazito/checkout/next';
 
 // SazitoProvider must still wrap the tree above this component.
@@ -428,19 +427,15 @@ export default function CheckoutPage() {
       credentials={{ cart: { identifier: '<cart-identifier>' } }}
       config={{ locale: 'fa' }}
     >
-      <div className="my-layout">
-        <Stepper />
-        <main>
-          <SazitoCheckout />
-        </main>
-        <aside>
-          <OrderSummary />
-        </aside>
-      </div>
+      <SazitoCheckout className="my-checkout" />
     </CheckoutProvider>
   );
 }
 ```
+
+`SazitoCheckout` includes the stepper, active checkout step, footer actions,
+and order summary. Use `SazitoCheckoutPage` unless you need to place the
+provider and UI separately.
 
 ## Error codes
 

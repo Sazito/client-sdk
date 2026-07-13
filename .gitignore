@@ -45,3 +45,6 @@ coverage/
 .pnpm-store/
 *.tgz
 references/
+
+# GitLab CI (GitHub-hosted repository)
+.gitlab-ci.yml
