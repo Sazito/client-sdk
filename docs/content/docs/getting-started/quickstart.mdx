@@ -48,6 +48,41 @@ if (invoiceRes.error) {
 console.log(invoiceRes.data.totalPrice);
 ```
 
+## Add the checkout component
+
+For a complete React/Next.js checkout UI, install the companion package and
+import its stylesheet once:
+
+```bash
+pnpm add @sazito/checkout
+```
+
+```tsx
+'use client';
+
+import '@sazito/checkout/styles.css';
+import { SazitoCheckoutPage, SazitoProvider } from '@sazito/checkout/next';
+
+export function CheckoutPage() {
+  return (
+    <SazitoProvider client={client}>
+      <SazitoCheckoutPage
+        credentials={{ cart: { identifier: '<cart-identifier>' } }}
+        config={{
+          locale: 'fa',
+          continueShoppingUrl: '/',
+        }}
+      />
+    </SazitoProvider>
+  );
+}
+```
+
+The component provides the `cart → shipping → payment → result` flow and
+reuses credentials stored by the same SDK client. See the full
+[checkout guide](/docs/guides/checkout) for payment returns, theming,
+analytics, custom buttons, and custom layouts.
+
 ## Authenticated profile call
 
 ```ts
