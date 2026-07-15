@@ -1,28 +1,47 @@
 'use client';
 
 import { useCheckout } from '../../react';
-import { paymentMethodInfo, formatPercent, type PaymentMethodKind } from '../../core';
+import {
+  paymentMethodInfo,
+  formatPercent,
+  type AppliedDiscount,
+  type CheckoutLocale,
+  type PaymentMethodKind,
+  type Strings
+} from '../../core';
 import { Button, SectionTitle, Spinner } from '../primitives';
 
+/** Human line for the applied-code card: "20% off (50,000)", "Free shipping", … */
+function describeDiscount(
+  discount: AppliedDiscount,
+  t: Strings,
+  money: (amount: number) => string,
+  locale: CheckoutLocale
+): string | null {
+  const parts: string[] = [];
+  if (discount.kind === 'percentage' && (discount.percent ?? 0) > 0) {
+    const percentOff = t.discountPercentOff(formatPercent(discount.percent as number, locale));
+    parts.push(discount.amount > 0 ? `${percentOff} (${money(discount.amount)})` : percentOff);
+  } else if (discount.amount > 0) {
+    parts.push(t.discountAmountOff(money(discount.amount)));
+  }
+  if (discount.kind === 'free_shipping' || (discount.shippingSaved ?? 0) > 0) {
+    parts.push(t.discountFreeShipping);
+  }
+  return parts.length > 0 ? parts.join(' + ') : null;
+}
+
 export function PaymentStep() {
-  const { state, actions, t } = useCheckout();
+  const { state, actions, t, money } = useCheckout();
   const {
     paymentMethods,
     selectedPaymentMethodId,
-    appliedDiscountCode,
+    appliedDiscount,
     discountCode,
     discountError,
     flags,
-    locale,
-    invoice
+    locale
   } = state;
-
-  // Effective coupon percentage off the subtotal, for the applied badge.
-  const subtotal = invoice?.itemsTotalRawPrice || invoice?.netTotal || 0;
-  const couponAmount = (invoice?.couponTotal || 0) + (invoice?.discountTotal || 0);
-  const couponPercent =
-    subtotal > 0 && couponAmount > 0 ? (couponAmount / subtotal) * 100 : 0;
-  const percentSign = locale === 'fa' ? '٪' : '%';
 
   return (
     <section className="szc-step-panel">
@@ -67,16 +86,20 @@ export function PaymentStep() {
       )}
 
       <SectionTitle>{t.discountCode}</SectionTitle>
-      {appliedDiscountCode ? (
+      {appliedDiscount ? (
         <div className="szc-discount szc-discount--applied">
-          <span className="szc-discount__badge">{t.applied}</span>
-          <code className="szc-discount__code">{appliedDiscountCode}</code>
-          {couponPercent > 0 ? (
-            <span className="szc-discount__percent">
-              {formatPercent(couponPercent, locale)}
-              {percentSign}
+          <span className="szc-discount__icon" aria-hidden="true">
+            <TagIcon />
+          </span>
+          <span className="szc-discount__body">
+            <code className="szc-discount__code">{appliedDiscount.code}</code>
+            <span className="szc-discount__desc">
+              {describeDiscount(appliedDiscount, t, money, locale) ?? t.applied}
             </span>
-          ) : null}
+          </span>
+          <span className="szc-discount__badge">
+            <CheckIcon /> {t.applied}
+          </span>
           <Button variant="ghost" onClick={() => actions.removeDiscount()} loading={flags.applyingDiscount}>
             {t.remove}
           </Button>
@@ -84,16 +107,19 @@ export function PaymentStep() {
       ) : (
         <div className="szc-discount-field">
           <div className="szc-discount">
-            <input
-              className={`szc-input${discountError ? ' szc-input--error' : ''}`}
-              placeholder={t.discountPlaceholder}
-              value={discountCode}
-              aria-invalid={discountError ? true : undefined}
-              onChange={(e) => actions.setDiscountCode(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') actions.applyDiscount();
-              }}
-            />
+            <span className="szc-discount__inputwrap">
+              <TagIcon />
+              <input
+                className={`szc-input${discountError ? ' szc-input--error' : ''}`}
+                placeholder={t.discountPlaceholder}
+                value={discountCode}
+                aria-invalid={discountError ? true : undefined}
+                onChange={(e) => actions.setDiscountCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') actions.applyDiscount();
+                }}
+              />
+            </span>
             <Button
               variant="outline"
               onClick={() => actions.applyDiscount()}
@@ -112,6 +138,15 @@ export function PaymentStep() {
         </div>
       )}
     </section>
+  );
+}
+
+function TagIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10.5 2.5H16v5.5l-7.5 7.5a1.8 1.8 0 0 1-2.5 0L3 13a1.8 1.8 0 0 1 0-2.5z" />
+      <circle cx="12.8" cy="5.7" r="1" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
 

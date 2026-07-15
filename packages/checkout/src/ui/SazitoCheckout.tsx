@@ -2,9 +2,9 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import { useCheckout } from '../react';
-import type { CheckoutTheme } from '../core';
+import { formatNumber, type CheckoutTheme } from '../core';
 import { Button, ErrorBanner } from './primitives';
-import { Stepper } from './Stepper';
+import { Stepper, CartIcon, TruckIcon, CardIcon, ClipboardIcon } from './Stepper';
 import { OrderSummary } from './OrderSummary';
 import { CartStep } from './steps/CartStep';
 import { ShippingStep } from './steps/ShippingStep';
@@ -77,25 +77,27 @@ function CheckoutSkeleton({ label }: { label: string }) {
           </div>
           <span className="szc-skeleton szc-skeleton--counter" />
         </div>
-        <div className="szc-skeleton-footer">
-          <span className="szc-skeleton szc-skeleton--button" />
-        </div>
       </main>
 
-      <aside className="szc-summary szc-summary--skeleton" aria-hidden="true">
-        <div className="szc-summary__total-head">
-          <span className="szc-skeleton szc-skeleton--summary-label" />
-          <span className="szc-skeleton szc-skeleton--summary-total" />
+      <div className="szc-side" aria-hidden="true">
+        <aside className="szc-summary szc-summary--skeleton">
+          <div className="szc-summary__total-head">
+            <span className="szc-skeleton szc-skeleton--summary-label" />
+            <span className="szc-skeleton szc-skeleton--summary-total" />
+          </div>
+          <div className="szc-skeleton-summary-lines">
+            <div><span className="szc-skeleton" /><span className="szc-skeleton" /></div>
+            <div><span className="szc-skeleton" /><span className="szc-skeleton" /></div>
+          </div>
+          <div className="szc-skeleton-summary-grand">
+            <span className="szc-skeleton" />
+            <span className="szc-skeleton" />
+          </div>
+        </aside>
+        <div className="szc-side__cta">
+          <span className="szc-skeleton szc-skeleton--button" />
         </div>
-        <div className="szc-skeleton-summary-lines">
-          <div><span className="szc-skeleton" /><span className="szc-skeleton" /></div>
-          <div><span className="szc-skeleton" /><span className="szc-skeleton" /></div>
-        </div>
-        <div className="szc-skeleton-summary-grand">
-          <span className="szc-skeleton" />
-          <span className="szc-skeleton" />
-        </div>
-      </aside>
+      </div>
     </div>
   );
 }
@@ -108,7 +110,7 @@ export function SazitoCheckout({
   renderBackButton,
   renderEmptyCart,
 }: SazitoCheckoutProps) {
-  const { state, actions, t } = useCheckout();
+  const { state, actions, t, summary, money } = useCheckout();
   const { step, direction, flags, error } = state;
 
   const isResult = step === 'result';
@@ -175,12 +177,124 @@ export function SazitoCheckout({
     children: t.back,
   };
 
+  /* Rendered twice: under the order summary (desktop) and in the sticky
+     bottom bar (mobile). CSS shows exactly one of the two. */
+  const nextButtonNode = renderNextButton ? (
+    renderNextButton(nextButtonProps)
+  ) : (
+    <Button
+      className="szc-footer__next"
+      loading={nextBusy}
+      disabled={nextDisabled}
+      onClick={() => actions.next()}
+    >
+      {nextLabel}
+    </Button>
+  );
+
+  const backButtonNode = backVisible ? (
+    renderBackButton ? (
+      renderBackButton(backButtonProps)
+    ) : (
+      <Button variant="ghost" className="szc-back-btn" onClick={backOnClick}>
+        <svg
+          className="szc-back-arrow"
+          viewBox="0 0 16 16"
+          width="15"
+          height="15"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M9.5 3.5 5 8l4.5 4.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {t.back}
+      </Button>
+    )
+  ) : null;
+
+  const actionsVisible = !bootstrapping && !fatal && !isResult && footerVisible;
+
+  /* Mobile header (replaces the stepper on small screens): back chevron at the
+     inline start, current step title centered, "step n of m" at the end. */
+  const flowSteps = ['cart', 'shipping', 'payment'] as const;
+  const flowIndex = flowSteps.indexOf(step as (typeof flowSteps)[number]);
+  const headTitle =
+    step === 'cart'
+      ? t.stepCart
+      : step === 'shipping'
+        ? t.stepShippingInfo
+        : step === 'payment'
+          ? t.stepPayment
+          : t.stepResult;
+  const HeadIcon =
+    step === 'cart'
+      ? CartIcon
+      : step === 'shipping'
+        ? TruckIcon
+        : step === 'payment'
+          ? CardIcon
+          : ClipboardIcon;
+  const mobileHead = (
+    <div className="szc-mobile-head">
+      {footerVisible && backVisible ? (
+        <button
+          type="button"
+          className="szc-mobile-head__back"
+          aria-label={t.back}
+          onClick={backOnClick}
+        >
+          <svg
+            className="szc-back-arrow"
+            viewBox="0 0 16 16"
+            width="18"
+            height="18"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M9.5 3.5 5 8l4.5 4.5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      ) : (
+        <span />
+      )}
+      <span className="szc-mobile-head__title">
+        <span className="szc-mobile-head__dot">
+          <HeadIcon />
+        </span>
+        {headTitle}
+      </span>
+      {flowIndex >= 0 ? (
+        <span className="szc-mobile-head__count">
+          {t.stepOf(
+            formatNumber(flowIndex + 1, state.locale),
+            formatNumber(flowSteps.length, state.locale)
+          )}
+        </span>
+      ) : (
+        <span />
+      )}
+    </div>
+  );
+
   return (
     <div
       className={`szc-root${className ? ` ${className}` : ''}`}
       dir={direction}
       style={themeVars(theme)}
     >
+      {mobileHead}
       <Stepper />
 
       {bootstrapping ? (
@@ -192,45 +306,41 @@ export function SazitoCheckout({
           <ResultStep continueShoppingUrl={continueShoppingUrl} />
         </div>
       ) : (
-        <div className={`szc-layout${cartEmpty ? ' szc-layout--full' : ''}`}>
-          <main className="szc-main">
-            {error ? <ErrorBanner message={error.message} /> : null}
+        <>
+          <div className={`szc-layout${cartEmpty ? ' szc-layout--full' : ''}`}>
+            <main className="szc-main">
+              {error ? <ErrorBanner message={error.message} /> : null}
 
-            {step === 'cart' ? <CartStep continueShoppingUrl={continueShoppingUrl} renderEmpty={renderEmptyCart} /> : null}
-            {step === 'shipping' ? <ShippingStep /> : null}
-            {step === 'payment' ? <PaymentStep /> : null}
+              {step === 'cart' ? <CartStep continueShoppingUrl={continueShoppingUrl} renderEmpty={renderEmptyCart} /> : null}
+              {step === 'shipping' ? <ShippingStep /> : null}
+              {step === 'payment' ? <PaymentStep /> : null}
 
-            {footerVisible ? (
-              <div className="szc-footer">
-                {backVisible ? (
-                  renderBackButton ? (
-                    renderBackButton(backButtonProps)
-                  ) : (
-                    <Button variant="ghost" onClick={backOnClick}>
-                      {t.back}
-                    </Button>
-                  )
-                ) : null}
+              {actionsVisible && backButtonNode ? (
+                <div className="szc-back-row">{backButtonNode}</div>
+              ) : null}
+            </main>
 
-                {renderNextButton ? (
-                  renderNextButton(nextButtonProps)
-                ) : (
-                  <Button
-                    block
-                    loading={nextBusy}
-                    disabled={nextDisabled}
-                    onClick={() => actions.next()}
-                  >
-                    {nextLabel}
-                  </Button>
-                )}
+            {!cartEmpty ? (
+              <div className="szc-side">
+                <OrderSummary />
+                {actionsVisible ? <div className="szc-side__cta">{nextButtonNode}</div> : null}
               </div>
             ) : null}
-          </main>
-
-          {!cartEmpty ? <OrderSummary /> : null}
-        </div>
+          </div>
+        </>
       )}
+
+      {actionsVisible ? (
+        <div className="szc-footer-bar">
+          <div className="szc-footer">
+            <div className="szc-footer__total">
+              <span className="szc-footer__total-label">{t.total}</span>
+              <span className="szc-footer__total-value">{money(summary.total)}</span>
+            </div>
+            <div className="szc-footer__actions">{nextButtonNode}</div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

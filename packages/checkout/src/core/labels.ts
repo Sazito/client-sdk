@@ -10,6 +10,10 @@ export interface Strings {
   stepPayment: string;
   stepReview: string;
   stepResult: string;
+  /** Mobile header title for the shipping step. */
+  stepShippingInfo: string;
+  /** Mobile header progress, e.g. "مرحله ۲ از ۳" / "Step 2 of 3". */
+  stepOf: (current: string, total: string) => string;
   // common
   next: string;
   placeOrder: string;
@@ -67,6 +71,9 @@ export interface Strings {
   discountPlaceholder: string;
   apply: string;
   applied: string;
+  discountPercentOff: (percent: string) => string;
+  discountAmountOff: (amount: string) => string;
+  discountFreeShipping: string;
   // review
   reviewTitle: string;
   reviewContact: string;
@@ -94,6 +101,8 @@ const fa: Strings = {
   stepPayment: 'پرداخت',
   stepReview: 'بازبینی',
   stepResult: 'پایان خرید',
+  stepShippingInfo: 'اطلاعات ارسال',
+  stepOf: (current, total) => `مرحله ${current} از ${total}`,
   next: 'ادامه',
   placeOrder: 'ثبت سفارش',
   saveShippingDetails: 'ثبت اطلاعات ارسال',
@@ -146,6 +155,9 @@ const fa: Strings = {
   discountPlaceholder: 'کد تخفیف را وارد کنید',
   apply: 'اعمال',
   applied: 'اعمال شد',
+  discountPercentOff: (percent) => `${percent}٪ تخفیف`,
+  discountAmountOff: (amount) => `${amount} تخفیف`,
+  discountFreeShipping: 'ارسال رایگان',
   reviewTitle: 'بازبینی سفارش',
   reviewContact: 'مشخصات گیرنده',
   reviewAddress: 'آدرس ارسال',
@@ -170,6 +182,8 @@ const en: Strings = {
   stepPayment: 'Payment',
   stepReview: 'Review',
   stepResult: 'Finish',
+  stepShippingInfo: 'Shipping details',
+  stepOf: (current, total) => `Step ${current} of ${total}`,
   next: 'Continue',
   placeOrder: 'Place order',
   saveShippingDetails: 'Save shipping details',
@@ -222,6 +236,9 @@ const en: Strings = {
   discountPlaceholder: 'Enter discount code',
   apply: 'Apply',
   applied: 'Applied',
+  discountPercentOff: (percent) => `${percent}% off`,
+  discountAmountOff: (amount) => `${amount} off`,
+  discountFreeShipping: 'Free shipping',
   reviewTitle: 'Review your order',
   reviewContact: 'Recipient',
   reviewAddress: 'Shipping address',

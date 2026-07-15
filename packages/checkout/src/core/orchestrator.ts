@@ -12,6 +12,7 @@ import { noopEffectExecutor } from './effects';
 import {
   addressFormFromInvoice,
   buildShippingAssignments,
+  classifyAppliedDiscount,
   deriveShippingGroups,
   emptyAddressForm,
   isAddressComplete,
@@ -77,6 +78,7 @@ function initialState(config: CheckoutConfig): CheckoutState {
     selectedPaymentMethodId: null,
     discountCode: '',
     appliedDiscountCode: null,
+    appliedDiscount: null,
     discountError: null,
     result: null,
     error: null,
@@ -367,10 +369,19 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         const invoice = get().invoice;
         const rawForm = addressFormFromInvoice(invoice);
         const savedCityName = invoice?.shippingAddress?.region?.city?.name;
+        // A code applied in an earlier session survives on the invoice — reflect
+        // it as applied (no before-invoice, so the type falls back to totals).
+        const savedCode = invoice?.discountCode?.toUpperCase();
         set({
           status: 'idle',
           addressForm: reconcileAddressWithRegions(rawForm, get().regions, savedCityName),
-          addressDirty: !invoice?.shippingAddress
+          addressDirty: !invoice?.shippingAddress,
+          ...(savedCode && invoice
+            ? {
+                appliedDiscountCode: savedCode,
+                appliedDiscount: classifyAppliedDiscount(null, invoice, savedCode)
+              }
+            : {})
         });
         emit('checkout_viewed', { step: 'cart' });
         emit('step_viewed', { step: 'cart' });
@@ -527,6 +538,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         if (!code) return;
         setFlag('applyingDiscount', true);
         set({ discountError: null });
+        const before = get().invoice;
         const res = await binding.client.invoices.addDiscountCode(code);
         setFlag('applyingDiscount', false);
         if (res.error || !res.data) {
@@ -535,18 +547,26 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           set({ discountError: err.message });
           return;
         }
-        set({ invoice: res.data, appliedDiscountCode: code.toUpperCase(), discountError: null });
+        const applied = classifyAppliedDiscount(before, res.data, code.toUpperCase());
+        set({
+          invoice: res.data,
+          appliedDiscountCode: applied.code,
+          appliedDiscount: applied,
+          discountError: null
+        });
         recomputeGroups();
-        emit('discount_applied', { step: 'payment', metadata: { code } });
+        emit('discount_applied', { step: 'payment', metadata: { code, kind: applied.kind } });
       });
     },
 
     async removeDiscount() {
       await withLock(async () => {
         // No dedicated remove endpoint; clear the saved code and re-sync.
+        setFlag('applyingDiscount', true);
         binding.credentials.clearDiscountCode();
-        set({ appliedDiscountCode: null, discountCode: '', discountError: null });
+        set({ appliedDiscountCode: null, appliedDiscount: null, discountCode: '', discountError: null });
         await refreshInvoice();
+        setFlag('applyingDiscount', false);
         emit('discount_removed', { step: 'payment' });
       });
     },

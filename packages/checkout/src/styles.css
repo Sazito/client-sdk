@@ -48,6 +48,70 @@
   font-family: var(--szc-font);
 }
 
+/* ---- mobile header --------------------------------------------------- */
+/* Replaces the stepper on small screens: back chevron (inline start),
+   step title (center), "step n of m" (inline end). */
+.szc-mobile-head {
+  display: none;
+}
+@media (max-width: 880px) {
+  .szc-mobile-head {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    border-bottom: 1px solid var(--szc-border);
+    background: var(--szc-bg);
+  }
+  .szc-mobile-head__back {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-inline-start: -8px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--szc-fg);
+    cursor: pointer;
+    transition: background 0.14s;
+  }
+  .szc-mobile-head__back:hover {
+    background: var(--szc-muted);
+  }
+  /* Title styled like a single active stepper step: accent icon dot + label. */
+  .szc-mobile-head__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--szc-fg);
+    white-space: nowrap;
+  }
+  .szc-mobile-head__dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: var(--szc-accent);
+    color: var(--szc-accent-foreground);
+  }
+  .szc-mobile-head__count {
+    justify-self: end;
+    font-size: 13px;
+    color: var(--szc-muted-fg);
+    white-space: nowrap;
+  }
+}
+
 /* ---- stepper -------------------------------------------------------- */
 .szc-stepper {
   display: flex;
@@ -99,6 +163,13 @@
   background: var(--szc-success);
   color: #fff;
 }
+/* The mobile header replaces the stepper on small screens. Must come after
+   the base .szc-stepper rule — same specificity, source order decides. */
+@media (max-width: 880px) {
+  .szc-stepper {
+    display: none;
+  }
+}
 
 /* ---- layout --------------------------------------------------------- */
 .szc-layout {
@@ -122,6 +193,19 @@
 @media (max-width: 880px) {
   .szc-layout {
     grid-template-columns: 1fr;
+    /* Single column: breathing room under the mobile header and a clear
+       break between the step content and the order summary. */
+    padding-block: 28px 32px;
+    gap: 32px;
+  }
+}
+@media (max-width: 560px) {
+  .szc-layout {
+    padding: 24px 16px 28px;
+    gap: 28px;
+  }
+  .szc-main {
+    gap: 20px;
   }
 }
 
@@ -401,6 +485,14 @@
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s, border-color 0.15s;
 }
+/* Host resets can set `span { display: block }` — keep label + inline icons
+   on one line regardless. */
+.szc-btn > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
 /* Loading (aria-busy) keeps its variant look; a real disabled goes inert grey. */
 .szc-btn[aria-busy='true'] {
   cursor: progress;
@@ -464,14 +556,108 @@
   display: none;
 }
 
+/* Checkout actions.
+   Desktop: the next/CTA button renders under the order summary sidebar
+   (.szc-side__cta) and the back button sits at the end of the page
+   (.szc-back-row); nothing is pinned.
+   Mobile (≤880px): the CTA moves into a bar fixed to the viewport bottom
+   together with the payable total (.szc-footer-bar); the back control is the
+   chevron in the mobile header. */
+.szc-back-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 2px;
+}
+/* On mobile the header chevron is the back control — hide the inline one. */
+@media (max-width: 880px) {
+  .szc-back-row {
+    display: none;
+  }
+}
+.szc-back-btn {
+  gap: 6px;
+  padding-block: 9px;
+  padding-inline: 12px 16px;
+  border-radius: 999px;
+}
+.szc-back-btn:not(:disabled):hover {
+  background: var(--szc-muted);
+  color: var(--szc-fg);
+}
+/* Chevron points toward "previous": right in RTL, left in LTR. */
+.szc-root[dir='rtl'] .szc-back-arrow {
+  transform: scaleX(-1);
+}
+.szc-side__cta {
+  display: flex;
+}
+.szc-side__cta .szc-btn,
+.szc-side__cta .szc-skeleton--button {
+  flex: 1;
+}
+.szc-footer-bar {
+  display: none;
+}
 .szc-footer {
   display: flex;
+  /* Reversed: CTA at the inline start (right in RTL), total at the end. */
+  flex-direction: row-reverse;
   align-items: center;
-  gap: 12px;
-  margin-top: 8px;
+  justify-content: space-between;
+  gap: 20px;
+  padding-inline: 16px;
 }
-.szc-footer .szc-btn--block {
+.szc-footer__total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.szc-footer__total-label {
+  font-size: 12px;
+  color: var(--szc-muted-fg);
+}
+.szc-footer__total-value {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--szc-accent);
+  white-space: nowrap;
+}
+.szc-footer__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex: 1;
+}
+.szc-footer__actions .szc-btn,
+.szc-footer__actions > * {
+  flex: 1;
+}
+@media (max-width: 880px) {
+  .szc-side__cta {
+    display: none;
+  }
+  /* Pinned to the viewport bottom even when the page is shorter than the
+     screen (sticky would rest at its flow position in that case). */
+  .szc-footer-bar {
+    display: block;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    border-top: 1px solid var(--szc-border);
+    background: color-mix(in srgb, var(--szc-bg) 90%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 -10px 28px color-mix(in srgb, var(--szc-fg) 6%, transparent);
+    padding-block-start: 10px;
+    padding-block-end: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  /* Reserve room at the end of the checkout so the bar never covers content. */
+  .szc-root:has(.szc-footer-bar) {
+    padding-block-end: 88px;
+  }
 }
 
 /* ---- cart ----------------------------------------------------------- */
@@ -653,6 +839,43 @@
 .szc-cart-row__remove:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+@media (max-width: 560px) {
+  .szc-cart-row {
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 10px 12px;
+  }
+  /* Quantity / discount / total / remove drop below the product info in a
+     fixed two-row grid: counter + remove on top, total + discount under. */
+  .szc-cart-row__side {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'qty . remove'
+      'total total discount';
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid color-mix(in srgb, var(--szc-border) 70%, transparent);
+    padding-top: 10px;
+  }
+  .szc-cart-row__side .szc-qty {
+    grid-area: qty;
+  }
+  .szc-cart-row__remove {
+    grid-area: remove;
+  }
+  .szc-cart-row__discount {
+    grid-area: discount;
+    font-size: 11px;
+  }
+  .szc-cart-row__line-total {
+    grid-area: total;
+    justify-self: start;
+    font-size: 15px;
+    white-space: nowrap;
+  }
 }
 
 /* ---- shipping ------------------------------------------------------- */
@@ -1123,34 +1346,75 @@
 .szc-discount__error svg {
   flex: none;
 }
-.szc-discount .szc-input {
+.szc-discount__inputwrap {
+  position: relative;
   flex: 1;
+  display: flex;
+}
+.szc-discount__inputwrap > svg {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--szc-muted-fg);
+  pointer-events: none;
+}
+.szc-discount__inputwrap .szc-input {
+  flex: 1;
+  padding-inline-start: 38px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.szc-discount__inputwrap .szc-input::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
 }
 .szc-discount--applied {
   padding: 12px 14px;
-  border: 1px solid var(--szc-border);
+  flex-wrap: wrap;
+  border: 1px solid color-mix(in srgb, var(--szc-success) 40%, var(--szc-border));
   border-radius: calc(var(--szc-radius) * 0.7);
-  background: var(--szc-muted);
+  background: color-mix(in srgb, var(--szc-success) 6%, transparent);
+}
+.szc-discount__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--szc-success);
+  background: color-mix(in srgb, var(--szc-success) 14%, transparent);
+}
+.szc-discount__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .szc-discount__badge {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--szc-success);
-}
-.szc-discount__code {
-  flex: 1;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.szc-discount__percent {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex: none;
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 999px;
   color: var(--szc-success);
   background: color-mix(in srgb, var(--szc-success) 14%, transparent);
+}
+.szc-discount__code {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.szc-discount__desc {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--szc-success);
 }
 
 /* ---- review --------------------------------------------------------- */
@@ -1192,9 +1456,21 @@
 }
 
 /* ---- order summary -------------------------------------------------- */
-.szc-summary {
+/* Sidebar column: summary card + CTA stick together while the page scrolls. */
+.szc-side {
   position: sticky;
   top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+@media (max-width: 880px) {
+  .szc-side {
+    position: static;
+  }
+}
+.szc-summary {
   background: var(--szc-summary-bg);
   border-radius: calc(var(--szc-radius) * 1.2);
   padding: 22px;
@@ -1242,6 +1518,10 @@
   color: var(--szc-danger);
   font-weight: 700;
 }
+.szc-summary__free {
+  color: var(--szc-success);
+  font-weight: 700;
+}
 .szc-summary__grand {
   display: flex;
   justify-content: space-between;
@@ -1250,6 +1530,15 @@
   border-top: 1px solid var(--szc-border);
   padding-top: 14px;
   color: var(--szc-accent);
+}
+@media (max-width: 560px) {
+  .szc-summary {
+    padding: 18px 16px;
+    gap: 15px;
+  }
+  .szc-summary__total-value {
+    font-size: 26px;
+  }
 }
 
 /* ---- result --------------------------------------------------------- */
@@ -1359,10 +1648,6 @@
   height: 32px;
   border-radius: 9px;
   flex: none;
-}
-.szc-skeleton-footer {
-  display: flex;
-  margin-top: 8px;
 }
 .szc-skeleton--button {
   width: 100%;

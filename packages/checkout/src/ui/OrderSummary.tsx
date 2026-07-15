@@ -4,7 +4,7 @@ import { useCheckout } from '../react';
 import { formatPercent, type SummaryLineKey } from '../core';
 
 export function OrderSummary() {
-  const { state, summary, money, price, t } = useCheckout();
+  const { state, summary, money, t } = useCheckout();
   const percentSign = state.locale === 'fa' ? '٪' : '%';
 
   const lineLabels: Record<SummaryLineKey, string> = {
@@ -35,9 +35,11 @@ export function OrderSummary() {
                 : ''}
             </dt>
             <dd className={line.negative ? 'szc-summary__line--neg' : undefined}>
-              {line.free
-                ? price(0)
-                : `${line.negative ? '−' : ''}${money(line.amount)}`}
+              {line.free ? (
+                <span className="szc-summary__free">{t.free}</span>
+              ) : (
+                `${line.negative ? '−' : ''}${money(line.amount)}`
+              )}
             </dd>
           </div>
         ))}

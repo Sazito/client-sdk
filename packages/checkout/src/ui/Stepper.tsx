@@ -61,7 +61,7 @@ export function CartIcon() {
   );
 }
 
-function TruckIcon() {
+export function TruckIcon() {
   return (
     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true">
       <rect x="1" y="4" width="9" height="7" rx="1" stroke="currentColor" strokeWidth="1.6" />
@@ -72,7 +72,7 @@ function TruckIcon() {
   );
 }
 
-function CardIcon() {
+export function CardIcon() {
   return (
     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true">
       <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
@@ -82,7 +82,7 @@ function CardIcon() {
   );
 }
 
-function ClipboardIcon() {
+export function ClipboardIcon() {
   return (
     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true">
       <rect x="2.5" y="2.5" width="11" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.6" />

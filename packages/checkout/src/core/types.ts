@@ -44,6 +44,26 @@ export type {
   Order
 };
 
+/** How a discount code changes the order. */
+export type DiscountKind = 'percentage' | 'fixed_amount' | 'free_shipping' | 'unknown';
+
+/**
+ * A successfully applied discount code with its detected type. The API only
+ * reports discount codes as totals on the invoice, so the type is inferred by
+ * `classifyAppliedDiscount` (selectors) — `unknown` when nothing measurable
+ * changed yet (e.g. a free-shipping code applied before a rate is selected).
+ */
+export interface AppliedDiscount {
+  code: string;
+  kind: DiscountKind;
+  /** Amount taken off the items total by this code. */
+  amount: number;
+  /** Percentage discounts only: the detected integer percent. */
+  percent?: number;
+  /** Shipping cost removed by the code. */
+  shippingSaved?: number;
+}
+
 /** Regions are not re-exported by the SDK top level; mirror the shape here. */
 export interface CheckoutCity {
   id: number;
@@ -220,6 +240,8 @@ export interface CheckoutState {
 
   discountCode: string;
   appliedDiscountCode: string | null;
+  /** Type + saved amounts of the applied code; null when no code is applied. */
+  appliedDiscount: AppliedDiscount | null;
   /** Inline error for the discount field; not shown in the global banner. */
   discountError: string | null;
 

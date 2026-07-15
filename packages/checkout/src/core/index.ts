@@ -29,6 +29,7 @@ export { normalizeIranianPhone, isValidIranianPhone, isValidIranianMobile } from
 export {
   selectSummary,
   selectDigitalItems,
+  classifyAppliedDiscount,
   deriveShippingGroups,
   buildShippingAssignments,
   isShippingComplete,

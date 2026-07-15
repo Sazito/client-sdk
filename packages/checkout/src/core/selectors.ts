@@ -5,6 +5,7 @@
 import type {
   AddressFormValues,
   ApplicableShippingMethods,
+  AppliedDiscount,
   CheckoutRegion,
   Invoice,
   InvoiceItem,
@@ -269,6 +270,79 @@ export function isShippingComplete(invoice: Invoice | null, groups: ShippingGrou
     return false;
   }
   return groups.every((group) => group.selectedRateId != null);
+}
+
+const codeDiscountTotal = (invoice: Invoice): number =>
+  (invoice.couponTotal || 0) + (invoice.discountTotal || 0);
+
+/**
+ * The documented API contract has no discount "type" field — codes only show
+ * up as totals on the invoice. Classify by comparing the invoice before/after
+ * the code was applied:
+ *   - shipping got cheaper, items total unchanged → free shipping
+ *   - items total dropped by a near-integer %     → percentage
+ *   - items total dropped by anything else        → fixed amount
+ * If the backend ever sends an explicit type on the discount usage
+ * (`discount_type` / `amount_type`), trust it over the heuristics.
+ * `before` is null when the code was restored from a saved invoice; deltas
+ * then fall back to the absolute totals and free shipping is undetectable.
+ */
+export function classifyAppliedDiscount(
+  before: Invoice | null,
+  after: Invoice,
+  code: string
+): AppliedDiscount {
+  const amount = Math.max(0, codeDiscountTotal(after) - (before ? codeDiscountTotal(before) : 0));
+  const shippingSaved = before
+    ? Math.max(0, (before.shippingTotal || 0) - (after.shippingTotal || 0))
+    : 0;
+  const base: AppliedDiscount = { code, kind: 'unknown', amount, shippingSaved };
+
+  const rawUsage = (after.discountUsages?.[0]?.discountCode ?? {}) as Record<string, unknown>;
+  const rawType = [rawUsage.discountType, rawUsage.amountType]
+    .find((v): v is string => typeof v === 'string')
+    ?.toLowerCase();
+  if (rawType) {
+    if (rawType.includes('percent')) {
+      const rawPercent = Number(rawUsage.percent ?? rawUsage.percentage);
+      const percent =
+        Number.isFinite(rawPercent) && rawPercent > 0
+          ? rawPercent
+          : detectPercent(after, amount) ?? undefined;
+      return { ...base, kind: 'percentage', percent };
+    }
+    if (rawType.includes('ship')) return { ...base, kind: 'free_shipping' };
+    if (rawType.includes('fix') || rawType.includes('amount')) {
+      return { ...base, kind: 'fixed_amount' };
+    }
+  }
+
+  if (amount <= 0) {
+    return shippingSaved > 0 ? { ...base, kind: 'free_shipping' } : base;
+  }
+  const percent = detectPercent(after, amount);
+  return percent != null
+    ? { ...base, kind: 'percentage', percent }
+    : { ...base, kind: 'fixed_amount' };
+}
+
+/**
+ * A percentage code produces an amount that is a near-exact integer percent of
+ * the items total (raw, or net of item-level discounts). A round fixed amount
+ * can coincidentally match — the misclassification only changes the badge
+ * label, and both readings are true statements of the saving.
+ */
+function detectPercent(invoice: Invoice, amount: number): number | null {
+  const raw = invoice.itemsTotalRawPrice || 0;
+  for (const basis of [raw - (invoice.itemsDiscount || 0), raw]) {
+    if (basis <= 0) continue;
+    const percent = (amount / basis) * 100;
+    const rounded = Math.round(percent);
+    if (rounded >= 1 && rounded <= 100 && Math.abs(percent - rounded) < 0.05) {
+      return rounded;
+    }
+  }
+  return null;
 }
 
 export type SummaryLineKey = 'subtotal' | 'discount' | 'shipping' | 'credit' | 'vat';

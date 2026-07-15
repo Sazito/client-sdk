@@ -287,6 +287,24 @@ describe('checkout engine — happy path', () => {
     expect(client.invoices.addDiscountCode).toHaveBeenCalledWith('SAVE10');
     expect(engine.getState().appliedDiscountCode).toBe('SAVE10');
     expect(engine.getState().invoice?.finalTotal).toBe(900);
+    // 100 off a 1000 items total → detected as a 10% percentage code.
+    expect(engine.getState().appliedDiscount).toEqual({
+      code: 'SAVE10',
+      kind: 'percentage',
+      percent: 10,
+      amount: 100,
+      shippingSaved: 0
+    });
+  });
+
+  it('clears the applied discount on removal', async () => {
+    const { engine } = setup();
+    await engine.actions.start();
+    engine.actions.setDiscountCode('SAVE10');
+    await engine.actions.applyDiscount();
+    await engine.actions.removeDiscount();
+    expect(engine.getState().appliedDiscountCode).toBeNull();
+    expect(engine.getState().appliedDiscount).toBeNull();
   });
 
   it('places an order and emits a redirect effect', async () => {

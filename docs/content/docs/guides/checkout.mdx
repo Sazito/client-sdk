@@ -212,9 +212,9 @@ The next button disables automatically — no configuration needed:
 | Shipping | Shipping rates loaded but no rate selected (skipped for digital-only orders) |
 | Payment | No payment methods available, or none selected |
 
-## Replacing footer buttons
+## Replacing action buttons
 
-Use `renderNextButton` / `renderBackButton` to swap built-in footer buttons for components from your own design system. Both receive pre-computed checkout state.
+Use `renderNextButton` / `renderBackButton` to swap the built-in action buttons for components from your own design system. Both receive pre-computed checkout state. The next button renders under the order summary on desktop and inside the sticky bottom bar (next to the payable total) on mobile; the back button renders at the end of the step content.
 
 ```tsx
 import type { RenderButtonProps } from '@sazito/checkout/next';

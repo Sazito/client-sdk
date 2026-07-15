@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildShippingAssignments,
+  classifyAppliedDiscount,
   deriveShippingGroups,
   isAddressComplete,
   isShippingComplete,
@@ -130,5 +131,67 @@ describe('isAddressComplete', () => {
 
   it('only requires contact for digital orders', () => {
     expect(isAddressComplete(base, false)).toBe(true);
+  });
+});
+
+describe('classifyAppliedDiscount', () => {
+  const before = invoiceFixture();
+
+  it('detects a percentage code from a near-integer items delta', () => {
+    // 10% off the 1,500 net items total (raw 1,700 − 200 item discounts).
+    const after = invoiceFixture({ couponTotal: 150, finalTotal: 1550 });
+    expect(classifyAppliedDiscount(before, after, 'TEN')).toEqual({
+      code: 'TEN',
+      kind: 'percentage',
+      percent: 10,
+      amount: 150,
+      shippingSaved: 0
+    });
+  });
+
+  it('detects a fixed amount code when the delta is not a round percent', () => {
+    const after = invoiceFixture({ couponTotal: 123, finalTotal: 1577 });
+    const result = classifyAppliedDiscount(before, after, 'FIX');
+    expect(result.kind).toBe('fixed_amount');
+    expect(result.amount).toBe(123);
+  });
+
+  it('detects a free shipping code when only the shipping total drops', () => {
+    const after = invoiceFixture({ shippingTotal: 0, finalTotal: 1500 });
+    expect(classifyAppliedDiscount(before, after, 'SHIPFREE')).toEqual({
+      code: 'SHIPFREE',
+      kind: 'free_shipping',
+      amount: 0,
+      shippingSaved: 200
+    });
+  });
+
+  it('records shipping savings alongside an items discount', () => {
+    const after = invoiceFixture({ couponTotal: 150, shippingTotal: 0, finalTotal: 1350 });
+    const result = classifyAppliedDiscount(before, after, 'COMBO');
+    expect(result.kind).toBe('percentage');
+    expect(result.shippingSaved).toBe(200);
+  });
+
+  it('falls back to absolute totals when there is no before invoice', () => {
+    const after = invoiceFixture({ couponTotal: 123, finalTotal: 1577 });
+    const result = classifyAppliedDiscount(null, after, 'SAVED');
+    expect(result.kind).toBe('fixed_amount');
+    expect(result.amount).toBe(123);
+    expect(result.shippingSaved).toBe(0);
+  });
+
+  it('is unknown when nothing measurable changed', () => {
+    const result = classifyAppliedDiscount(before, invoiceFixture(), 'NOOP');
+    expect(result).toEqual({ code: 'NOOP', kind: 'unknown', amount: 0, shippingSaved: 0 });
+  });
+
+  it('trusts an explicit backend type over the heuristics', () => {
+    const after = invoiceFixture({
+      couponTotal: 150,
+      finalTotal: 1550,
+      discountUsages: [{ discountCode: { code: 'X', discountType: 'fixed_amount' } }]
+    } as unknown as Partial<Invoice>);
+    expect(classifyAppliedDiscount(before, after, 'X').kind).toBe('fixed_amount');
   });
 });
