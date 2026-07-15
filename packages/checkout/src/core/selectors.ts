@@ -9,6 +9,8 @@ import type {
   CheckoutRegion,
   Invoice,
   InvoiceItem,
+  InvoiceShippingAddress,
+  ShippingAddress,
   ShippingAssignment,
   ShippingGroup,
   ShippingRate
@@ -54,12 +56,17 @@ export function reconcileAddressWithRegions(
   return { ...form, cityId: null };
 }
 
-export function addressFormFromInvoice(invoice: Invoice | null): AddressFormValues {
+/* Accepts both saved-address shapes: standalone addresses carry `city` at the
+   top level, invoice addresses nest it under `region.city`. */
+export function addressFormFromSavedAddress(
+  addr: InvoiceShippingAddress | ShippingAddress | null | undefined
+): AddressFormValues {
   const base = emptyAddressForm();
-  const addr = invoice?.shippingAddress;
   if (!addr) {
     return base;
   }
+  const nestedCity = (addr as InvoiceShippingAddress).region?.city;
+  const topLevelCity = (addr as ShippingAddress).city;
   return {
     firstName: addr.firstName ?? '',
     lastName: addr.lastName ?? '',
@@ -67,11 +74,27 @@ export function addressFormFromInvoice(invoice: Invoice | null): AddressFormValu
     email: addr.email ?? '',
     phoneNumber: addr.phoneNumber ?? '',
     regionId: addr.region?.id ?? null,
-    cityId: addr.region?.city?.id ?? null,
+    cityId: nestedCity?.id ?? topLevelCity?.id ?? null,
     postalCode: addr.postalCode ?? '',
     address: addr.address ?? '',
     description: addr.description ?? ''
   };
+}
+
+export function addressFormFromInvoice(invoice: Invoice | null): AddressFormValues {
+  return addressFormFromSavedAddress(invoice?.shippingAddress);
+}
+
+/** City name of a saved address regardless of shape — used to reconcile
+    region/city ids against the loaded regions list. */
+export function savedAddressCityName(
+  addr: InvoiceShippingAddress | ShippingAddress | null | undefined
+): string | undefined {
+  if (!addr) return undefined;
+  return (
+    (addr as InvoiceShippingAddress).region?.city?.name ??
+    (addr as ShippingAddress).city?.name
+  );
 }
 
 export function isAddressComplete(

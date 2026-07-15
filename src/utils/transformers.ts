@@ -1036,7 +1036,9 @@ function normalizeUserProfile(user?: TransformValue): NormalizedUserProfile | un
 }
 
 function normalizeShippingAddress(address?: RawShippingAddress): NormalizedShippingAddress | undefined {
-  if (!address) {
+  // Fresh invoices may serialize an unselected address as `{}`. Treat that as
+  // absent instead of manufacturing a truthy address full of empty defaults.
+  if (!address || Object.keys(address).length === 0) {
     return undefined;
   }
 

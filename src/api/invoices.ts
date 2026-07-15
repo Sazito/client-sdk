@@ -172,10 +172,12 @@ export class InvoicesAPI {
       `${INVOICES_API}/${invoiceCreds.id}/add_shipping_address`,
       {
         identifier: invoiceCreds.identifier,
-        shipping_address_id: shippingAddressId,
         shipping_address_identifier: shippingAddressIdentifier,
         cart_id: CART_ID,
-        cart_identifier: cartCreds.identifier
+        cart_identifier: cartCreds.identifier,
+        // V2 resolves the address by identifier. An id of 0 is a valid SDK
+        // placeholder but should not be sent as an explicit address id.
+        ...(shippingAddressId > 0 ? { shipping_address_id: shippingAddressId } : {})
       },
       options
     );
@@ -399,6 +401,9 @@ export class InvoicesAPI {
       `${INVOICES_API}/${invoiceCreds.id}/applicable_shipping_methods`,
       {
         ...options,
+        // Rates depend on the currently attached address. Reusing this GET
+        // across address snapshots can show methods for the old destination.
+        cache: options?.cache ?? false,
         params: { identifier: invoiceCreds.identifier }
       }
     );

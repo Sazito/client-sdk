@@ -3,7 +3,7 @@
  * state machine on top of @sazito/client-sdk. Owns the store, serializes
  * mutations, and emits typed side-effects for the host to perform.
  */
-import type { PaymentAction, PaymentStepInput, ShippingAddressInput, Cart, Invoice } from '@sazito/client-sdk';
+import type { PaymentAction, PaymentStepInput, ShippingAddress, ShippingAddressInput, Cart, Invoice } from '@sazito/client-sdk';
 import { createStore, type Store } from './store';
 import { createSdkBinding, type CheckoutSdkBinding } from './sdk-binding';
 import { fromSdkError, makeError } from './errors';
@@ -11,6 +11,7 @@ import { makeEvent } from './events';
 import { noopEffectExecutor } from './effects';
 import {
   addressFormFromInvoice,
+  addressFormFromSavedAddress,
   buildShippingAssignments,
   classifyAppliedDiscount,
   deriveShippingGroups,
@@ -18,7 +19,8 @@ import {
   isAddressComplete,
   isAddressDirty,
   isShippingComplete,
-  reconcileAddressWithRegions
+  reconcileAddressWithRegions,
+  savedAddressCityName
 } from './selectors';
 import type {
   AddressFormValues,
@@ -93,6 +95,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
 
   let effectExecutor: CheckoutEffectExecutor = noopEffectExecutor;
   let lock: Promise<unknown> = Promise.resolve();
+  let addressRevision = 0;
 
   // ---- internal helpers -------------------------------------------------
 
@@ -194,10 +197,13 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     }
   }
 
-  async function loadApplicableShipping(): Promise<boolean> {
+  async function loadApplicableShipping(expectedAddressRevision: number): Promise<boolean> {
     setFlag('loadingShipping', true);
     const res = await binding.client.invoices.getApplicableShippingMethods();
     setFlag('loadingShipping', false);
+    if (addressRevision !== expectedAddressRevision) {
+      return false;
+    }
     if (res.error || !res.data) {
       setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'shipping'));
       return false;
@@ -349,6 +355,46 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     }
   }
 
+  function isUsableSavedAddress(
+    addr: Invoice['shippingAddress'] | ShippingAddress | null | undefined
+  ): boolean {
+    return Boolean(addr && (addr.firstName || addr.lastName || addr.address));
+  }
+
+  /* Authenticated users load their latest account address. Stored credentials
+     are also a safe fallback because createAddress refreshes them every time. */
+  async function loadSavedAddress(): Promise<ShippingAddress | null> {
+    try {
+      if (binding.client.isAuthenticated()) {
+        const res = await binding.client.shipping.listAddresses();
+        const latest = res.data?.find(isUsableSavedAddress);
+        if (latest) {
+          return latest;
+        }
+        if (res.error) {
+          console.warn('[Sazito Checkout] account-address prefill failed:', res.error.message);
+        }
+      }
+
+      if (!binding.credentials.getShippingCredentials()) {
+        return null;
+      }
+
+      const guestRes = await binding.client.shipping.getAddress();
+      if (guestRes.data && isUsableSavedAddress(guestRes.data)) {
+        return guestRes.data;
+      }
+      console.warn(
+        '[Sazito Checkout] guest-address prefill skipped:',
+        guestRes.error?.message ?? 'address response missing usable fields',
+        guestRes.data ?? null
+      );
+    } catch (e) {
+      console.warn('[Sazito Checkout] saved-address prefill failed:', e);
+    }
+    return null;
+  }
+
   const actions: CheckoutActions = {
     async start() {
       await withLock(async () => {
@@ -367,15 +413,25 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         }
 
         const invoice = get().invoice;
-        const rawForm = addressFormFromInvoice(invoice);
-        const savedCityName = invoice?.shippingAddress?.region?.city?.name;
+        const hasInvoiceAddress = isUsableSavedAddress(invoice?.shippingAddress);
+        let rawForm = addressFormFromInvoice(invoice);
+        let savedCityName = invoice?.shippingAddress?.region?.city?.name;
+        // Fresh invoices carry no address. Authenticated users get their latest
+        // account address; guests get the address persisted by SDK credentials.
+        if (!hasInvoiceAddress) {
+          const saved = await loadSavedAddress();
+          if (saved) {
+            rawForm = addressFormFromSavedAddress(saved);
+            savedCityName = savedAddressCityName(saved);
+          }
+        }
         // A code applied in an earlier session survives on the invoice — reflect
         // it as applied (no before-invoice, so the type falls back to totals).
         const savedCode = invoice?.discountCode?.toUpperCase();
         set({
           status: 'idle',
           addressForm: reconcileAddressWithRegions(rawForm, get().regions, savedCityName),
-          addressDirty: !invoice?.shippingAddress,
+          addressDirty: !hasInvoiceAddress,
           ...(savedCode && invoice
             ? {
                 appliedDiscountCode: savedCode,
@@ -407,7 +463,13 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           const ok = await ensureInvoice();
           set({ status: 'idle' });
           if (ok) {
-            set({ addressForm: addressFormFromInvoice(get().invoice) });
+            // A fresh invoice has no address yet. Keep the form hydrated from
+            // the base SDK's saved address instead of clearing it just before
+            // the Shipping step becomes visible.
+            const invoice = get().invoice;
+            if (isUsableSavedAddress(invoice?.shippingAddress)) {
+              set({ addressForm: addressFormFromInvoice(invoice) });
+            }
             goToStep('shipping');
           }
           return;
@@ -485,24 +547,37 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     },
 
     setAddressField(key, value) {
+      const before = get().addressForm;
+      const changed = before[key] !== value || (key === 'regionId' && before.cityId !== null);
+      if (changed) {
+        addressRevision += 1;
+      }
       set((prev) => {
         const addressForm: AddressFormValues = { ...prev.addressForm, [key]: value };
         // Reset city when region changes.
         if (key === 'regionId') {
           addressForm.cityId = null;
         }
-        return { addressForm, addressDirty: isAddressDirty(addressForm, prev.invoice) };
-      });
-      // After any field change, if the form just became complete and shipping
-      // methods haven't been fetched yet, auto-submit so they appear without
-      // requiring a manual Continue press.
-      if (get().step === 'shipping') {
-        const { addressForm, invoice, applicable } = get();
-        if (!applicable && isAddressComplete(
+        const addressDirty = isAddressDirty(addressForm, prev.invoice);
+        return {
           addressForm,
-          invoice?.needsShipping ?? true,
-          get().postalCodeMandatory,
-          get().emailMandatory
+          addressDirty,
+          // Rates are derived from the address snapshot. Never keep showing or
+          // accepting rates fetched for a different form value.
+          ...(addressDirty ? { applicable: null, shippingGroups: [] } : {})
+        };
+      });
+
+      // City selection is a discrete destination change, so refresh rates
+      // automatically. Text inputs still wait for Save/Continue to avoid an
+      // address creation and shipping request on every keystroke.
+      if (changed && key === 'cityId' && value != null && get().step === 'shipping') {
+        const state = get();
+        if (isAddressComplete(
+          state.addressForm,
+          state.invoice?.needsShipping ?? true,
+          state.postalCodeMandatory,
+          state.emailMandatory
         )) {
           void withLock(submitAddressInternal);
         }
@@ -593,6 +668,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     },
 
     reset() {
+      addressRevision += 1;
       set(initialState(config));
     }
   };
@@ -639,7 +715,19 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
   // Internal (lock-free) address submission shared by `submitAddress` & `next`.
   async function submitAddressInternal(): Promise<boolean> {
     const state = get();
+    const submittedAddressRevision = addressRevision;
     const needsShipping = state.invoice?.needsShipping ?? true;
+
+    const abandonStaleSubmission = (invoice?: Invoice): false => {
+      set({
+        ...(invoice ? { invoice } : {}),
+        addressDirty: true,
+        applicable: null,
+        shippingGroups: []
+      });
+      setFlag('savingAddress', false);
+      return false;
+    };
 
     if (!isAddressComplete(state.addressForm, needsShipping, state.postalCodeMandatory, state.emailMandatory)) {
       setError(makeError('address_required', state.locale, 'shipping'));
@@ -653,11 +741,17 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
 
     setFlag('savingAddress', true);
     const input = toAddressInput(state.addressForm);
-    const addrRes = await binding.client.shipping.updateAddress(input);
+    // Addresses attached to invoices are immutable order snapshots. Updating
+    // the previous address would also rewrite historical orders, so checkout
+    // always creates a new address and persists its new guest credentials.
+    const addrRes = await binding.client.shipping.createAddress(input);
     if (addrRes.error || !addrRes.data) {
       setFlag('savingAddress', false);
       setError(fromSdkError(addrRes.error ?? { message: '', type: 'api' }, state.locale, 'shipping'));
       return false;
+    }
+    if (addressRevision !== submittedAddressRevision) {
+      return abandonStaleSubmission();
     }
 
     const address = addrRes.data;
@@ -667,13 +761,24 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       setError(fromSdkError(linkRes.error ?? { message: '', type: 'api' }, state.locale, 'shipping'));
       return false;
     }
+    if (addressRevision !== submittedAddressRevision) {
+      return abandonStaleSubmission(linkRes.data);
+    }
     set({ invoice: linkRes.data, addressDirty: false });
 
     if (needsShipping) {
-      const ok = await loadApplicableShipping();
+      const ok = await loadApplicableShipping(submittedAddressRevision);
       if (ok) {
         await assignCurrentShipping();
+        if (addressRevision !== submittedAddressRevision) {
+          return abandonStaleSubmission();
+        }
         await refreshInvoice();
+        if (addressRevision !== submittedAddressRevision) {
+          return abandonStaleSubmission();
+        }
+      } else if (addressRevision !== submittedAddressRevision) {
+        return abandonStaleSubmission();
       }
     }
 

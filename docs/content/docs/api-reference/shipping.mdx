@@ -7,7 +7,10 @@ description: Shipping address and method APIs used during checkout address selec
 
 `shipping` manages buyer destination data and available delivery channels.
 
-- Use `createAddress` or `updateAddress` to persist checkout address credentials.
+- Use `createAddress` for checkout. Each submitted address must be a new,
+  immutable order snapshot.
+- Use `listAddresses` to prefill the latest address for an authenticated user.
+- Use `getAddress` to prefill a guest address from locally stored credentials.
 - Use `getMethods` for a global shipping-method list.
 - For checkout-ready, invoice-specific rates, use `invoices.getApplicableShippingMethods()`.
 
@@ -16,6 +19,8 @@ description: Shipping address and method APIs used during checkout address selec
 - `address.mobilePhone` is required for create/update flows.
 - `regionId` and `cityId` are optional in request contract.
 - `getAddress()` uses stored `identifier` query behind the scenes.
+- Do not use `updateAddress()` in checkout: the backend mutates the referenced
+  row, which can change the address shown on previous orders.
 
 ## Methods
 
@@ -55,6 +60,9 @@ const addressRes = await client.shipping.createAddress({
 
 Use: `shipping.updateAddress(address, options?)`.
 
+> Deprecated for checkout. This mutates the existing address row. Use
+> `createAddress()` to preserve historical order snapshots.
+
 Same input schema as `createAddress`.
 
 ```ts
@@ -69,7 +77,19 @@ await client.shipping.updateAddress({
 });
 ```
 
-### Get Address
+### List Authenticated User Addresses
+
+Use: `shipping.listAddresses(options?)`.
+
+Returns the authenticated user's normalized addresses newest first. This
+request is not cached, so the first item is safe to use as checkout prefill.
+
+```ts
+const addressesRes = await client.shipping.listAddresses();
+const latestAddress = addressesRes.data?.[0];
+```
+
+### Get Guest Address
 
 Use: `shipping.getAddress(options?)`.
 

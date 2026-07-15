@@ -18,6 +18,13 @@ interface ShippingMethodsResponse {
   shippingMethods?: ShippingMethod[];
 }
 
+interface ShippingAddressesResponse {
+  shippingAddresses?: unknown;
+  addresses?: unknown;
+  items?: unknown;
+  data?: unknown;
+}
+
 export class ShippingAPI {
   constructor(
     private http: HttpClient,
@@ -29,6 +36,49 @@ export class ShippingAPI {
     const sanitized = { ...(address as ShippingAddressInput & { user?: unknown }) };
     delete sanitized.user;
     return sanitized;
+  }
+
+  /* Address responses vary between bare objects and nested envelopes such as
+     `result.data.shipping_address`. Peel every known wrapper before normalizing. */
+  private unwrapAddressPayload(data: unknown): unknown {
+    let current = data;
+    const visited = new Set<unknown>();
+    while (current && typeof current === 'object' && !Array.isArray(current)) {
+      if (visited.has(current)) {
+        break;
+      }
+      visited.add(current);
+      const record = current as Record<string, unknown>;
+      const nested = record.shippingAddress ?? record.shipping_address ?? record.data;
+      if (nested === undefined) {
+        break;
+      }
+      current = nested;
+    }
+    return current;
+  }
+
+  private extractAddressList(data: unknown): unknown[] {
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (!data || typeof data !== 'object') {
+      return [];
+    }
+
+    const record = data as ShippingAddressesResponse;
+    const candidates = [
+      record.shippingAddresses,
+      record.addresses,
+      record.items,
+      record.data
+    ];
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+    return [];
   }
 
   /**
@@ -47,7 +97,9 @@ export class ShippingAPI {
 
     // Store shipping address credentials
     if (response.data) {
-      const normalizedAddress = transformShippingAddressResponse(response.data) as ShippingAddress | undefined;
+      const normalizedAddress = transformShippingAddressResponse(
+        this.unwrapAddressPayload(response.data) as never
+      ) as ShippingAddress | undefined;
       if (!normalizedAddress) {
         return response;
       }
@@ -63,7 +115,10 @@ export class ShippingAPI {
   }
 
   /**
-   * Update shipping address
+   * Update the address referenced by the currently stored credentials.
+   * @deprecated Do not use during checkout. Existing invoices can reference
+   * this row, so mutation can rewrite address data shown on previous orders.
+   * Create a new address snapshot with createAddress instead.
    */
   async updateAddress(
     address: ShippingAddressInput,
@@ -88,7 +143,9 @@ export class ShippingAPI {
 
     // Update credentials
     if (response.data) {
-      const normalizedAddress = transformShippingAddressResponse(response.data) as ShippingAddress | undefined;
+      const normalizedAddress = transformShippingAddressResponse(
+        this.unwrapAddressPayload(response.data) as never
+      ) as ShippingAddress | undefined;
       if (!normalizedAddress) {
         return response;
       }
@@ -101,6 +158,36 @@ export class ShippingAPI {
     }
 
     return response;
+  }
+
+  /**
+   * Get the authenticated user's shipping addresses, newest first.
+   * This endpoint is intentionally not cached: checkout must see an address
+   * created by the user's most recent order immediately.
+   */
+  async listAddresses(options?: RequestOptions): Promise<SazitoResponse<ShippingAddress[]>> {
+    const response = await this.http.get<unknown>(SHIPPING_ADDRESSES_API, {
+      ...options,
+      cache: options?.cache ?? false
+    });
+
+    if (response.error) {
+      return { error: response.error };
+    }
+
+    const addresses = this.extractAddressList(response.data)
+      .map((item) =>
+        transformShippingAddressResponse(
+          this.unwrapAddressPayload(item) as never
+        ) as ShippingAddress | undefined
+      )
+      .filter((address): address is ShippingAddress =>
+        // V2 lookups are identifier-driven and valid responses can have id=0.
+        Boolean(address?.identifier)
+      )
+      .sort((left, right) => right.id - left.id);
+
+    return { data: addresses };
   }
 
   /**
@@ -127,7 +214,9 @@ export class ShippingAPI {
     );
 
     if (response.data) {
-      const normalizedAddress = transformShippingAddressResponse(response.data) as ShippingAddress | undefined;
+      const normalizedAddress = transformShippingAddressResponse(
+        this.unwrapAddressPayload(response.data) as never
+      ) as ShippingAddress | undefined;
       if (!normalizedAddress) {
         return response;
       }

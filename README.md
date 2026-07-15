@@ -260,7 +260,7 @@ The client instance exposes:
 | `cart` | `get`, `create`, `addItem`, `addItemWithAttributes`, `updateItem`, `updateItemWithAttributes`, `removeItem`, `clearCart` |
 | `orders` | `list`, `get` |
 | `invoices` | `get`, `create`, `refresh`, `addShippingAddress`, `addDiscountCode`, `assignShippingMethod`, `addDetails`, `addForm`, `addCredit`, `removeCredit`, `toggleCredit`, `getApplicableShippingMethods`, `clearInvoice` |
-| `shipping` | `createAddress`, `updateAddress`, `getAddress`, `getMethods`, `clearAddress` |
+| `shipping` | `createAddress`, `updateAddress` (legacy), `listAddresses`, `getAddress`, `getMethods`, `clearAddress` |
 | `payments` | `getMethods`, `create`, `initialize`, `verify`, `processStep`, `processStepForm`, `pollUntilSettled`, `clearPayment` |
 | `users` | `login`, `requestMobileOTP`, `verifyMobileOTP`, `requestEmailLogin`, `register`, `getCurrentUser`, `updateProfile`, `requestMobilePhoneUpdate`, `verifyMobilePhoneUpdate`, `forgotPassword`, `revivePassword`, `mergeUser` |
 | `search` | `query` |
