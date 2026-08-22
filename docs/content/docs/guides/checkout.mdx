@@ -159,6 +159,96 @@ config={{
 }}
 ```
 
+### Reuse your application's design tokens
+
+Theme colors and `fontFamily` accept any valid CSS value, including references
+to variables already defined by the host application. This is the recommended
+way to connect checkout to an existing design system:
+
+```tsx
+<SazitoCheckoutPage
+  credentials={{ cart: { identifier: '<cart-identifier>' } }}
+  config={{
+    locale: 'fa',
+    theme: {
+      accent: 'var(--color-primary)',
+      accentForeground: 'var(--color-on-primary)',
+      accentSoft: 'var(--color-primary-soft)',
+      background: 'var(--color-background)',
+      foreground: 'var(--color-foreground)',
+      muted: 'var(--color-muted)',
+      mutedForeground: 'var(--color-muted-foreground)',
+      border: 'var(--color-border)',
+      card: 'var(--color-card)',
+      summaryBackground: 'var(--color-surface)',
+      danger: 'var(--color-danger)',
+      success: 'var(--color-success)',
+      fontFamily: 'var(--font-sans)',
+      radius: 12,
+    },
+  }}
+/>
+```
+
+CSS fallbacks work as usual—for example,
+`accent: 'var(--color-primary, #4f46e5)'`. The host variables must be defined
+on `:root` or another ancestor of the checkout. When a light/dark theme changes
+their values, checkout updates automatically without a React rerender:
+
+```css
+:root {
+  --color-primary: #6d28d9;
+  --color-on-primary: #ffffff;
+  --color-background: #ffffff;
+  --color-foreground: #18181b;
+  --color-card: #ffffff;
+  --color-border: #e4e4e7;
+}
+
+[data-theme='dark'] {
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-card: #111113;
+  --color-border: #27272a;
+}
+```
+
+### CSS-only token mapping
+
+For a stylesheet-driven integration, add a class to the checkout and map its
+native variables. Import these overrides after `@sazito/checkout/styles.css`:
+
+```tsx
+<SazitoCheckoutPage
+  className="store-checkout"
+  credentials={{ cart: { identifier: '<cart-identifier>' } }}
+/>
+```
+
+```css
+.szc-root.store-checkout {
+  --szc-accent: var(--color-primary);
+  --szc-accent-foreground: var(--color-on-primary);
+  --szc-bg: var(--color-background);
+  --szc-fg: var(--color-foreground);
+  --szc-muted: var(--color-muted);
+  --szc-muted-fg: var(--color-muted-foreground);
+  --szc-border: var(--color-border);
+  --szc-card: var(--color-card);
+  --szc-summary-bg: var(--color-surface);
+  --szc-danger: var(--color-danger);
+  --szc-success: var(--color-success);
+  --szc-font: var(--font-sans);
+  --szc-radius: var(--radius-lg);
+}
+```
+
+Do not set the same token through both approaches. Values supplied through
+`config.theme` are written as inline `--szc-*` properties and take precedence
+over ordinary stylesheet declarations. The CSS-only approach is also required
+when `radius` must reference a CSS variable, because `config.theme.radius`
+accepts a number in pixels.
+
 ## Payment gateway return
 
 When a gateway redirects back, render `SazitoCheckoutPage` with `paymentReturnParams`. The checkout auto-resolves the outcome and shows the result screen.

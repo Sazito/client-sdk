@@ -83,6 +83,40 @@ export default function Checkout() {
 The component **inherits the host font** (`--szc-font: inherit`). The demo app
 loads Vazirmatn on `<body>`; that's all it takes for a Persian/RTL checkout.
 
+Theme values may reference host application tokens directly. Changes to those
+tokens, including dark-mode changes, are reflected without rerendering:
+
+```tsx
+config={{
+  theme: {
+    accent: 'var(--color-primary)',
+    accentForeground: 'var(--color-on-primary)',
+    background: 'var(--color-background)',
+    foreground: 'var(--color-foreground)',
+    card: 'var(--color-card)',
+    border: 'var(--color-border)',
+    fontFamily: 'var(--font-sans)',
+  },
+}}
+```
+
+Alternatively, pass `className="store-checkout"` and map the native variables
+in CSS imported after the checkout stylesheet:
+
+```css
+.szc-root.store-checkout {
+  --szc-accent: var(--color-primary);
+  --szc-bg: var(--color-background);
+  --szc-fg: var(--color-foreground);
+  --szc-card: var(--color-card);
+  --szc-border: var(--color-border);
+  --szc-radius: var(--radius-lg);
+}
+```
+
+Avoid configuring the same token through both methods: `config.theme` writes
+inline variables and therefore wins over ordinary stylesheet declarations.
+
 ## Flow (v1 scope)
 
 4 states — `cart → shipping → payment → result`:
