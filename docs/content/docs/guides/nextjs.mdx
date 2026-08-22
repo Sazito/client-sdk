@@ -140,27 +140,47 @@ export default async function WalletPage() {
 ## 6. Drop-in checkout component
 
 For a complete cart-to-payment flow, use `SazitoCheckoutPage` on a dedicated
-client-facing route. Set up the shared `SazitoProvider` once, then pass the
-cart credentials to the component:
+client-facing route. Install the checkout package and its React peers:
+
+```bash
+pnpm add @sazito/client-sdk @sazito/checkout react@18 react-dom@18
+```
+
+Create a Client Component that initializes one SDK client, provides it to the
+checkout, and passes the cart credentials to the page:
 
 ```tsx
-// app/checkout/page.tsx
-import { SazitoCheckoutPage } from '@sazito/checkout/next';
+// app/checkout/checkout-client.tsx
+'use client';
 
-export default function CheckoutPage() {
+import { createSazitoClient } from '@sazito/client-sdk';
+import {
+  SazitoCheckoutPage,
+  SazitoProvider,
+} from '@sazito/checkout/next';
+
+const sazito = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
+
+export function CheckoutClient({ cartIdentifier }: { cartIdentifier: string }) {
   return (
-    <SazitoCheckoutPage
-      credentials={{ cart: { identifier: '<cart-identifier>' } }}
-      config={{
-        locale: 'fa',
-        continueShoppingUrl: '/',
-      }}
-    />
+    <SazitoProvider client={sazito}>
+      <SazitoCheckoutPage
+        credentials={{ cart: { identifier: cartIdentifier } }}
+        config={{
+          locale: 'fa',
+          continueShoppingUrl: '/',
+        }}
+      />
+    </SazitoProvider>
   );
 }
 ```
 
-Import `@sazito/checkout/styles.css` from the root layout, and see the
+Render `CheckoutClient` from the route after reading the cart identifier from
+your application state, cookie, or URL. Import `@sazito/checkout/styles.css`
+once from the root layout, and see the
 [Checkout guide](/docs/guides/checkout) for provider setup, theming, payment
 returns, and custom button rendering.
 

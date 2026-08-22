@@ -21,8 +21,18 @@ The payment step is the last interactive step: its CTA (**پایان خرید** 
 ## Installation
 
 ```bash
-pnpm add @sazito/checkout
+pnpm add @sazito/client-sdk @sazito/checkout react@18 react-dom@18
 ```
+
+The checkout package requires Node.js 18 or newer. It ships ESM and CommonJS
+builds, bundled TypeScript declarations, and four public entry points:
+
+| Entry point | Use case |
+|---|---|
+| `@sazito/checkout/core` | Framework-independent engine, state, actions, selectors, events, and formatters. |
+| `@sazito/checkout/react` | `CheckoutProvider`, `SazitoProvider`, and checkout hooks. |
+| `@sazito/checkout/next` | Drop-in checkout page, rendered UI, hooks, and customizable primitives. |
+| `@sazito/checkout/styles.css` | Self-contained RTL/LTR styles and theme variables. |
 
 Import the stylesheet once — typically in your root layout:
 
@@ -57,6 +67,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 With `SazitoProvider` in place, the checkout page only needs credentials and config:
 
 ```tsx
+'use client';
+
 import { SazitoCheckoutPage } from '@sazito/checkout/next';
 
 export default function CheckoutPage() {
@@ -77,12 +89,14 @@ export default function CheckoutPage() {
 
 ### `SazitoProvider`
 
-Wraps the app once. Accepts either `domain` (Next.js CORS-free path) or `client` (existing SDK client).
+Wraps the app once and exposes the existing SDK client to every checkout below
+it. Create the client with `createSazitoClient`; the provider does not create a
+client from a domain.
 
 | Prop | Type | Description |
 |---|---|---|
-| `domain` | `string` | Store domain. Checkout routes API calls through Next.js server actions. |
-| `client` | `unknown` | Pre-built `SazitoClient`. Used directly — no server action routing. |
+| `client` | `SazitoClient` | Required pre-built SDK client. Checkout reuses this client's credentials and configuration. |
+| `children` | `ReactNode` | Application or checkout subtree. |
 
 ### `SazitoCheckoutPage`
 
@@ -94,6 +108,7 @@ Wraps the app once. Accepts either `domain` (Next.js CORS-free path) or `client`
 | `className` | `string` | Extra class on the root element. |
 | `renderNextButton` | `(props: RenderButtonProps) => ReactNode` | Replace the continue / next button across all steps. |
 | `renderBackButton` | `(props: RenderButtonProps) => ReactNode` | Replace the back button across all steps. |
+| `renderEmptyCart` | `(props: RenderEmptyCartProps) => ReactNode` | Replace the empty-cart screen. Receives `continueShoppingUrl`. |
 
 ### `CheckoutCredentials`
 
@@ -211,6 +226,23 @@ The next button disables automatically — no configuration needed:
 | Cart | Cart is empty |
 | Shipping | Shipping rates loaded but no rate selected (skipped for digital-only orders) |
 | Payment | No payment methods available, or none selected |
+
+## Replacing the empty-cart screen
+
+Use `renderEmptyCart` when the storefront has its own empty-state component:
+
+```tsx
+<SazitoCheckoutPage
+  credentials={{ cart: { identifier: '<cart-identifier>' } }}
+  config={{ locale: 'fa', continueShoppingUrl: '/products' }}
+  renderEmptyCart={({ continueShoppingUrl }) => (
+    <EmptyCart
+      actionHref={continueShoppingUrl ?? '/products'}
+      actionLabel="Browse products"
+    />
+  )}
+/>
+```
 
 ## Replacing action buttons
 
@@ -362,14 +394,22 @@ export function DiscountWidget() {
 |---|---|---|
 | `step` | `CheckoutStep` | Active step: `cart \| shipping \| payment \| result` |
 | `status` | `CheckoutStatus` | Coarse engine status: `idle \| bootstrapping \| working \| redirecting \| polling \| error` |
+| `locale` | `'fa' \| 'en'` | Active label and number-formatting locale |
+| `direction` | `'rtl' \| 'ltr'` | Active layout direction |
 | `cart` | `Cart \| null` | Current cart |
 | `invoice` | `Invoice \| null` | Current invoice |
+| `regions` | `CheckoutRegion[]` | Regions and nested cities used by the address form |
 | `addressForm` | `AddressFormValues` | Live shipping address form values |
+| `postalCodeMandatory` | `boolean` | Whether shop settings require a postal code |
+| `emailMandatory` | `boolean` | Whether shop settings require an email address |
+| `addressDirty` | `boolean` | Whether the form differs from the saved invoice address |
+| `applicable` | `ApplicableShippingMethods \| null` | Raw invoice-specific shipping response |
 | `shippingGroups` | `ShippingGroup[]` | Grouped shipping rates for each item bundle |
 | `paymentMethods` | `PaymentMethod[]` | Available payment gateways |
 | `selectedPaymentMethodId` | `number \| null` | Selected gateway |
 | `discountCode` | `string` | Input value of the discount field |
 | `appliedDiscountCode` | `string \| null` | Successfully applied code |
+| `appliedDiscount` | `AppliedDiscount \| null` | Classified percentage, fixed-amount, or free-shipping discount and its savings |
 | `discountError` | `string \| null` | Inline error for the discount field (e.g. invalid code); cleared on edit/apply/remove |
 | `result` | `CheckoutResult \| null` | Post-payment result (`status`, `order`, `message`) |
 | `error` | `CheckoutError \| null` | Last error with `message`, `code`, `step` |
