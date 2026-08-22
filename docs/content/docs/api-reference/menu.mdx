@@ -29,6 +29,13 @@ Returns: `SazitoResponse<MenuItem[]>`.
 - Disabled entities are filtered out.
 - Nested nodes are recursively converted.
 - SDK normalizes multiple backend node types into one `MenuItem` shape.
+- When `details.isTitleDefault` is `true`, the SDK uses `entity.title` for
+  CMS/blog pages and `entity.name` for products/categories.
+- When `details.isTitleDefault` is `false`, the SDK prefers the custom
+  `details.title` or `details.name` and falls back to the entity label when the
+  custom value is empty.
+- URL nodes commonly omit `isTitleDefault`; their label comes from
+  `details.title` or `details.name`.
 
 ## Examples
 
@@ -266,4 +273,3 @@ Source: `src/types/menu.ts`
 | `details.includeChildren` | `boolean` | Optional |
 | `children` | `MenuNode[]` | Required |
 {/* AUTO_FIELDS_END */}
-

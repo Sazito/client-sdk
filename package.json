@@ -1,22 +1,25 @@
 {
   "name": "@sazito/client-sdk",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "packageManager": "pnpm@10.28.2",
   "description": "Official JavaScript/TypeScript SDK for Sazito e-commerce platform - Client Edition",
   "main": "dist/index.js",
-  "module": "dist/index.esm.js",
+  "module": "dist/index.mjs",
   "browser": "dist/index.umd.js",
   "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.esm.js",
-      "require": "./dist/index.js"
-    },
-    "./react": {
-      "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.esm.js",
-      "require": "./dist/react/index.js"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     }
   },
   "sideEffects": false,
@@ -51,7 +54,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sazito/client-sdk"
+    "url": "git+https://github.com/sazito/client-sdk.git"
   },
   "bugs": {
     "url": "https://github.com/sazito/client-sdk/issues"
@@ -65,18 +68,6 @@
     "README.md",
     "LICENSE"
   ],
-  "peerDependencies": {
-    "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
-    "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    },
-    "react-dom": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",

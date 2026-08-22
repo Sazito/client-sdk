@@ -71,25 +71,25 @@ export class MenuAPI {
    * Extract the display title for a menu node
    */
   private findNodeTitle(node: MenuNode): string {
-    const { entityType, details, entity } = node;
+    const { details, entity } = node;
+    const customTitle = this.firstNonEmpty(details?.title, details?.name);
+    const entityTitle = this.firstNonEmpty(entity?.title, entity?.name);
 
-    // If isTitleDefault is true, use entity name/title
-    // If isTitleDefault is false or undefined, use custom title from details
-    if (details && !details.isTitleDefault && details.title) {
-      // Custom title set by user
-      return details.title;
-    } else if (details && !details.isTitleDefault && details.name) {
-      // For entityType "url", use details.name
-      return details.name;
-    } else if (entityType === 'product_category' || entityType === 'product') {
-      // Use entity name for products/categories
-      return entity?.name || '';
-    } else if (entityType === 'cms_page' || entityType === 'blog_page') {
-      // Use entity name for CMS pages (not title!)
-      return entity?.name || '';
+    if (details?.isTitleDefault === true) {
+      return entityTitle || customTitle;
     }
 
-    return '';
+    if (details?.isTitleDefault === false) {
+      return customTitle || entityTitle;
+    }
+
+    // URL nodes commonly omit isTitleDefault. Prefer their details label, but
+    // retain the entity label as a fallback for inconsistent backend payloads.
+    return customTitle || entityTitle;
+  }
+
+  private firstNonEmpty(...values: Array<string | undefined>): string {
+    return values.find(value => typeof value === 'string' && value.trim().length > 0) || '';
   }
 
   /**
