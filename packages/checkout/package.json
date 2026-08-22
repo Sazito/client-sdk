@@ -3,44 +3,95 @@
   "version": "0.1.0",
   "description": "Headless checkout engine + React UI for the Sazito platform, powered by @sazito/client-sdk",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sazito/client-sdk.git",
+    "directory": "packages/checkout"
+  },
+  "bugs": {
+    "url": "https://github.com/sazito/client-sdk/issues"
+  },
+  "homepage": "https://github.com/sazito/client-sdk/tree/main/packages/checkout#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": [
     "*.css"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "exports": {
     "./core": {
-      "types": "./src/core/index.ts",
-      "default": "./src/core/index.ts"
+      "import": {
+        "types": "./dist/core/index.d.ts",
+        "default": "./dist/core/index.js"
+      },
+      "require": {
+        "types": "./dist/core/index.d.cts",
+        "default": "./dist/core/index.cjs"
+      },
+      "default": "./dist/core/index.js"
     },
     "./react": {
-      "types": "./src/react/index.ts",
-      "default": "./src/react/index.ts"
+      "import": {
+        "types": "./dist/react/index.d.ts",
+        "default": "./dist/react/index.js"
+      },
+      "require": {
+        "types": "./dist/react/index.d.cts",
+        "default": "./dist/react/index.cjs"
+      },
+      "default": "./dist/react/index.js"
     },
     "./next": {
-      "types": "./src/next/index.ts",
-      "default": "./src/next/index.ts"
+      "import": {
+        "types": "./dist/next/index.d.ts",
+        "default": "./dist/next/index.js"
+      },
+      "require": {
+        "types": "./dist/next/index.d.cts",
+        "default": "./dist/next/index.cjs"
+      },
+      "default": "./dist/next/index.js"
     },
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./dist/styles.css"
+  },
+  "typesVersions": {
+    "*": {
+      "core": ["dist/core/index.d.ts"],
+      "react": ["dist/react/index.d.ts"],
+      "next": ["dist/next/index.d.ts"]
+    }
   },
   "files": [
-    "src",
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && rollup -c && node -e \"require('fs').copyFileSync('src/styles.css','dist/styles.css')\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "release:check": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "prepublishOnly": "pnpm run release:check"
   },
   "peerDependencies": {
-    "@sazito/client-sdk": "*",
-    "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
+    "@sazito/client-sdk": "^1.2.3",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
   },
   "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
     "@sazito/client-sdk": "workspace:*",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "^18.2.42",
+    "@types/react-dom": "^18.2.17",
+    "rollup": "^4.6.1",
+    "rollup-plugin-dts": "^6.1.0",
+    "tslib": "^2.6.2",
     "typescript": "^5.3.2",
     "vitest": "^2.1.8"
   }

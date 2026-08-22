@@ -3,6 +3,12 @@
 Headless checkout engine + React/Next UI for the Sazito platform, powered by
 `@sazito/client-sdk`. RTL-first (fa) with en support.
 
+## Installation
+
+```bash
+pnpm add @sazito/client-sdk @sazito/checkout react@18 react-dom@18
+```
+
 ## Architecture
 
 ```

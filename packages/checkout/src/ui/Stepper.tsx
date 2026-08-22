@@ -1,11 +1,12 @@
 'use client';
 
+import type { ReactElement } from 'react';
 import { useCheckout } from '../react';
 import type { CheckoutStep } from '../core';
 
 const STEPS: CheckoutStep[] = ['cart', 'shipping', 'payment', 'result'];
 
-const STEP_ICONS: Record<CheckoutStep, () => JSX.Element> = {
+const STEP_ICONS: Record<CheckoutStep, () => ReactElement> = {
   cart: CartIcon,
   shipping: TruckIcon,
   payment: CardIcon,
