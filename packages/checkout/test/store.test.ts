@@ -18,4 +18,19 @@ describe('createStore', () => {
     store.setState({ a: 0 });
     expect(listener).toHaveBeenCalledTimes(2);
   });
+
+  it('publishes one notification for an async batch', async () => {
+    const store = createStore({ a: 1, b: 2 });
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    await store.batch(async () => {
+      store.setState({ a: 10 });
+      await Promise.resolve();
+      store.setState({ b: 20 });
+    });
+
+    expect(store.getState()).toEqual({ a: 10, b: 20 });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
 });

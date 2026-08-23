@@ -152,6 +152,20 @@ describe('checkout engine — happy path', () => {
     expect(state.error).toBeNull();
   });
 
+  it('publishes bootstrap atomically and ignores duplicate starts', async () => {
+    const { engine, client } = setup();
+    const listener = vi.fn();
+    engine.subscribe(listener);
+
+    await Promise.all([engine.actions.start(), engine.actions.start()]);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(client.cart.get).toHaveBeenCalledTimes(1);
+    expect(client.invoices.create).toHaveBeenCalledTimes(1);
+    expect(client.regions.list).toHaveBeenCalledTimes(1);
+    expect(client.general.getInfo).toHaveBeenCalledTimes(1);
+  });
+
   it('seeds credentials on the injected SDK client manager', async () => {
     const credentials = new CredentialsManager(new MemoryStorage());
     const client = {

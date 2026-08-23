@@ -96,6 +96,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
 
   let effectExecutor: CheckoutEffectExecutor = noopEffectExecutor;
   let lock: Promise<unknown> = Promise.resolve();
+  let startPromise: Promise<void> | null = null;
   let addressRevision = 0;
   let addressAutoSubmitTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -418,51 +419,59 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
 
   const actions: CheckoutActions = {
     async start() {
-      await withLock(async () => {
-        setFlag('bootstrapping', true);
-        set({ status: 'bootstrapping', error: null });
+      if (!startPromise) {
+        startPromise = store.batch(() => withLock(async () => {
+          setFlag('bootstrapping', true);
+          set({ status: 'bootstrapping', error: null });
 
-        const [cartOk, , , invoiceOk] = await Promise.all([
-          loadCart(),
-          loadRegions(),
-          loadGeneralInfo(),
-          ensureInvoice()
-        ]);
-        setFlag('bootstrapping', false);
-        if (!cartOk || !invoiceOk) {
-          return;
-        }
-
-        const invoice = get().invoice;
-        const hasInvoiceAddress = isUsableSavedAddress(invoice?.shippingAddress);
-        let rawForm = addressFormFromInvoice(invoice);
-        let savedCityName = invoice?.shippingAddress?.region?.city?.name;
-        // Fresh invoices carry no address. Authenticated users get their latest
-        // account address; guests get the address persisted by SDK credentials.
-        if (!hasInvoiceAddress) {
-          const saved = await loadSavedAddress();
-          if (saved) {
-            rawForm = addressFormFromSavedAddress(saved);
-            savedCityName = savedAddressCityName(saved);
+          const [cartOk, invoiceOk] = await Promise.all([
+            loadCart(),
+            ensureInvoice(),
+            loadRegions(),
+            loadGeneralInfo()
+          ]);
+          if (!cartOk || !invoiceOk) {
+            setFlag('bootstrapping', false);
+            return;
           }
-        }
-        // A code applied in an earlier session survives on the invoice — reflect
-        // it as applied (no before-invoice, so the type falls back to totals).
-        const savedCode = invoice?.discountCode?.toUpperCase();
-        set({
-          status: 'idle',
-          addressForm: reconcileAddressWithRegions(rawForm, get().regions, savedCityName),
-          addressDirty: !hasInvoiceAddress,
-          ...(savedCode && invoice
-            ? {
-                appliedDiscountCode: savedCode,
-                appliedDiscount: classifyAppliedDiscount(null, invoice, savedCode)
-              }
-            : {})
-        });
-        emit('checkout_viewed', { step: 'cart' });
-        emit('step_viewed', { step: 'cart' });
-      });
+
+          const invoice = get().invoice;
+          const hasInvoiceAddress = isUsableSavedAddress(invoice?.shippingAddress);
+          let rawForm = addressFormFromInvoice(invoice);
+          let savedCityName = invoice?.shippingAddress?.region?.city?.name;
+          // Fresh invoices carry no address. Authenticated users get their latest
+          // account address; guests get the address persisted by SDK credentials.
+          if (!hasInvoiceAddress) {
+            const saved = await loadSavedAddress();
+            if (saved) {
+              rawForm = addressFormFromSavedAddress(saved);
+              savedCityName = savedAddressCityName(saved);
+            }
+          }
+          // A code applied in an earlier session survives on the invoice — reflect
+          // it as applied (no before-invoice, so the type falls back to totals).
+          const savedCode = invoice?.discountCode?.toUpperCase();
+          setFlag('bootstrapping', false);
+          set({
+            status: 'idle',
+            addressForm: reconcileAddressWithRegions(rawForm, get().regions, savedCityName),
+            addressDirty: !hasInvoiceAddress,
+            ...(savedCode && invoice
+              ? {
+                  appliedDiscountCode: savedCode,
+                  appliedDiscount: classifyAppliedDiscount(null, invoice, savedCode)
+                }
+              : {})
+          });
+          emit('checkout_viewed', { step: 'cart' });
+          emit('step_viewed', { step: 'cart' });
+        }));
+      }
+
+      await startPromise;
+      if (get().error) {
+        startPromise = null;
+      }
     },
 
     goToStep,

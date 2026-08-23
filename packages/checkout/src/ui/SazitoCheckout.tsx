@@ -3,7 +3,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useCheckout } from '../react';
 import { formatNumber, type CheckoutTheme } from '../core';
-import { Button, ErrorBanner } from './primitives';
+import { Button, ErrorBanner, Spinner } from './primitives';
 import { Stepper, CartIcon, TruckIcon, CardIcon, ClipboardIcon } from './Stepper';
 import { OrderSummary } from './OrderSummary';
 import { CartStep } from './steps/CartStep';
@@ -59,49 +59,11 @@ function themeVars(theme?: CheckoutTheme): CSSProperties {
   return vars as CSSProperties;
 }
 
-function CheckoutSkeleton({ label }: { label: string }) {
+function CheckoutLoading({ label }: { label: string }) {
   return (
-    <div className="szc-layout szc-skeleton-layout" role="status" aria-label={label}>
-      <main className="szc-main" aria-hidden="true">
-        <div className="szc-skeleton-cart-row">
-          <span className="szc-skeleton szc-skeleton--thumb" />
-          <div className="szc-skeleton-copy">
-            <span className="szc-skeleton szc-skeleton--title" />
-            <span className="szc-skeleton szc-skeleton--text" />
-            <span className="szc-skeleton szc-skeleton--price" />
-          </div>
-          <span className="szc-skeleton szc-skeleton--counter" />
-        </div>
-        <div className="szc-skeleton-cart-row">
-          <span className="szc-skeleton szc-skeleton--thumb" />
-          <div className="szc-skeleton-copy">
-            <span className="szc-skeleton szc-skeleton--title" />
-            <span className="szc-skeleton szc-skeleton--text" />
-            <span className="szc-skeleton szc-skeleton--price" />
-          </div>
-          <span className="szc-skeleton szc-skeleton--counter" />
-        </div>
-      </main>
-
-      <div className="szc-side" aria-hidden="true">
-        <aside className="szc-summary szc-summary--skeleton">
-          <div className="szc-summary__total-head">
-            <span className="szc-skeleton szc-skeleton--summary-label" />
-            <span className="szc-skeleton szc-skeleton--summary-total" />
-          </div>
-          <div className="szc-skeleton-summary-lines">
-            <div><span className="szc-skeleton" /><span className="szc-skeleton" /></div>
-            <div><span className="szc-skeleton" /><span className="szc-skeleton" /></div>
-          </div>
-          <div className="szc-skeleton-summary-grand">
-            <span className="szc-skeleton" />
-            <span className="szc-skeleton" />
-          </div>
-        </aside>
-        <div className="szc-side__cta">
-          <span className="szc-skeleton szc-skeleton--button" />
-        </div>
-      </div>
+    <div className="szc-checkout-loading" role="status" aria-live="polite">
+      <Spinner className="szc-checkout-loading__spinner" />
+      <span>{label}</span>
     </div>
   );
 }
@@ -302,7 +264,7 @@ export function SazitoCheckout({
       <Stepper />
 
       {bootstrapping ? (
-        <CheckoutSkeleton label={t.loading} />
+        <CheckoutLoading label={t.loading} />
       ) : fatal ? (
         <ErrorBanner message={error.message} />
       ) : isResult ? (
