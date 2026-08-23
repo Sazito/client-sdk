@@ -153,6 +153,10 @@ config={{
     summaryBackground: '#f8fafc', // order-summary sidebar background
     danger: '#ef4444',           // error and destructive states
     success: '#22c55e',          // success and completed states
+    successForeground: '#ffffff', // content on solid success surfaces
+    logoBackground: '#ffffff',   // plate behind shipping-provider logos
+    shippingNeutral: '#f1f5f9', // fallback surface for white shipping colors
+    shippingNeutralForeground: '#475569', // content on that neutral surface
     radius: 12,                  // base border-radius in px (scaled per element)
     fontFamily: 'inherit',       // font — defaults to host page font
   },
@@ -183,6 +187,10 @@ way to connect checkout to an existing design system:
       summaryBackground: 'var(--color-surface)',
       danger: 'var(--color-danger)',
       success: 'var(--color-success)',
+      successForeground: 'var(--color-on-success)',
+      logoBackground: 'var(--color-logo-plate)',
+      shippingNeutral: 'var(--color-muted)',
+      shippingNeutralForeground: 'var(--color-muted-foreground)',
       fontFamily: 'var(--font-sans)',
       radius: 12,
     },

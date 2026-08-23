@@ -120,6 +120,14 @@ export interface CheckoutTheme {
   danger?: string;
   /** Success and completed-state color. */
   success?: string;
+  /** Foreground used on top of solid success surfaces. */
+  successForeground?: string;
+  /** Background plate behind carrier and shipping-method logos. */
+  logoBackground?: string;
+  /** Neutral surface used when a shipping color is white or near-white. */
+  shippingNeutral?: string;
+  /** Foreground used on the neutral shipping surface. */
+  shippingNeutralForeground?: string;
   /** Base corner radius in px. */
   radius?: number;
   /** Font family. Defaults to `inherit` so the host font flows through. */

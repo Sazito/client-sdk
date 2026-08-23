@@ -77,6 +77,10 @@ export default function Checkout() {
 | `summaryBackground` | `--szc-summary-bg` | Summary sidebar |
 | `danger` | `--szc-danger` | Errors and destructive states |
 | `success` | `--szc-success` | Completed and success states |
+| `successForeground` | `--szc-success-foreground` | Text/icons on solid success surfaces |
+| `logoBackground` | `--szc-logo-bg` | Plate behind shipping-provider logos |
+| `shippingNeutral` | `--szc-shipping-neutral` | Neutral surface for white shipping colors |
+| `shippingNeutralForeground` | `--szc-shipping-neutral-foreground` | Foreground on the neutral shipping surface |
 
 `radius` and `fontFamily` remain available for shape and typography. Shipping-rate icon colors continue to come from the shipping API.
 

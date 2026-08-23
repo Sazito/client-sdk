@@ -639,8 +639,8 @@ function shippingRateIconStyle(color?: string): CSSProperties | undefined {
   // the card. Render a neutral chip with a slate glyph instead.
   if (luminance > 0.9) {
     return {
-      '--szc-rate-color': '#eef0f5',
-      '--szc-rate-foreground': '#475569'
+      '--szc-rate-color': 'var(--szc-shipping-neutral)',
+      '--szc-rate-foreground': 'var(--szc-shipping-neutral-foreground)'
     } as CSSProperties;
   }
 

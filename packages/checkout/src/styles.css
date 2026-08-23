@@ -5,7 +5,6 @@
 .szc-root {
   --szc-accent: #4f46e5;
   --szc-accent-foreground: #ffffff;
-  --szc-accent-soft: color-mix(in srgb, var(--szc-accent) 10%, #ffffff);
   --szc-radius: 16px;
   --szc-font: inherit;
 
@@ -18,6 +17,11 @@
   --szc-summary-bg: #f6f6fb;
   --szc-danger: #dc2626;
   --szc-success: #16a34a;
+  --szc-success-foreground: #ffffff;
+  --szc-logo-bg: #ffffff;
+  --szc-shipping-neutral: #eef0f5;
+  --szc-shipping-neutral-foreground: #475569;
+  --szc-accent-soft: color-mix(in srgb, var(--szc-accent) 10%, var(--szc-card));
 
   font-family: var(--szc-font);
   color: var(--szc-fg);
@@ -161,7 +165,7 @@
 }
 .szc-step--done .szc-step__dot {
   background: var(--szc-success);
-  color: #fff;
+  color: var(--szc-success-foreground);
 }
 /* The mobile header replaces the stepper on small screens. Must come after
    the base .szc-stepper rule — same specificity, source order decides. */
@@ -425,15 +429,15 @@
   line-height: 1.7;
 }
 .szc-input--error {
-  border-color: #ef4444;
+  border-color: var(--szc-danger);
 }
 .szc-input--error:focus {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #ef4444 18%, transparent);
+  border-color: var(--szc-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--szc-danger) 18%, transparent);
 }
 .szc-field__error {
   font-size: 11.5px;
-  color: #ef4444;
+  color: var(--szc-danger);
 }
 .szc-select-wrap {
   position: relative;
@@ -506,7 +510,7 @@
   color: var(--szc-accent-foreground);
 }
 .szc-btn--primary:not(:disabled):hover {
-  background: color-mix(in srgb, var(--szc-accent) 88%, #000);
+  background: color-mix(in srgb, var(--szc-accent) 88%, var(--szc-fg));
 }
 .szc-btn--primary:disabled:not([aria-busy='true']) {
   background: color-mix(in srgb, var(--szc-border) 60%, var(--szc-card));
@@ -578,7 +582,6 @@
   gap: 6px;
   padding-block: 9px;
   padding-inline: 12px 16px;
-  border-radius: 999px;
 }
 .szc-back-btn:not(:disabled):hover {
   background: var(--szc-muted);
@@ -689,10 +692,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ffffff;
+  background: var(--szc-card);
   border: 1px solid color-mix(in srgb, var(--szc-border) 85%, var(--szc-muted-fg));
   color: color-mix(in srgb, var(--szc-muted-fg) 78%, var(--szc-accent));
-  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--szc-fg) 3%, transparent);
 }
 .szc-cart-row__thumb {
   object-fit: cover;
@@ -730,7 +733,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid color-mix(in srgb, var(--szc-fg) 15%, transparent);
   flex-shrink: 0;
 }
 .szc-cart-row__price {
@@ -762,7 +765,7 @@
   background: var(--szc-card);
   border: 1px solid var(--szc-border);
   border-radius: 9px;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--szc-fg) 4%, transparent);
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .szc-qty:focus-within {
@@ -844,8 +847,8 @@
   transition: background 0.13s, color 0.13s;
 }
 .szc-cart-row__remove:not(:disabled):hover {
-  background: color-mix(in srgb, #ef4444 12%, transparent);
-  color: #ef4444;
+  background: color-mix(in srgb, var(--szc-danger) 12%, transparent);
+  color: var(--szc-danger);
 }
 .szc-cart-row__remove:disabled {
   opacity: 0.35;
@@ -974,7 +977,7 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--szc-rate-foreground, var(--szc-accent)) 14%, transparent);
 }
 .szc-ship-group__mark:has(img) {
-  background: #fff;
+  background: var(--szc-logo-bg);
   color: inherit;
   box-shadow: inset 0 0 0 1px var(--szc-border);
 }
@@ -1177,9 +1180,9 @@
 .szc-rate--selected .szc-rate__icon {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--szc-rate-foreground, var(--szc-accent)) 24%, transparent);
 }
-/* Image/logo icons render on a clean white plate so brand artwork stays true. */
+/* Image/logo icons render on a configurable clean plate so brand artwork stays true. */
 .szc-rate__icon:has(img) {
-  background: #fff;
+  background: var(--szc-logo-bg);
   color: inherit;
   box-shadow: inset 0 0 0 1px var(--szc-border);
 }
@@ -1386,7 +1389,7 @@
 }
 .szc-pay--selected .szc-pay__icon {
   background: var(--szc-accent);
-  color: #fff;
+  color: var(--szc-accent-foreground);
 }
 .szc-pay__body {
   display: flex;
@@ -1435,7 +1438,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12.5px;
-  color: #ef4444;
+  color: var(--szc-danger);
   margin: 0;
 }
 .szc-discount__error svg {
@@ -1704,9 +1707,9 @@
 .szc-error {
   padding: 12px 14px;
   border-radius: calc(var(--szc-radius) * 0.6);
-  background: color-mix(in srgb, var(--szc-danger) 10%, #fff);
+  background: color-mix(in srgb, var(--szc-danger) 10%, var(--szc-card));
   color: var(--szc-danger);
-  border: 1px solid color-mix(in srgb, var(--szc-danger) 30%, #fff);
+  border: 1px solid color-mix(in srgb, var(--szc-danger) 30%, var(--szc-card));
   font-size: 13.5px;
 }
 /* ---- checkout skeleton --------------------------------------------- */

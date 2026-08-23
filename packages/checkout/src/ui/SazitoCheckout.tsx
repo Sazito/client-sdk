@@ -50,6 +50,10 @@ function themeVars(theme?: CheckoutTheme): CSSProperties {
   if (theme?.summaryBackground) vars['--szc-summary-bg'] = theme.summaryBackground;
   if (theme?.danger) vars['--szc-danger'] = theme.danger;
   if (theme?.success) vars['--szc-success'] = theme.success;
+  if (theme?.successForeground) vars['--szc-success-foreground'] = theme.successForeground;
+  if (theme?.logoBackground) vars['--szc-logo-bg'] = theme.logoBackground;
+  if (theme?.shippingNeutral) vars['--szc-shipping-neutral'] = theme.shippingNeutral;
+  if (theme?.shippingNeutralForeground) vars['--szc-shipping-neutral-foreground'] = theme.shippingNeutralForeground;
   if (theme?.radius != null) vars['--szc-radius'] = `${theme.radius}px`;
   if (theme?.fontFamily) vars['--szc-font'] = theme.fontFamily;
   return vars as CSSProperties;
