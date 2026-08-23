@@ -1,11 +1,13 @@
 'use client';
 
-export { SazitoCheckoutPage, type SazitoCheckoutPageProps, type RenderEmptyCartProps as RenderEmptyCartPageProps } from './SazitoCheckoutPage';
+export { SazitoCheckoutPage, type SazitoCheckoutPageProps } from './SazitoCheckoutPage';
 export {
   SazitoCheckout,
   type SazitoCheckoutProps,
   type RenderButtonProps,
   type RenderEmptyCartProps,
+  type RenderEmptyCartProps as RenderEmptyCartPageProps,
+  type EmptyCartOptions,
   Button,
   type ButtonProps,
   Field,

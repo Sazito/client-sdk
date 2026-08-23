@@ -87,6 +87,9 @@ export function fromSdkError(
   step?: CheckoutStep
 ): CheckoutError {
   const code =
+    (error.status === 404 && step === 'cart' ? 'no_cart' : undefined) ??
+    (error.status === 404 && step === 'shipping' ? 'no_invoice' : undefined) ??
+    (error.type === 'validation' && step === 'cart' ? 'no_cart' : undefined) ??
     codeForStatus(error.status) ??
     (error.type === 'network' ? 'network' : error.type === 'validation' ? 'validation' : 'unknown');
 

@@ -3,12 +3,13 @@
 import { useEffect } from 'react';
 import type React from 'react';
 import { CheckoutProvider, useCheckout, useSazitoClient } from '../react';
-import { SazitoCheckout, type RenderButtonProps } from '../ui';
+import {
+  SazitoCheckout,
+  type EmptyCartOptions,
+  type RenderButtonProps,
+  type RenderEmptyCartProps,
+} from '../ui';
 import type { CheckoutConfig, CheckoutCredentials } from '../core';
-
-export interface RenderEmptyCartProps {
-  continueShoppingUrl?: string;
-}
 
 export interface SazitoCheckoutPageProps {
   credentials?: CheckoutCredentials;
@@ -18,6 +19,7 @@ export interface SazitoCheckoutPageProps {
   renderNextButton?: (props: RenderButtonProps) => React.ReactNode;
   renderBackButton?: (props: RenderButtonProps) => React.ReactNode;
   renderEmptyCart?: (props: RenderEmptyCartProps) => React.ReactNode;
+  emptyCart?: EmptyCartOptions;
 }
 
 export function SazitoCheckoutPage({
@@ -28,6 +30,7 @@ export function SazitoCheckoutPage({
   renderNextButton,
   renderBackButton,
   renderEmptyCart,
+  emptyCart,
 }: SazitoCheckoutPageProps) {
   const isReturn = paymentReturnParams != null;
   const client = useSazitoClient();
@@ -47,6 +50,7 @@ export function SazitoCheckoutPage({
         renderNextButton={renderNextButton}
         renderBackButton={renderBackButton}
         renderEmptyCart={renderEmptyCart}
+        emptyCart={emptyCart}
       />
     </CheckoutProvider>
   );

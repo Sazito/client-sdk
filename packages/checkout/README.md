@@ -121,6 +121,22 @@ in CSS imported after the checkout stylesheet:
 Avoid configuring the same token through both methods: `config.theme` writes
 inline variables and therefore wins over ordinary stylesheet declarations.
 
+The built-in empty-cart screen can be customized without replacing its layout:
+
+```tsx
+<SazitoCheckoutPage
+  config={{ continueShoppingUrl: '/products' }}
+  emptyCart={{
+    title: 'Nothing here yet',
+    description: 'Explore the collection and add something you love.',
+    actionLabel: 'Browse products',
+  }}
+/>
+```
+
+For complete control, use `renderEmptyCart`; it receives the resolved title,
+description, action label, icon, and continue-shopping URL.
+
 ## Flow (v1 scope)
 
 4 states — `cart → shipping → payment → result`:

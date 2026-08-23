@@ -228,75 +228,76 @@
   font-size: 13px;
 }
 .szc-empty {
-  margin-block: 4px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 320px;
 }
 .szc-empty__card {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 14px;
-  padding: 36px 28px 32px;
-  border: 1px solid var(--szc-border);
-  border-radius: calc(var(--szc-radius) * 1.2);
-  background: var(--szc-card);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--szc-fg) 5%, transparent);
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+  padding: 48px 24px;
 }
 .szc-empty__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 72px;
-  height: 72px;
-  border-radius: calc(var(--szc-radius) * 1.15);
+  width: 52px;
+  height: 52px;
+  border-radius: calc(var(--szc-radius) * 0.75);
   color: var(--szc-accent);
   background: var(--szc-accent-soft);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--szc-accent) 18%, transparent),
-    0 4px 16px color-mix(in srgb, var(--szc-accent) 12%, transparent);
 }
 .szc-empty__badge svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 .szc-empty__copy {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
+  max-width: 400px;
 }
 .szc-empty__title {
   margin: 0;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.45;
   letter-spacing: -0.015em;
   color: var(--szc-fg);
 }
 .szc-empty__hint {
   margin: 0;
+  max-width: 40ch;
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.7;
   color: var(--szc-muted-fg);
 }
 .szc-empty__cta {
   flex: none;
   white-space: nowrap;
-  min-width: 180px;
-  padding-inline: 28px;
+  min-width: 168px;
+  margin-block-start: 2px;
+  padding-inline: 24px;
+  text-decoration: none;
 }
 @media (max-width: 560px) {
-  .szc-empty__card {
-    padding: 40px 20px 36px;
-    gap: 16px;
+  .szc-empty {
+    min-height: 280px;
   }
-  .szc-empty__badge {
-    width: 76px;
-    height: 76px;
+  .szc-empty__card {
+    padding: 36px 16px;
   }
   .szc-empty__cta {
-    width: 100%;
+    min-width: 160px;
   }
 }
 

@@ -108,7 +108,8 @@ client from a domain.
 | `className` | `string` | Extra class on the root element. |
 | `renderNextButton` | `(props: RenderButtonProps) => ReactNode` | Replace the continue / next button across all steps. |
 | `renderBackButton` | `(props: RenderButtonProps) => ReactNode` | Replace the back button across all steps. |
-| `renderEmptyCart` | `(props: RenderEmptyCartProps) => ReactNode` | Replace the empty-cart screen. Receives `continueShoppingUrl`. |
+| `emptyCart` | `EmptyCartOptions` | Customize the built-in empty state's title, description, icon, action label, or action URL. |
+| `renderEmptyCart` | `(props: RenderEmptyCartProps) => ReactNode` | Replace the empty-cart screen. Receives the resolved content and `continueShoppingUrl`. |
 
 ### `CheckoutCredentials`
 
@@ -327,16 +328,33 @@ The next button disables automatically — no configuration needed:
 
 ## Replacing the empty-cart screen
 
+For copy and icon changes, keep the responsive built-in layout and pass
+`emptyCart`:
+
+```tsx
+<SazitoCheckoutPage
+  config={{ locale: 'fa', continueShoppingUrl: '/products' }}
+  emptyCart={{
+    title: 'هنوز چیزی انتخاب نکرده‌اید',
+    description: 'محصولات فروشگاه را ببینید و انتخاب‌های خود را به سبد اضافه کنید.',
+    actionLabel: 'مشاهده محصولات',
+    icon: <MyBagIcon />,
+  }}
+/>
+```
+
 Use `renderEmptyCart` when the storefront has its own empty-state component:
 
 ```tsx
 <SazitoCheckoutPage
   credentials={{ cart: { identifier: '<cart-identifier>' } }}
   config={{ locale: 'fa', continueShoppingUrl: '/products' }}
-  renderEmptyCart={({ continueShoppingUrl }) => (
+  renderEmptyCart={({ continueShoppingUrl, title, description }) => (
     <EmptyCart
       actionHref={continueShoppingUrl ?? '/products'}
       actionLabel="Browse products"
+      title={title}
+      description={description}
     />
   )}
 />

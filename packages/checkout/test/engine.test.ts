@@ -139,6 +139,17 @@ function setup() {
 }
 
 describe('checkout engine — happy path', () => {
+  it('stops at the empty-cart state before creating an invoice when credentials are missing', async () => {
+    const client = makeMockClient();
+    const engine = createCheckoutEngine({ client, config: { locale: 'en' } });
+
+    await engine.actions.start();
+
+    expect(engine.getState().error?.code).toBe('no_cart');
+    expect(client.cart.get).not.toHaveBeenCalled();
+    expect(client.invoices.create).not.toHaveBeenCalled();
+  });
+
   it('bootstraps cart + invoice + regions', async () => {
     const { engine, client } = setup();
     await engine.actions.start();

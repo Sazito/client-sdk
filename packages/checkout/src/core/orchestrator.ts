@@ -424,12 +424,15 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           setFlag('bootstrapping', true);
           set({ status: 'bootstrapping', error: null });
 
-          const [cartOk, invoiceOk] = await Promise.all([
-            loadCart(),
-            ensureInvoice(),
-            loadRegions(),
-            loadGeneralInfo()
-          ]);
+          // Regions and shop settings are independent. Invoice creation is not:
+          // it must only run after the cart identifier has resolved to a real cart,
+          // otherwise its secondary "no cart" error can overwrite the useful
+          // empty-cart state from loadCart().
+          const cartPromise = loadCart();
+          const supportingDataPromise = Promise.all([loadRegions(), loadGeneralInfo()]);
+          const cartOk = await cartPromise;
+          const invoiceOk = cartOk ? await ensureInvoice() : false;
+          await supportingDataPromise;
           if (!cartOk || !invoiceOk) {
             setFlag('bootstrapping', false);
             return;

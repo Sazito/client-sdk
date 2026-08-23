@@ -25,6 +25,26 @@ export interface RenderButtonProps {
 
 export interface RenderEmptyCartProps {
   continueShoppingUrl?: string;
+  title: ReactNode;
+  description: ReactNode;
+  actionLabel: ReactNode;
+  icon: ReactNode;
+}
+
+/** Content-level customisation for the built-in empty-cart screen. */
+export interface EmptyCartOptions {
+  /** Empty-state heading. Defaults to the active locale. */
+  title?: ReactNode;
+  /** Supporting copy below the heading. Defaults to the active locale. */
+  description?: ReactNode;
+  /** Label for the back-to-store action. Defaults to the active locale. */
+  actionLabel?: ReactNode;
+  /** Replace the built-in cart illustration. */
+  icon?: ReactNode;
+  /** Override config.continueShoppingUrl for this action only. */
+  actionUrl?: string;
+  /** Hide the action even when a continue-shopping URL is configured. */
+  hideAction?: boolean;
 }
 
 export interface SazitoCheckoutProps {
@@ -34,6 +54,7 @@ export interface SazitoCheckoutProps {
   renderNextButton?: (props: RenderButtonProps) => ReactNode;
   renderBackButton?: (props: RenderButtonProps) => ReactNode;
   renderEmptyCart?: (props: RenderEmptyCartProps) => ReactNode;
+  emptyCart?: EmptyCartOptions;
 }
 
 function themeVars(theme?: CheckoutTheme): CSSProperties {
@@ -75,6 +96,7 @@ export function SazitoCheckout({
   renderNextButton,
   renderBackButton,
   renderEmptyCart,
+  emptyCart,
 }: SazitoCheckoutProps) {
   const { state, actions, t, summary, money } = useCheckout();
   const { step, direction, flags, error } = state;
@@ -82,7 +104,8 @@ export function SazitoCheckout({
   const isResult = step === 'result';
   const bootstrapping =
     step === 'cart' && !error && (!state.cart || !state.invoice || flags.bootstrapping);
-  const fatal = error && !state.cart && step === 'cart';
+  const emptyCartError = error?.code === 'no_cart';
+  const fatal = error && !state.cart && step === 'cart' && !emptyCartError;
 
   const cartEmpty = !state.cart || state.cart.items.length === 0;
   const footerVisible =
@@ -275,9 +298,15 @@ export function SazitoCheckout({
         <>
           <div className={`szc-layout${cartEmpty ? ' szc-layout--full' : ''}`}>
             <main className="szc-main">
-              {error ? <ErrorBanner message={error.message} /> : null}
+              {error && !emptyCartError ? <ErrorBanner message={error.message} /> : null}
 
-              {step === 'cart' ? <CartStep continueShoppingUrl={continueShoppingUrl} renderEmpty={renderEmptyCart} /> : null}
+              {step === 'cart' ? (
+                <CartStep
+                  continueShoppingUrl={continueShoppingUrl}
+                  emptyCart={emptyCart}
+                  renderEmpty={renderEmptyCart}
+                />
+              ) : null}
               {step === 'shipping' ? <ShippingStep /> : null}
               {step === 'payment' ? <PaymentStep /> : null}
 

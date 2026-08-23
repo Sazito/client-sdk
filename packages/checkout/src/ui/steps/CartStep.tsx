@@ -6,6 +6,7 @@ import { useCheckout } from '../../react';
 import { sortCartItemsNewestFirst, toPersianDigits } from '../../core';
 import { Button, ProductPlaceholder } from '../primitives';
 import { CartIcon } from '../Stepper';
+import type { EmptyCartOptions, RenderEmptyCartProps } from '../SazitoCheckout';
 
 const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
@@ -45,10 +46,12 @@ function attrHexColor(value: unknown): string | null {
 
 export function CartStep({
   continueShoppingUrl,
+  emptyCart,
   renderEmpty,
 }: {
   continueShoppingUrl?: string;
-  renderEmpty?: (props: { continueShoppingUrl?: string }) => React.ReactNode;
+  emptyCart?: EmptyCartOptions;
+  renderEmpty?: (props: RenderEmptyCartProps) => React.ReactNode;
 }) {
   const { state, actions, money, t } = useCheckout();
   const cart = state.cart;
@@ -62,27 +65,34 @@ export function CartStep({
   );
 
   if (!cart || cart.items.length === 0) {
+    const title = emptyCart?.title ?? t.cartEmpty;
+    const description = emptyCart?.description ?? t.cartEmptyHint;
+    const actionLabel = emptyCart?.actionLabel ?? t.continueShopping;
+    const actionUrl = emptyCart?.actionUrl ?? continueShoppingUrl;
+    const visibleActionUrl = emptyCart?.hideAction ? undefined : actionUrl;
+    const icon = emptyCart?.icon ?? <CartIcon />;
+
     if (renderEmpty) {
-      return renderEmpty({ continueShoppingUrl });
+      return renderEmpty({
+        continueShoppingUrl: visibleActionUrl,
+        title,
+        description,
+        actionLabel,
+        icon,
+      });
     }
 
     return (
       <section className="szc-empty" role="status" aria-live="polite">
         <div className="szc-empty__card">
-          <span className="szc-empty__badge">
-            <CartIcon />
-          </span>
+          <span className="szc-empty__badge" aria-hidden="true">{icon}</span>
           <div className="szc-empty__copy">
-            <h3 className="szc-empty__title">{t.cartEmpty}</h3>
-            <p className="szc-empty__hint">{t.cartEmptyHint}</p>
+            <h2 className="szc-empty__title">{title}</h2>
+            <p className="szc-empty__hint">{description}</p>
           </div>
-          {continueShoppingUrl ? (
-            <Button
-              className="szc-empty__cta"
-              variant="primary"
-              onClick={() => { window.location.href = continueShoppingUrl; }}
-            >
-              {t.continueShopping}
+          {visibleActionUrl ? (
+            <Button className="szc-empty__cta" variant="primary" asChild>
+              <a href={visibleActionUrl}>{actionLabel}</a>
             </Button>
           ) : null}
         </div>
