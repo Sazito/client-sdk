@@ -1,6 +1,6 @@
 {
   "name": "@sazito/checkout",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Headless checkout engine + React UI for the Sazito platform, powered by @sazito/client-sdk",
   "license": "MIT",
   "repository": {
@@ -60,9 +60,15 @@
   },
   "typesVersions": {
     "*": {
-      "core": ["dist/core/index.d.ts"],
-      "react": ["dist/react/index.d.ts"],
-      "next": ["dist/next/index.d.ts"]
+      "core": [
+        "dist/core/index.d.ts"
+      ],
+      "react": [
+        "dist/react/index.d.ts"
+      ],
+      "next": [
+        "dist/next/index.d.ts"
+      ]
     }
   },
   "files": [
