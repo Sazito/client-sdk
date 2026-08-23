@@ -438,6 +438,22 @@ pnpm lint           # ESLint on src/
 pnpm validate       # typecheck + lint
 ```
 
+### Releases
+
+Run releases from a clean Git worktree. The release script checks npm authentication,
+validates each package, bumps its version, publishes it, creates a package-specific
+commit and tag, and pushes the resulting refs. When releasing both packages, the SDK
+is published before checkout.
+
+```bash
+pnpm release:checkout -- patch
+pnpm release:sdk -- patch
+pnpm release:all -- patch
+```
+
+Use `minor` or `major` instead of `patch` when needed. Pass `--no-push` to leave the
+release commits and tags local, or `--yes` to skip confirmation in CI.
+
 ## Fumadocs Documentation Site
 
 SDK docs are implemented as a separate Fumadocs app in `docs/`.

@@ -38,7 +38,10 @@
     "docs:typecheck": "pnpm --dir docs run types:check",
     "publish:patch": "npm version patch && npm publish",
     "publish:minor": "npm version minor && npm publish",
-    "publish:major": "npm version major && npm publish"
+    "publish:major": "npm version major && npm publish",
+    "release:sdk": "node scripts/release.mjs sdk",
+    "release:checkout": "node scripts/release.mjs checkout",
+    "release:all": "node scripts/release.mjs all"
   },
   "keywords": [
     "sazito",
