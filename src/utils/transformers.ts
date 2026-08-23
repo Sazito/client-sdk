@@ -971,6 +971,83 @@ export function transformInvoiceResponse<T = TransformObject>(response: Transfor
   } as T;
 }
 
+/** Normalize an order while preserving the public `invoice.invoiceItems` shape. */
+export function transformOrderResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T {
+  const order = transformApiResponse<TransformObject>(response);
+  if (!isPlainObject(order)) {
+    return {} as T;
+  }
+
+  if (!isPlainObject(order.invoice)) {
+    return order as T;
+  }
+
+  const invoice = transformInvoiceResponse<TransformObject>(order.invoice);
+  const { items, ...invoiceWithoutItems } = invoice;
+
+  return {
+    ...order,
+    invoice: {
+      ...invoiceWithoutItems,
+      invoiceItems: Array.isArray(items) ? items : []
+    }
+  } as T;
+}
+
+/** Normalize order collections and their pagination metadata. */
+export function transformOrdersListResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T {
+  const result = transformApiResponse<TransformObject>(response);
+  if (!isPlainObject(result)) {
+    return {} as T;
+  }
+
+  const orders = Array.isArray(result.orders)
+    ? result.orders.map((order) => transformOrderResponse<TransformObject>(order))
+    : [];
+  const pageNumber = toNumber(result.pageNumber ?? result.page);
+  const pageSize = toNumber(result.pageSize);
+  const totalCount = toNumber(result.totalCount ?? result.total) ?? orders.length;
+  const resultWithoutGenericPagination = removeKeys(result, ['page', 'total']);
+
+  return {
+    ...resultWithoutGenericPagination,
+    orders,
+    totalCount,
+    ...(pageNumber !== undefined ? { pageNumber } : {}),
+    ...(pageSize !== undefined ? { pageSize } : {})
+  } as T;
+}
+
+/** Normalize wallet transaction collections and their pagination metadata. */
+export function transformWalletTransactionsResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T {
+  const result = transformApiResponse<TransformObject>(response);
+  if (!isPlainObject(result)) {
+    return {} as T;
+  }
+
+  const transactions = Array.isArray(result.transactions)
+    ? result.transactions
+    : Array.isArray(result.walletTransactions)
+      ? result.walletTransactions
+      : [];
+  const pageNumber = toNumber(result.pageNumber ?? result.page);
+  const pageSize = toNumber(result.pageSize);
+  const totalCount = toNumber(result.totalCount ?? result.total);
+  const resultWithoutGenericPagination = removeKeys(result, [
+    'page',
+    'total',
+    'walletTransactions'
+  ]);
+
+  return {
+    ...resultWithoutGenericPagination,
+    transactions,
+    ...(pageNumber !== undefined ? { pageNumber } : {}),
+    ...(pageSize !== undefined ? { pageSize } : {}),
+    ...(totalCount !== undefined ? { totalCount } : {})
+  } as T;
+}
+
 export function transformShippingAddressResponse(data: RawShippingAddress): NormalizedShippingAddress | undefined {
   const normalized = normalizeShippingAddress(data);
   return normalized;

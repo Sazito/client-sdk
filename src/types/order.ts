@@ -17,6 +17,8 @@ export interface Order {
 
 export interface OrdersListResponse {
   orders: Order[];
+  pageNumber?: number;
+  pageSize?: number;
   totalCount: number;
   totalCountRaw: number;
   totalNotSeen: number;

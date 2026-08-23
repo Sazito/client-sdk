@@ -17,11 +17,11 @@ Use: `wallet.listTransactions(filters?, options?)`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `filters.page_number` | `number` | Optional | Page number (default `1`). |
-| `filters.page_size` | `number` | Optional | Page size (default `100`). |
+| `filters.pageNumber` | `number` | Optional | Page number (default `1`). |
+| `filters.pageSize` | `number` | Optional | Page size (default `20`). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-Returns: `SazitoResponse<{ transactions: WalletTransaction[] }>`.
+Returns: `SazitoResponse<WalletTransactionsResponse>`.
 
 ### Apply Credit
 
@@ -254,6 +254,8 @@ Source: `src/api/wallet.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
+| `pageNumber` | `number` | Optional |
+| `pageSize` | `number` | Optional |
 | `page_number` | `number` | Optional |
 | `page_size` | `number` | Optional |
 
@@ -264,6 +266,9 @@ Source: `src/api/wallet.ts`
 | Field | Type | Required |
 | --- | --- | --- |
 | `transactions` | `WalletTransaction[]` | Required |
+| `pageNumber` | `number` | Optional |
+| `pageSize` | `number` | Optional |
+| `totalCount` | `number` | Optional |
 
 #### Wallet
 
@@ -303,4 +308,3 @@ Source: `src/api/wallet.ts`
 
 Type: ``\| 'redeem'   \| 'NthPurchase'   \| 'merge-user'   \| 'SimpleCashbackRule'   \| 'BirthdateGift'   \| 'TajrobehAppreciation'   \| 'edit_order'   \| 'cancel_order'   \| 'edit_shipping_cost'   \| 'edit_cashback'   \| 'gift'   \| 'others'   \| 'Refund'   \| 'Charge'   \| 'Expired'   \| `${string}:activity` ``
 {/* AUTO_FIELDS_END */}
-

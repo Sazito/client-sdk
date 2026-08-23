@@ -45,7 +45,7 @@ export default async function StorePage() {
 
   const [productsRes, categoriesRes] = await Promise.all([
     client.products.list({ page: 1, pageSize: 12, sort: 'newest' }),
-    client.categories.list({ page: 1, pageSize: 50 }),
+    client.categories.list({ page: 1, pageSize: 20 }),
   ]);
 
   if (productsRes.error || categoriesRes.error) {

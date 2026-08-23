@@ -8,7 +8,7 @@ const docsDir = path.join(root, 'docs/content/docs/api-reference');
 
 const map = {
   'products.mdx': { module: 'products', call: "list({ page: 1, pageSize: 12 })" },
-  'categories.mdx': { module: 'categories', call: "list({ page: 1, pageSize: 100 })" },
+  'categories.mdx': { module: 'categories', call: "list({ page: 1, pageSize: 20 })" },
   'cart.mdx': { module: 'cart', call: 'get()' },
   'orders.mdx': { module: 'orders', call: "list({ page: 1, pageSize: 20 })" },
   'shipping.mdx': { module: 'shipping', call: 'getMethods()' },

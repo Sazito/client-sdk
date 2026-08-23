@@ -1399,7 +1399,7 @@ const OPERATIONS = [
     description: 'GET /api/v1/wallet/transactions with page_number/page_size (requires auth token).',
     fields: [
       {
-        key: 'filters.page_number',
+        key: 'filters.pageNumber',
         label: 'Page Number',
         type: 'number',
         section: 'pagination',
@@ -1407,11 +1407,11 @@ const OPERATIONS = [
         min: 1
       },
       {
-        key: 'filters.page_size',
+        key: 'filters.pageSize',
         label: 'Page Size',
         type: 'number',
         section: 'pagination',
-        defaultValue: 100,
+        defaultValue: 20,
         min: 1
       }
     ]

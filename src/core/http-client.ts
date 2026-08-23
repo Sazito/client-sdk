@@ -34,8 +34,11 @@ export class HttpClient {
     endpoint: string,
     options?: RequestOptions & { params?: Record<string, any> }
   ): Promise<SazitoResponse<T>> {
-    const url = this.buildUrl(endpoint, options?.params);
-    const cacheKey = CacheManager.generateKey('GET', url, options?.params);
+    const transformedParams = options?.params
+      ? transformRequestKeys(options.params) as Record<string, any>
+      : undefined;
+    const url = this.buildUrl(endpoint, transformedParams);
+    const cacheKey = CacheManager.generateKey('GET', url, transformedParams);
 
     // Check cache first (if not disabled)
     if (options?.cache !== false) {

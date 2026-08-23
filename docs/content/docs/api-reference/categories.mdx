@@ -60,7 +60,7 @@ export default function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.categories.list({ page: 1, pageSize: 100 }).then((res) => setData(res.data ?? null));
+    sazito.categories.list({ page: 1, pageSize: 20 }).then((res) => setData(res.data ?? null));
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -87,7 +87,7 @@ import { getSazitoServerClient } from '@/app/lib/sazito-server';
 
 export async function runExample() {
   const client = getSazitoServerClient();
-  const res = await client.categories.list({ page: 1, pageSize: 100 });
+  const res = await client.categories.list({ page: 1, pageSize: 20 });
 
   return res.data;
 }
@@ -115,7 +115,7 @@ export function Example() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    sazito.categories.list({ page: 1, pageSize: 100 }).then((res) => setData(res.data ?? null));
+    sazito.categories.list({ page: 1, pageSize: 20 }).then((res) => setData(res.data ?? null));
   }, []);
 
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
@@ -146,7 +146,7 @@ import { sazito } from '../lib/sazito';
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await sazito.categories.list({ page: 1, pageSize: 100 });
+  const res = await sazito.categories.list({ page: 1, pageSize: 20 });
   data.value = res.data ?? null;
 });
 </script>
@@ -182,7 +182,7 @@ const { $sazito } = useNuxtApp();
 const data = ref<any>(null);
 
 onMounted(async () => {
-  const res = await $sazito.categories.list({ page: 1, pageSize: 100 });
+  const res = await $sazito.categories.list({ page: 1, pageSize: 20 });
   data.value = res.data ?? null;
 });
 </script>
@@ -212,7 +212,7 @@ import { getSazitoClient } from '../utils/sazito';
 
 export default defineEventHandler(async () => {
   const client = getSazitoClient();
-  const res = await client.categories.list({ page: 1, pageSize: 100 });
+  const res = await client.categories.list({ page: 1, pageSize: 20 });
 
   return res.data;
 });
@@ -288,4 +288,3 @@ Source: `src/types/product.ts`
 | `createdAt` | `string` | Optional |
 | `updatedAt` | `string` | Optional |
 {/* AUTO_FIELDS_END */}
-

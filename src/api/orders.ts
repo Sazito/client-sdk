@@ -12,6 +12,7 @@ import {
   RequestOptions
 } from '../types';
 import { ORDERS_API } from '../constants/endpoints';
+import { transformOrderResponse, transformOrdersListResponse } from '../utils/transformers';
 
 export class OrdersAPI {
   constructor(private http: HttpClient) {}
@@ -24,18 +25,22 @@ export class OrdersAPI {
     options?: RequestOptions
   ): Promise<SazitoResponse<OrdersListResponse>> {
     const params: Record<string, any> = {
-      page_number: filters?.pageNumber ?? 1,
-      page_size: filters?.pageSize ?? 100
+      pageNumber: filters?.pageNumber ?? 1,
+      pageSize: filters?.pageSize ?? 20
     };
 
     if (filters?.filters && filters.filters.length > 0) {
       params.filters = JSON.stringify(filters.filters);
     }
 
-    return this.http.get<OrdersListResponse>(ORDERS_API, {
+    const response = await this.http.get<OrdersListResponse>(ORDERS_API, {
       ...options,
       params
     });
+
+    return response.data
+      ? { data: transformOrdersListResponse<OrdersListResponse>(response.data) }
+      : response;
   }
 
   /**
@@ -45,6 +50,9 @@ export class OrdersAPI {
     orderId: number,
     options?: RequestOptions
   ): Promise<SazitoResponse<Order>> {
-    return this.http.get<Order>(`${ORDERS_API}/${orderId}`, options);
+    const response = await this.http.get<Order>(`${ORDERS_API}/${orderId}`, options);
+    return response.data
+      ? { data: transformOrderResponse<Order>(response.data) }
+      : response;
   }
 }

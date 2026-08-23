@@ -9,6 +9,10 @@ import {
   RequestOptions
 } from '../types';
 import { INVOICES_API, WALLET_API, WALLET_TRANSACTIONS_API } from '../constants/endpoints';
+import {
+  transformInvoiceResponse,
+  transformWalletTransactionsResponse
+} from '../utils/transformers';
 
 export type WalletTransactionReason =
   | 'redeem'
@@ -47,12 +51,19 @@ export interface Wallet extends WalletBalance {
 }
 
 export interface TransactionFilters {
+  pageNumber?: number;
+  pageSize?: number;
+  /** @deprecated Use `pageNumber`. */
   page_number?: number;
+  /** @deprecated Use `pageSize`. */
   page_size?: number;
 }
 
 export interface WalletTransactionsResponse {
   transactions: WalletTransaction[];
+  pageNumber?: number;
+  pageSize?: number;
+  totalCount?: number;
 }
 
 export class WalletAPI {
@@ -85,19 +96,27 @@ export class WalletAPI {
     filters?: TransactionFilters,
     options?: RequestOptions
   ): Promise<SazitoResponse<WalletTransactionsResponse>> {
-    const pageNumber = filters?.page_number ?? 1;
-    const pageSize = filters?.page_size ?? 100;
+    const pageNumber = filters?.pageNumber ?? filters?.page_number ?? 1;
+    const pageSize = filters?.pageSize ?? filters?.page_size ?? 20;
 
-    return this.http.get<WalletTransactionsResponse>(
+    const response = await this.http.get<WalletTransactionsResponse>(
       WALLET_TRANSACTIONS_API,
       {
         ...options,
         params: {
-          page_number: pageNumber,
-          page_size: pageSize
+          pageNumber,
+          pageSize
         }
       }
     );
+
+    if (response.data) {
+      return {
+        data: transformWalletTransactionsResponse<WalletTransactionsResponse>(response.data)
+      };
+    }
+
+    return response;
   }
 
   /**
@@ -110,11 +129,15 @@ export class WalletAPI {
     const validation = this.validateInvoiceId(invoiceId);
     if (validation) return validation;
 
-    return this.http.post<Invoice>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceId}/add_credit`,
       {},
       options
     );
+
+    return response.data
+      ? { data: transformInvoiceResponse<Invoice>(response.data) }
+      : response;
   }
 
   /**
@@ -127,10 +150,14 @@ export class WalletAPI {
     const validation = this.validateInvoiceId(invoiceId);
     if (validation) return validation;
 
-    return this.http.post<Invoice>(
+    const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceId}/remove_credit`,
       {},
       options
     );
+
+    return response.data
+      ? { data: transformInvoiceResponse<Invoice>(response.data) }
+      : response;
   }
 }
