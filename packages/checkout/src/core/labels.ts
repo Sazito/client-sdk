@@ -59,6 +59,7 @@ export interface Strings {
   shippingMethods: string;
   shippingMethodsHint: string;
   digitalNoShipping: string;
+  digitalNoShippingHint: string;
   // validation errors
   errorRequired: string;
   errorMobilePhone: string;
@@ -144,7 +145,8 @@ const fa: Strings = {
   shippingMethod: 'روش ارسال',
   shippingMethods: 'روش‌های ارسال',
   shippingMethodsHint: 'پس از ثبت نشانی، روش‌های قابل استفاده نمایش داده می‌شوند.',
-  digitalNoShipping: 'محصول دیجیتال — بدون نیاز به ارسال',
+  digitalNoShipping: 'محصولات دیجیتال و خدمات',
+  digitalNoShippingHint: 'این موارد به ارسال فیزیکی نیاز ندارند.',
   errorRequired: 'این فیلد اجباری است',
   errorMobilePhone: 'شماره موبایل معتبر وارد کنید (مثلاً ۰۹۱۲۳۴۵۶۷۸۹)',
   errorEmail: 'آدرس ایمیل معتبر نیست',
@@ -225,7 +227,8 @@ const en: Strings = {
   shippingMethod: 'Shipping method',
   shippingMethods: 'Shipping methods',
   shippingMethodsHint: 'Available delivery options will appear after you save this address.',
-  digitalNoShipping: 'Digital product — no shipping required',
+  digitalNoShipping: 'Digital products and services',
+  digitalNoShippingHint: 'These items do not require physical delivery.',
   errorRequired: 'This field is required',
   errorMobilePhone: 'Enter a valid mobile number (e.g. 09123456789)',
   errorEmail: 'Enter a valid email address',

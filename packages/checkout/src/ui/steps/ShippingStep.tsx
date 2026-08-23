@@ -2,7 +2,12 @@
 
 import { useState, useCallback, useRef, useEffect, type CSSProperties } from 'react';
 import { useCheckout } from '../../react';
-import { toPersianDigits, normalizeIranianPhone, isValidIranianMobile } from '../../core';
+import {
+  toPersianDigits,
+  normalizeIranianPhone,
+  isValidIranianMobile,
+  isDigitalServiceGroup
+} from '../../core';
 import { Field, FieldLabel, ProductPlaceholder } from '../primitives';
 import type { ShippingGroup, ShippingRate, AddressFormValues } from '../../core';
 
@@ -43,6 +48,8 @@ export function ShippingStep() {
   const { addressForm, regions, shippingGroups } = state;
   const [touched, setTouched] = useState<TouchedFields>({});
   const needsShipping = state.invoice?.needsShipping ?? true;
+  const physicalShippingGroups = shippingGroups.filter((group) => !isDigitalServiceGroup(group));
+  const physicalItemCount = Math.max(0, (state.invoice?.items.length ?? 0) - digitalItems.length);
 
   const touch = useCallback((key: keyof AddressFormValues) => {
     setTouched((prev) => ({ ...prev, [key]: true }));
@@ -201,16 +208,52 @@ export function ShippingStep() {
         ) : null}
       </div>
 
-      {shippingGroups.length > 0 ? (
+      {digitalItems.length > 0 ? (
+        <section className="szc-digital-products" aria-labelledby="szc-digital-title">
+          <header className="szc-digital-products__head">
+            <span className="szc-digital-products__icon" aria-hidden="true"><DigitalIcon /></span>
+            <div className="szc-digital-products__heading">
+              <div className="szc-digital-products__title-row">
+                <h2 id="szc-digital-title" className="szc-digital-products__title">
+                  {t.digitalNoShipping}
+                </h2>
+                <span className="szc-digital-products__count">
+                  {t.productCount(toPersianDigits(String(digitalItems.length)))}
+                </span>
+              </div>
+              <p>{t.digitalNoShippingHint}</p>
+            </div>
+          </header>
+          <div className="szc-digital-products__list">
+            {digitalItems.map((item) => (
+              <article key={item.id} className="szc-digital-product">
+                <div className="szc-digital-product__media">
+                  {item.image?.url ? (
+                    <img src={item.image.url} alt={item.image.alt || item.name} />
+                  ) : (
+                    <ProductPlaceholder />
+                  )}
+                  <span className="szc-ship-product__quantity">
+                    {toPersianDigits(String(item.quantity))}
+                  </span>
+                </div>
+                <strong className="szc-digital-product__name">{item.name}</strong>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {physicalShippingGroups.length > 0 ? (
         <section className="szc-shipping-methods" aria-labelledby="szc-methods-title">
           <ShippingSectionHeader id="szc-methods-title" title={t.shippingMethods} icon="shipping" />
           <div className="szc-ship-groups">
-            {shippingGroups.map((group) => (
+            {physicalShippingGroups.map((group) => (
               <ShippingGroupCard key={group.key} group={group} />
             ))}
           </div>
         </section>
-      ) : needsShipping ? (
+      ) : needsShipping && physicalItemCount > 0 ? (
         <div className="szc-shipping-pending" role="note">
           <span className="szc-shipping-pending__icon" aria-hidden="true"><TruckIcon /></span>
           <div className="szc-shipping-pending__copy">
@@ -220,19 +263,6 @@ export function ShippingStep() {
         </div>
       ) : null}
 
-      {digitalItems.length > 0 ? (
-        <div className="szc-digital-note">
-          <span className="szc-digital-note__icon">⬇︎</span>
-          <div>
-            <strong>{t.digitalNoShipping}</strong>
-            <ul>
-              {digitalItems.map((item) => (
-                <li key={item.id}>{item.name}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
@@ -270,6 +300,15 @@ function AddressIcon() {
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
       <path d="M19 10c0 4.7-7 10-7 10S5 14.7 5 10a7 7 0 1 1 14 0Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
       <circle cx="12" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function DigitalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
+      <path d="M12 3v11m0 0 4-4m-4 4-4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 16.5v1.75A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V16.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

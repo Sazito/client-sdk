@@ -4,9 +4,11 @@ import {
   classifyAppliedDiscount,
   deriveShippingGroups,
   isAddressComplete,
+  isDigitalServiceGroup,
   isShippingComplete,
   selectDigitalItems,
-  selectSummary
+  selectSummary,
+  sortCartItemsNewestFirst
 } from '../src/core/selectors';
 import type { ApplicableShippingMethods, Invoice } from '../src/core/types';
 
@@ -49,6 +51,34 @@ const applicable: ApplicableShippingMethods = {
   itemsShippingRate: [{ invoiceItemId: 50, shippingRate: { id: 1, name: 'Post', price: 200 } }]
 };
 
+describe('cart item ordering', () => {
+  const product = {
+    variantId: 1,
+    name: 'Product',
+    attributes: []
+  };
+
+  it('returns newly added cart products first without mutating the API array', () => {
+    const items = [
+      { id: 10, createdAt: '2026-08-20T10:00:00Z', productVariantId: 1, quantity: 1, unitPrice: 1, lineTotal: 1, product },
+      { id: 12, createdAt: '2026-08-23T10:00:00Z', productVariantId: 2, quantity: 1, unitPrice: 1, lineTotal: 1, product: { ...product, variantId: 2 } },
+      { id: 11, createdAt: '2026-08-22T10:00:00Z', productVariantId: 3, quantity: 1, unitPrice: 1, lineTotal: 1, product: { ...product, variantId: 3 } }
+    ];
+
+    expect(sortCartItemsNewestFirst(items).map((item) => item.id)).toEqual([12, 11, 10]);
+    expect(items.map((item) => item.id)).toEqual([10, 12, 11]);
+  });
+
+  it('falls back to descending cart-item IDs when timestamps are unavailable', () => {
+    const items = [
+      { id: 4, productVariantId: 1, quantity: 1, unitPrice: 1, lineTotal: 1, product },
+      { id: 9, productVariantId: 2, quantity: 1, unitPrice: 1, lineTotal: 1, product: { ...product, variantId: 2 } }
+    ];
+
+    expect(sortCartItemsNewestFirst(items).map((item) => item.id)).toEqual([9, 4]);
+  });
+});
+
 describe('deriveShippingGroups', () => {
   it('builds a group of shippable items with switchable rates', () => {
     const groups = deriveShippingGroups(invoiceFixture(), applicable);
@@ -87,6 +117,27 @@ describe('digital items', () => {
     const groups = deriveShippingGroups(invoiceFixture(), applicable);
     const digital = selectDigitalItems(invoiceFixture(), groups, applicable);
     expect(digital.map((i) => i.id)).toEqual([51]);
+  });
+
+  it('classifies an automatic Digital/Service group outside shipping UI and API assignments', () => {
+    const serviceApplicable: ApplicableShippingMethods = {
+      shippingMethods: [{ id: 9, name: 'Digital/Service', type: 'service' }],
+      groupedShippingRates: {
+        service: [{ id: 9, name: 'Digital/Service', type: 'service', price: 0 }]
+      },
+      itemsShippingRate: [
+        { invoiceItemId: 51, shippingRate: { id: 9, name: 'Digital/Service', type: 'service', price: 0 } }
+      ]
+    };
+    const serviceItem = { ...invoiceFixture().items[1], productType: 'service' };
+    const invoice = invoiceFixture({ items: [serviceItem] });
+    const groups = deriveShippingGroups(invoice, serviceApplicable);
+
+    expect(groups).toHaveLength(1);
+    expect(isDigitalServiceGroup(groups[0])).toBe(true);
+    expect(buildShippingAssignments(groups)).toEqual([]);
+    expect(isShippingComplete(invoice, groups)).toBe(true);
+    expect(selectDigitalItems(invoice, groups, serviceApplicable).map((item) => item.id)).toEqual([51]);
   });
 });
 

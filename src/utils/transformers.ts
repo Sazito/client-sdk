@@ -1333,6 +1333,8 @@ function transformCartItem(item: TransformValue): TransformObject {
 
   return {
     id: toIdentifier(item.id ?? item.cartProductId) ?? '',
+    createdAt: toOptionalString(item.createdAt),
+    updatedAt: toOptionalString(item.updatedAt),
     productVariantId,
     quantity: toNumber(item.quantity) ?? 0,
     unitPrice: toNumber(item.unitPrice) ?? 0,

@@ -1,15 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type React from 'react';
 import { useCheckout } from '../../react';
-import { toPersianDigits } from '../../core';
+import { sortCartItemsNewestFirst, toPersianDigits } from '../../core';
 import { Button, ProductPlaceholder } from '../primitives';
 import { CartIcon } from '../Stepper';
 
 const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
-const QUANTITY_DEBOUNCE_MS = 600;
+const QUANTITY_DEBOUNCE_MS = 500;
 
 function toLatinDigits(value: string): string {
   return value
@@ -53,6 +53,10 @@ export function CartStep({
   const { state, actions, money, t } = useCheckout();
   const cart = state.cart;
   const busy = state.flags.updatingCart;
+  const newestCartItems = useMemo(
+    () => sortCartItemsNewestFirst(cart?.items ?? []),
+    [cart?.items]
+  );
   const invoiceItemsByVariant = new Map(
     (state.invoice?.items ?? []).map((item) => [item.productVariantId, item])
   );
@@ -89,7 +93,7 @@ export function CartStep({
   return (
     <section className="szc-step-panel">
       <ul className="szc-cart-list">
-        {cart.items.map((item) => {
+        {newestCartItems.map((item) => {
           const max = item.product.maxOrderQuantity;
           const min = item.product.minOrderQuantity ?? 1;
           const invoiceItem = invoiceItemsByVariant.get(item.product.variantId);
@@ -178,6 +182,7 @@ interface QuantityControlProps {
 function QuantityControl({ value, min, max, label, onChange }: QuantityControlProps) {
   const [draft, setDraft] = useState(() => toPersianDigits(String(value)));
   const [pending, setPending] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const draftRef = useRef(draft);
   const pendingValueRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -222,10 +227,12 @@ function QuantityControl({ value, min, max, label, onChange }: QuantityControlPr
     }
 
     inFlightRef.current = true;
+    setUpdating(true);
     try {
       await onChangeRef.current(target);
     } finally {
       inFlightRef.current = false;
+      setUpdating(false);
 
       if (pendingValueRef.current === target) {
         pendingValueRef.current = null;
@@ -266,12 +273,15 @@ function QuantityControl({ value, min, max, label, onChange }: QuantityControlPr
   const displayedValue = Number.isFinite(parsedDraft) ? normalize(parsedDraft) : value;
 
   return (
-    <div className={`szc-qty${pending ? ' szc-qty--pending' : ''}`} aria-busy={pending}>
+    <div
+      className={`szc-qty${pending ? ' szc-qty--pending' : ''}`}
+      aria-busy={updating}
+    >
       <button
         type="button"
         className="szc-qty__btn"
         aria-label={`${label} −`}
-        disabled={displayedValue <= min}
+        disabled={updating || displayedValue <= min}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => step(-1)}
       >
@@ -288,6 +298,7 @@ function QuantityControl({ value, min, max, label, onChange }: QuantityControlPr
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={displayedValue}
+        disabled={updating}
         onChange={(event) => {
           const digits = toLatinDigits(event.target.value).replace(/\D/g, '');
           if (!digits) {
@@ -322,7 +333,7 @@ function QuantityControl({ value, min, max, label, onChange }: QuantityControlPr
         type="button"
         className="szc-qty__btn"
         aria-label={`${label} +`}
-        disabled={max != null && displayedValue >= max}
+        disabled={updating || (max != null && displayedValue >= max)}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => step(1)}
       >
@@ -358,5 +369,3 @@ function TrashIcon() {
     </svg>
   );
 }
-
-

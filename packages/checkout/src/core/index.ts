@@ -28,7 +28,9 @@ export {
 export { normalizeIranianPhone, isValidIranianPhone, isValidIranianMobile } from './format';
 export {
   selectSummary,
+  sortCartItemsNewestFirst,
   selectDigitalItems,
+  isDigitalServiceGroup,
   classifyAppliedDiscount,
   deriveShippingGroups,
   buildShippingAssignments,

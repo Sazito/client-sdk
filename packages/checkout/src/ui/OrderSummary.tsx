@@ -2,9 +2,11 @@
 
 import { useCheckout } from '../react';
 import { formatPercent, type SummaryLineKey } from '../core';
+import { Spinner } from './primitives';
 
 export function OrderSummary() {
   const { state, summary, money, t } = useCheckout();
+  const updating = state.flags.updatingCart;
   const percentSign = state.locale === 'fa' ? '٪' : '%';
 
   const lineLabels: Record<SummaryLineKey, string> = {
@@ -16,7 +18,10 @@ export function OrderSummary() {
   };
 
   return (
-    <aside className="szc-summary">
+    <aside
+      className={`szc-summary${updating ? ' szc-summary--loading' : ''}`}
+      aria-busy={updating}
+    >
       <div className="szc-summary__total-head">
         <span className="szc-summary__total-label">{t.totalAmount}</span>
         <span className="szc-summary__total-value">{money(summary.total)}</span>
@@ -49,6 +54,13 @@ export function OrderSummary() {
         <span>{t.total}</span>
         <span>{money(summary.total)}</span>
       </div>
+
+      {updating ? (
+        <div className="szc-summary__loading" role="status" aria-live="polite">
+          <Spinner className="szc-summary__spinner" />
+          <span className="szc-visually-hidden">{t.loading}</span>
+        </div>
+      ) : null}
     </aside>
   );
 }

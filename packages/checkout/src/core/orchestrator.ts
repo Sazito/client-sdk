@@ -46,6 +46,7 @@ export interface CheckoutEngine {
 }
 
 const STEP_ORDER: CheckoutStep[] = ['cart', 'shipping', 'payment', 'result'];
+const ADDRESS_AUTOSUBMIT_DEBOUNCE_MS = 350;
 
 function initialFlags(): CheckoutFlags {
   return {
@@ -96,6 +97,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
   let effectExecutor: CheckoutEffectExecutor = noopEffectExecutor;
   let lock: Promise<unknown> = Promise.resolve();
   let addressRevision = 0;
+  let addressAutoSubmitTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ---- internal helpers -------------------------------------------------
 
@@ -125,6 +127,21 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       () => undefined
     );
     return next as Promise<T>;
+  }
+
+  function clearAddressAutoSubmit(): void {
+    if (addressAutoSubmitTimer) {
+      clearTimeout(addressAutoSubmitTimer);
+      addressAutoSubmitTimer = null;
+    }
+  }
+
+  function scheduleAddressAutoSubmit(delay = ADDRESS_AUTOSUBMIT_DEBOUNCE_MS): void {
+    clearAddressAutoSubmit();
+    addressAutoSubmitTimer = setTimeout(() => {
+      addressAutoSubmitTimer = null;
+      void withLock(submitAddressInternal);
+    }, delay);
   }
 
   function recomputeGroups(): ShippingGroup[] {
@@ -338,13 +355,17 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
   // ---- public actions ---------------------------------------------------
 
   function goToStep(step: CheckoutStep): void {
+    if (step !== 'shipping') {
+      clearAddressAutoSubmit();
+    }
     set({ step, error: null });
     emit('step_viewed', { step });
     // When landing on shipping with a complete address but no methods fetched yet,
     // auto-submit so methods appear without requiring a manual Continue press.
     if (step === 'shipping') {
-      const { addressForm, invoice, applicable } = get();
-      if (!applicable && isAddressComplete(
+      const { addressForm, addressDirty, invoice, applicable, shippingGroups } = get();
+      const methodsUnresolved = Boolean(invoice?.needsShipping) && shippingGroups.length === 0;
+      if ((addressDirty || !applicable || methodsUnresolved) && isAddressComplete(
         addressForm,
         invoice?.needsShipping ?? true,
         get().postalCodeMandatory,
@@ -468,7 +489,15 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
             // the Shipping step becomes visible.
             const invoice = get().invoice;
             if (isUsableSavedAddress(invoice?.shippingAddress)) {
-              set({ addressForm: addressFormFromInvoice(invoice) });
+              const addressForm = reconcileAddressWithRegions(
+                addressFormFromInvoice(invoice),
+                get().regions,
+                savedAddressCityName(invoice?.shippingAddress)
+              );
+              set({
+                addressForm,
+                addressDirty: isAddressDirty(addressForm, invoice)
+              });
             }
             goToStep('shipping');
           }
@@ -476,6 +505,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         }
 
         if (state.step === 'shipping') {
+          clearAddressAutoSubmit();
           // Phase 1: address not saved yet (or changed) → save it and reveal the
           // shipping methods, staying on the shipping step.
           const needsSave = state.addressDirty || !state.applicable;
@@ -544,6 +574,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     setAddressField(key, value) {
       const before = get().addressForm;
       const changed = before[key] !== value || (key === 'regionId' && before.cityId !== null);
+      const destinationChanged = changed && (key === 'regionId' || key === 'cityId');
       if (changed) {
         addressRevision += 1;
       }
@@ -557,29 +588,39 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         return {
           addressForm,
           addressDirty,
-          // Rates are derived from the address snapshot. Never keep showing or
-          // accepting rates fetched for a different form value.
-          ...(addressDirty ? { applicable: null, shippingGroups: [] } : {})
+          // Shipping rates depend on region/city. Contact and street edits must
+          // not discard valid methods for the same destination.
+          ...(destinationChanged ? { applicable: null, shippingGroups: [] } : {})
         };
       });
 
-      // City selection is a discrete destination change, so refresh rates
-      // automatically. Text inputs still wait for Save/Continue to avoid an
-      // address creation and shipping request on every keystroke.
-      if (changed && key === 'cityId' && value != null && get().step === 'shipping') {
+      // Browser autofill often populates the selects before the final required
+      // text field. Once the form becomes complete, debounce text changes and
+      // submit automatically; a discrete city selection can submit immediately.
+      if (changed && get().step === 'shipping') {
         const state = get();
+        const methodsUnresolved = !state.applicable
+          || (Boolean(state.invoice?.needsShipping) && state.shippingGroups.length === 0);
         if (isAddressComplete(
           state.addressForm,
           state.invoice?.needsShipping ?? true,
           state.postalCodeMandatory,
           state.emailMandatory
+        ) && (destinationChanged || methodsUnresolved)) {
+          scheduleAddressAutoSubmit(key === 'cityId' ? 0 : undefined);
+        } else if (!isAddressComplete(
+          state.addressForm,
+          state.invoice?.needsShipping ?? true,
+          state.postalCodeMandatory,
+          state.emailMandatory
         )) {
-          void withLock(submitAddressInternal);
+          clearAddressAutoSubmit();
         }
       }
     },
 
     async submitAddress() {
+      clearAddressAutoSubmit();
       return withLock(submitAddressInternal);
     },
 
@@ -712,6 +753,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     const state = get();
     const submittedAddressRevision = addressRevision;
     const needsShipping = state.invoice?.needsShipping ?? true;
+    const shouldReloadShipping = needsShipping
+      && (!state.applicable || state.shippingGroups.length === 0);
 
     const abandonStaleSubmission = (invoice?: Invoice): false => {
       set({
@@ -762,7 +805,14 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     set({ invoice: linkRes.data, addressDirty: false });
 
     if (needsShipping) {
-      const ok = await loadApplicableShipping(submittedAddressRevision);
+      let ok = true;
+      if (shouldReloadShipping) {
+        ok = await loadApplicableShipping(submittedAddressRevision);
+      } else if (recomputeGroups().length === 0) {
+        // Invoice item IDs can change when the new address snapshot is linked.
+        // Reload only if the existing applicable data can no longer form groups.
+        ok = await loadApplicableShipping(submittedAddressRevision);
+      }
       if (ok) {
         await assignCurrentShipping();
         if (addressRevision !== submittedAddressRevision) {
@@ -790,6 +840,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       effectExecutor = executor;
     },
     destroy() {
+      clearAddressAutoSubmit();
       effectExecutor = noopEffectExecutor;
     }
   };

@@ -6,6 +6,7 @@ import type {
   AddressFormValues,
   ApplicableShippingMethods,
   AppliedDiscount,
+  CartProduct,
   CheckoutRegion,
   Invoice,
   InvoiceItem,
@@ -17,6 +18,29 @@ import type {
 } from './types';
 
 const idStr = (value: number | string): string => String(value);
+
+function cartItemCreatedAt(item: CartProduct): number | null {
+  if (!item.createdAt) return null;
+  const timestamp = Date.parse(item.createdAt);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+/** Return cart lines newest-first without mutating SDK state. */
+export function sortCartItemsNewestFirst(items: CartProduct[]): CartProduct[] {
+  return [...items].sort((a, b) => {
+    const aCreatedAt = cartItemCreatedAt(a);
+    const bCreatedAt = cartItemCreatedAt(b);
+    if (aCreatedAt != null || bCreatedAt != null) {
+      if (aCreatedAt == null) return 1;
+      if (bCreatedAt == null) return -1;
+      if (aCreatedAt !== bCreatedAt) return bCreatedAt - aCreatedAt;
+    }
+
+    const aId = Number(a.id);
+    const bId = Number(b.id);
+    return Number.isFinite(aId) && Number.isFinite(bId) ? bId - aId : 0;
+  });
+}
 
 export function emptyAddressForm(): AddressFormValues {
   return {
@@ -140,6 +164,37 @@ function uniqueRates(rates: ShippingRate[]): ShippingRate[] {
   return out;
 }
 
+function isDigitalServiceLabel(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLocaleLowerCase('en-US');
+  return (
+    normalized.includes('digital') ||
+    normalized.includes('service') ||
+    normalized.includes('دیجیتال') ||
+    normalized.includes('خدمات') ||
+    normalized.includes('خدمت')
+  );
+}
+
+function isDigitalServiceItem(item: InvoiceItem): boolean {
+  return isDigitalServiceLabel(item.productType);
+}
+
+/** True for the API's automatic digital/service delivery group. */
+export function isDigitalServiceGroup(group: ShippingGroup): boolean {
+  if (isDigitalServiceLabel(group.key) || isDigitalServiceLabel(group.title)) {
+    return true;
+  }
+  const ratesAreDigitalService =
+    group.rates.length > 0 &&
+    group.rates.every((rate) =>
+      isDigitalServiceLabel(rate.type) || isDigitalServiceLabel(rate.name)
+    );
+  return ratesAreDigitalService || (
+    group.items.length > 0 && group.items.every(isDigitalServiceItem)
+  );
+}
+
 /**
  * Group invoice items into shippable bundles with their switchable rates and
  * the currently selected rate. Digital-only invoices yield an empty list.
@@ -166,10 +221,12 @@ export function deriveShippingGroups(
     invoice.items.map((item) => [idStr(item.id), item])
   );
 
-  // Exclude digital items — they never go through physical shipping groups.
+  // The API's plain `digital` products never receive a shipping assignment.
+  // Other digital/service variants may arrive through an automatic fulfillment
+  // rate; retain those groups for the API assignment and hide them in the UI.
   const physicalItemsRate = (applicable.itemsShippingRate ?? []).filter((isr) => {
     const item = itemById.get(idStr(isr.invoiceItemId));
-    return !item || item.productType !== 'digital';
+    return !item || item.productType?.trim().toLocaleLowerCase('en-US') !== 'digital';
   });
 
   if (physicalItemsRate.length === 0) return [];
@@ -274,25 +331,28 @@ export function deriveShippingGroups(
   ];
 }
 
-/** Build the API payload from the current group selections. */
+/** Build the API payload from physical shipping selections. */
 export function buildShippingAssignments(groups: ShippingGroup[]): ShippingAssignment[] {
   return groups
-    .filter((group) => group.selectedRateId != null)
+    .filter((group) => !isDigitalServiceGroup(group) && group.selectedRateId != null)
     .map((group) => ({
       rateId: group.selectedRateId as number,
       invoiceItemIds: group.itemIds
     }));
 }
 
-/** True once every shippable group has a selected rate. */
+/** True once every physical shipping group has a selected rate. */
 export function isShippingComplete(invoice: Invoice | null, groups: ShippingGroup[]): boolean {
   if (!invoice?.needsShipping) {
     return true;
   }
-  if (groups.length === 0) {
-    return false;
+  const physicalGroups = groups.filter((group) => !isDigitalServiceGroup(group));
+  if (physicalGroups.length === 0) {
+    // The API may set needsShipping for an automatic Digital/Service group.
+    // It is fulfillment metadata, not a customer-selectable shipping method.
+    return groups.length > 0 && groups.every(isDigitalServiceGroup);
   }
-  return groups.every((group) => group.selectedRateId != null);
+  return physicalGroups.every((group) => group.selectedRateId != null);
 }
 
 const codeDiscountTotal = (invoice: Invoice): number =>
@@ -431,9 +491,20 @@ export function selectDigitalItems(
   // Before shipping methods are loaded, only explicitly-digital items are known.
   // Showing everything as "digital" when applicable is null would be wrong.
   if (applicable == null) {
-    return invoice.items.filter((item) => item.productType === 'digital');
+    return invoice.items.filter(isDigitalServiceItem);
   }
-  // After shipping methods load: items absent from all groups are non-shippable.
-  const shippable = new Set(groups.flatMap((g) => g.itemIds.map(idStr)));
-  return invoice.items.filter((item) => !shippable.has(idStr(item.id)));
+  // The backend may model digital/service fulfillment as an automatic zero-cost
+  // shipping group. Treat its products as non-shippable in the UI while keeping
+  // the group in state so its assignment can still be submitted.
+  const digitalGroupItems = new Set(
+    groups
+      .filter(isDigitalServiceGroup)
+      .flatMap((group) => group.itemIds.map(idStr))
+  );
+  const groupedItems = new Set(groups.flatMap((group) => group.itemIds.map(idStr)));
+  return invoice.items.filter((item) =>
+    isDigitalServiceItem(item) ||
+    digitalGroupItems.has(idStr(item.id)) ||
+    !groupedItems.has(idStr(item.id))
+  );
 }

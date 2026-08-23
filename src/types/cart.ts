@@ -22,6 +22,9 @@ export type FormAttributeValue = string | number | boolean | null | UploadedForm
 
 export interface CartProduct {
   id: number | string;
+  /** When this line was first added to the cart. */
+  createdAt?: string;
+  updatedAt?: string;
   productVariantId: number;
   quantity: number;
   unitPrice: number;

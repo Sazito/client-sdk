@@ -346,6 +346,93 @@ describe('checkout engine — happy path', () => {
     expect(engine.getState().step).toBe('shipping');
     expect(engine.getState().addressForm.firstName).toBe('Ali');
     expect(engine.getState().addressForm.address).toBe('Saved street');
+    await vi.waitFor(() => {
+      expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledOnce();
+      expect(engine.getState().shippingGroups).toHaveLength(1);
+    });
+  });
+
+  it('keeps the reconciled invoice city and loads methods when entering shipping', async () => {
+    const client = makeMockClient();
+    const invoiceWithMismatchedCity = makeInvoice({
+      shippingAddress: {
+        identifier: 'invoice-address',
+        firstName: 'Ali',
+        lastName: 'Rezaei',
+        mobilePhone: '09120000000',
+        address: 'Saved street',
+        region: {
+          id: 7,
+          name: 'Tehran',
+          city: { id: 999, name: 'Tehran' }
+        }
+      }
+    });
+    client.invoices.create.mockResolvedValue(ok(invoiceWithMismatchedCity) as never);
+    client.invoices.refresh.mockResolvedValue(ok(invoiceWithMismatchedCity) as never);
+    const engine = createCheckoutEngine({
+      client,
+      credentials: { cart: { identifier: 'c1' } }
+    });
+
+    await engine.actions.start();
+    expect(engine.getState().addressForm.cityId).toBe(70);
+
+    await engine.actions.next();
+
+    await vi.waitFor(() => {
+      expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledOnce();
+      expect(engine.getState().shippingGroups).toHaveLength(1);
+    });
+    expect(engine.getState().step).toBe('shipping');
+    expect(engine.getState().addressForm.cityId).toBe(70);
+  });
+
+  it('reloads shipping methods on entry when applicable data has no usable groups', async () => {
+    const client = makeMockClient();
+    const invoiceWithAddress = makeInvoice({
+      shippingAddress: {
+        identifier: 'invoice-address',
+        firstName: 'Ali',
+        lastName: 'Rezaei',
+        mobilePhone: '09120000000',
+        address: 'Saved street',
+        region: {
+          id: 7,
+          name: 'Tehran',
+          city: { id: 70, name: 'Tehran' }
+        }
+      }
+    });
+    client.invoices.create.mockResolvedValue(ok(invoiceWithAddress) as never);
+    client.invoices.refresh.mockResolvedValue(ok(invoiceWithAddress) as never);
+    client.invoices.getApplicableShippingMethods
+      .mockResolvedValueOnce(ok({
+        shippingMethods: [],
+        groupedShippingRates: {},
+        itemsShippingRate: []
+      }) as never)
+      .mockResolvedValueOnce(ok(applicable) as never);
+    const engine = createCheckoutEngine({
+      client,
+      credentials: { cart: { identifier: 'c1' } }
+    });
+
+    await engine.actions.start();
+    await engine.actions.next();
+    await vi.waitFor(() => {
+      expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledOnce();
+    });
+    expect(engine.getState().applicable).not.toBeNull();
+    expect(engine.getState().shippingGroups).toEqual([]);
+
+    engine.actions.back();
+    await engine.actions.next();
+
+    await vi.waitFor(() => {
+      expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledTimes(2);
+      expect(engine.getState().shippingGroups).toHaveLength(1);
+    });
   });
 
   it('falls back to identifier credentials when a token address list is empty', async () => {
@@ -441,16 +528,16 @@ describe('checkout engine — happy path', () => {
     expect(state.shippingGroups).toHaveLength(1);
     expect(state.shippingGroups[0].rates).toHaveLength(2);
 
-    engine.actions.setAddressField('address', 'A different destination');
-    expect(engine.getState().applicable).toBeNull();
-    expect(engine.getState().shippingGroups).toEqual([]);
+    engine.actions.setAddressField('address', 'A different street');
+    expect(engine.getState().applicable).not.toBeNull();
+    expect(engine.getState().shippingGroups).toHaveLength(1);
     expect(client.shipping.createAddress).toHaveBeenCalledTimes(1);
     expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledTimes(1);
 
     await engine.actions.submitAddress();
     expect(client.shipping.createAddress).toHaveBeenCalledTimes(2);
     expect(client.shipping.updateAddress).not.toHaveBeenCalled();
-    expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledTimes(2);
+    expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledTimes(1);
     expect(engine.getState().shippingGroups).toHaveLength(1);
 
     engine.actions.setAddressField('cityId', 71);
@@ -458,10 +545,68 @@ describe('checkout engine — happy path', () => {
     expect(engine.getState().shippingGroups).toEqual([]);
     await vi.waitFor(() => {
       expect(client.shipping.createAddress).toHaveBeenCalledTimes(3);
-      expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledTimes(3);
+      expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledTimes(2);
       expect(engine.getState().shippingGroups).toHaveLength(1);
     });
     expect(engine.getState().addressForm.cityId).toBe(71);
+  });
+
+  it('loads shipping methods after autofill completes the address form', async () => {
+    const { engine, client } = setup();
+    await engine.actions.start();
+    await engine.actions.next();
+
+    // Browser autofill commonly populates selects before the final text field.
+    engine.actions.setAddressField('firstName', 'Ali');
+    engine.actions.setAddressField('lastName', 'Rezaei');
+    engine.actions.setAddressField('mobilePhone', '09120000000');
+    engine.actions.setAddressField('regionId', 7);
+    engine.actions.setAddressField('cityId', 70);
+    engine.actions.setAddressField('address', 'Autofilled street');
+
+    await vi.waitFor(() => {
+      expect(client.invoices.getApplicableShippingMethods).toHaveBeenCalledOnce();
+      expect(engine.getState().shippingGroups).toHaveLength(1);
+    });
+  });
+
+  it('does not submit an automatic Digital/Service group as a shipping method', async () => {
+    const client = makeMockClient();
+    const digitalInvoice = makeInvoice({
+      items: [
+        { id: 51, productVariantId: 101, productType: 'service', name: 'Consultation', attributes: [], quantity: 1, unitPrice: 1000, lineTotal: 1000, rawPrice: 1000, customerProfit: 0 }
+      ]
+    });
+    const digitalApplicable = {
+      shippingMethods: [{ id: 9, name: 'Digital/Service', type: 'service' }],
+      groupedShippingRates: {
+        service: [{ id: 9, name: 'Digital/Service', type: 'service', price: 0 }]
+      },
+      itemsShippingRate: [
+        { invoiceItemId: 51, shippingRate: { id: 9, name: 'Digital/Service', type: 'service', price: 0 } }
+      ]
+    };
+    client.invoices.create.mockResolvedValue(ok(digitalInvoice) as never);
+    client.invoices.refresh.mockResolvedValue(ok(digitalInvoice) as never);
+    client.invoices.addShippingAddress.mockResolvedValue(ok(digitalInvoice) as never);
+    client.invoices.getApplicableShippingMethods.mockResolvedValue(ok(digitalApplicable) as never);
+    const engine = createCheckoutEngine({
+      client,
+      credentials: { cart: { identifier: 'c1' } }
+    });
+
+    await engine.actions.start();
+    await engine.actions.next();
+    engine.actions.setAddressField('firstName', 'Ali');
+    engine.actions.setAddressField('lastName', 'Rezaei');
+    engine.actions.setAddressField('mobilePhone', '09120000000');
+    engine.actions.setAddressField('regionId', 7);
+    engine.actions.setAddressField('cityId', 70);
+    engine.actions.setAddressField('address', 'Tehran');
+
+    expect(await engine.actions.submitAddress()).toBe(true);
+    expect(client.invoices.assignShippingMethod).not.toHaveBeenCalled();
+    expect(engine.getState().error).toBeNull();
   });
 
   it('keeps the newest city when an older address save finishes late', async () => {
