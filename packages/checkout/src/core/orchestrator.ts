@@ -3,7 +3,7 @@
  * state machine on top of @sazito/client-sdk. Owns the store, serializes
  * mutations, and emits typed side-effects for the host to perform.
  */
-import type { PaymentAction, PaymentStepInput, ShippingAddress, ShippingAddressInput, Cart, Invoice } from '@sazito/client-sdk';
+import type { PaymentAction, PaymentStepInput, ShippingAddress, ShippingAddressInput, Invoice } from '@sazito/client-sdk';
 import { createStore, type Store } from './store';
 import { createSdkBinding, type CheckoutSdkBinding } from './sdk-binding';
 import { fromSdkError, makeError } from './errors';
@@ -519,9 +519,6 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         const res = await binding.client.cart.updateItem(cartProductId, variantId, quantity);
         if (res.data) {
           set({ cart: res.data });
-          // Optimistically update summary from cart data, then confirm with server.
-          const inv = get().invoice;
-          if (inv) set({ invoice: applyCartToInvoice(inv, res.data) });
           await refreshInvoice();
         } else if (res.error) {
           setError(fromSdkError(res.error, get().locale, 'cart'));
@@ -536,8 +533,6 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         const res = await binding.client.cart.removeItem(cartProductId, variantId);
         if (res.data) {
           set({ cart: res.data });
-          const inv = get().invoice;
-          if (inv) set({ invoice: applyCartToInvoice(inv, res.data) });
           await refreshInvoice();
         } else if (res.error) {
           setError(fromSdkError(res.error, get().locale, 'cart'));
@@ -864,24 +859,6 @@ function toAddressInput(form: AddressFormValues): ShippingAddressInput {
     postalCode: form.postalCode.trim() || undefined,
     description: form.description.trim() || undefined
   };
-}
-
-/**
- * Immediately derive updated invoice item quantities and totals from a fresh
- * cart response so the summary panel doesn't wait for the invoice refresh.
- */
-function applyCartToInvoice(invoice: Invoice, cart: Cart): Invoice {
-  const byVariant = new Map(cart.items.map((i) => [i.productVariantId, i]));
-  const newItems = invoice.items
-    .filter((item) => byVariant.has(item.productVariantId))
-    .map((item) => {
-      const ci = byVariant.get(item.productVariantId)!;
-      return { ...item, quantity: ci.quantity, lineTotal: ci.lineTotal };
-    });
-  const subtotal = newItems.reduce((s, i) => s + i.lineTotal, 0);
-  const discount = (invoice.itemsDiscount || 0) + (invoice.discountTotal || 0) + (invoice.couponTotal || 0);
-  const finalTotal = Math.max(0, subtotal - discount + (invoice.shippingTotal || 0) + (invoice.vat || 0) - (invoice.creditTotal || 0));
-  return { ...invoice, items: newItems, itemsTotalRawPrice: subtotal, netTotal: subtotal, finalTotal };
 }
 
 // Map raw gateway-return query params into the typed payment-step input.

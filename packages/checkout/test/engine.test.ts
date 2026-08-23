@@ -246,6 +246,51 @@ describe('checkout engine — happy path', () => {
     expect(engine.getState().step).toBe('shipping');
   });
 
+  it('updates invoice pricing only after the quantity refresh resolves', async () => {
+    const { engine, client } = setup();
+    const updatedCart = {
+      id: 1,
+      identifier: 'c1',
+      items: [{
+        id: 10,
+        productVariantId: 100,
+        quantity: 2,
+        unitPrice: 1000,
+        lineTotal: 2000,
+        product: { variantId: 100, name: 'Shoe', attributes: [] }
+      }],
+      netTotal: 2000,
+      needsShipping: true,
+      minBasketLimitViolated: false
+    };
+    const refreshedInvoice = makeInvoice({
+      items: [
+        { id: 50, productVariantId: 100, name: 'Shoe', attributes: [], quantity: 2, unitPrice: 1000, lineTotal: 2000, rawPrice: 1000, customerProfit: 0 }
+      ],
+      netTotal: 2000,
+      finalTotal: 2000,
+      itemsTotalRawPrice: 2000
+    });
+    let resolveRefresh!: (value: ReturnType<typeof ok>) => void;
+
+    client.cart.updateItem.mockResolvedValueOnce(ok(updatedCart) as never);
+    client.invoices.refresh.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveRefresh = resolve; }) as never
+    );
+
+    await engine.actions.start();
+    const update = engine.actions.updateItemQuantity(10, 100, 2);
+    await vi.waitFor(() => expect(client.invoices.refresh).toHaveBeenCalledOnce());
+
+    expect(engine.getState().cart?.items[0]?.quantity).toBe(2);
+    expect(engine.getState().invoice?.finalTotal).toBe(1000);
+
+    resolveRefresh(ok(refreshedInvoice));
+    await update;
+
+    expect(engine.getState().invoice?.finalTotal).toBe(2000);
+  });
+
   it('prefills a saved SDK address and keeps it when entering shipping', async () => {
     const credentials = new CredentialsManager(new MemoryStorage());
     credentials.setShippingCredentials({ id: 0, identifier: 'saved-address' });
