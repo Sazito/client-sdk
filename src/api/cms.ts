@@ -41,6 +41,31 @@ export interface CMSFilters {
 export class CMSAPI {
   constructor(private http: HttpClient) {}
 
+  private missingDataError(resource: string): SazitoResponse<never> {
+    return {
+      error: {
+        message: `No data returned from ${resource} endpoint`,
+        type: 'api'
+      }
+    };
+  }
+
+  private unexpectedEntityError(
+    expected: string,
+    actual: string,
+    urlPath: string,
+    status = 400
+  ): SazitoResponse<never> {
+    return {
+      error: {
+        message: `Expected ${expected} at ${urlPath}, but got ${actual}`,
+        type: 'api',
+        status,
+        details: { expected, actual, urlPath }
+      }
+    };
+  }
+
   /**
    * Get CMS page by URL path
    * Uses entity routes API (recommended approach)
@@ -59,21 +84,31 @@ export class CMSAPI {
       }
     );
 
+    if (response.error) {
+      return { error: response.error };
+    }
+
+    if (!response.data) {
+      return this.missingDataError('CMS page');
+    }
+
     // Transform entity route response and extract the entity
     const transformed = transformEntityRouteResponse<EntityRouteResponse>(response.data);
 
     // Verify it's a CMS page (not blog, product, etc.)
-    if (transformed.entityType !== 'cms_page') {
-      throw new Error(`Expected CMS page at ${urlPath}, but got ${transformed.entityType}`);
+    if (transformed.entityType !== 'cms_page' || !transformed.entity) {
+      return this.unexpectedEntityError(
+        'CMS page',
+        transformed.entityType || 'unknown entity',
+        urlPath,
+        transformed.entityType === 'unknown' ? 404 : 400
+      );
     }
     if (transformed.entity.cmsPageType === 'blog') {
-      throw new Error(`Expected CMS page at ${urlPath}, but got blog page`);
+      return this.unexpectedEntityError('CMS page', 'blog page', urlPath);
     }
 
-    return {
-      ...response,
-      data: transformed.entity
-    };
+    return { data: transformed.entity };
   }
 
   /**
@@ -101,10 +136,15 @@ export class CMSAPI {
       }
     );
 
-    return {
-      ...response,
-      data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data)
-    };
+    if (response.error) {
+      return { error: response.error };
+    }
+
+    if (!response.data) {
+      return this.missingDataError('CMS pages');
+    }
+
+    return { data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data) };
   }
 
   /**
@@ -125,21 +165,31 @@ export class CMSAPI {
       }
     );
 
+    if (response.error) {
+      return { error: response.error };
+    }
+
+    if (!response.data) {
+      return this.missingDataError('blog post');
+    }
+
     // Transform entity route response and extract the entity
     const transformed = transformEntityRouteResponse<EntityRouteResponse>(response.data);
 
     // Verify it's a blog post
-    if (transformed.entityType !== 'cms_page') {
-      throw new Error(`Expected blog post at ${urlPath}, but got ${transformed.entityType}`);
+    if (transformed.entityType !== 'cms_page' || !transformed.entity) {
+      return this.unexpectedEntityError(
+        'blog post',
+        transformed.entityType || 'unknown entity',
+        urlPath,
+        transformed.entityType === 'unknown' ? 404 : 400
+      );
     }
     if (transformed.entity.cmsPageType !== 'blog') {
-      throw new Error(`Expected blog post at ${urlPath}, but got CMS page`);
+      return this.unexpectedEntityError('blog post', 'CMS page', urlPath);
     }
 
-    return {
-      ...response,
-      data: transformed.entity
-    };
+    return { data: transformed.entity };
   }
 
   /**
@@ -167,10 +217,15 @@ export class CMSAPI {
       }
     );
 
-    return {
-      ...response,
-      data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data)
-    };
+    if (response.error) {
+      return { error: response.error };
+    }
+
+    if (!response.data) {
+      return this.missingDataError('blog posts');
+    }
+
+    return { data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data) };
   }
 
   /**
@@ -192,9 +247,14 @@ export class CMSAPI {
       }
     );
 
-    return {
-      ...response,
-      data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data)
-    };
+    if (response.error) {
+      return { error: response.error };
+    }
+
+    if (!response.data) {
+      return this.missingDataError('CMS content');
+    }
+
+    return { data: transformCMSListResponse<PaginatedResponse<CMSPage>>(response.data) };
   }
 }

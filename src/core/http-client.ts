@@ -180,15 +180,9 @@ export class HttpClient {
         return this.request<T>(method, url, options, retryCount + 1);
       }
 
-      // Parse response
-      const contentType = response.headers.get('content-type');
-      let data: any;
-
-      if (contentType?.includes('application/json')) {
-        data = await response.json();
-      } else {
-        data = await response.text();
-      }
+      // Parse the body without allowing malformed JSON on an HTTP error to be
+      // misreported as a network failure.
+      const data = await this.parseResponseBody(response);
 
       // Caller wants the raw parsed body (no result-unwrap / key transform).
       // Used where the generic transform is lossy (e.g. colliding *_identifier keys).
@@ -224,7 +218,7 @@ export class HttpClient {
         return {
           error: {
             status: response.status,
-            message: transformedResult?.message || result?.message || response.statusText || 'Request failed',
+            message: this.extractErrorMessage(transformedResult, response.statusText),
             type: 'api',
             details: transformedResult
           }
@@ -240,12 +234,72 @@ export class HttpClient {
       // Network error or abort
       return {
         error: {
-          message: error.name === 'AbortError' ? 'Request timeout' : error.message || 'Network error',
+          message: error?.name === 'AbortError' ? 'Request timeout' : error?.message || 'Network error',
           type: 'network',
-          details: error
+          details: this.serializeErrorDetails(error)
         }
       };
     }
+  }
+
+  /**
+   * Parse JSON responses from text so an invalid JSON error body can still be
+   * returned using the standard API-error envelope.
+   */
+  private async parseResponseBody(response: Response): Promise<any> {
+    const rawBody = await response.text();
+    if (!rawBody) {
+      return undefined;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      return rawBody;
+    }
+
+    try {
+      return JSON.parse(rawBody);
+    } catch {
+      return rawBody;
+    }
+  }
+
+  /** Extract a useful message from the common backend error shapes. */
+  private extractErrorMessage(details: any, statusText: string): string {
+    const visit = (value: any): string | undefined => {
+      if (typeof value === 'string') {
+        return value.trim() || undefined;
+      }
+
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const message = visit(item);
+          if (message) return message;
+        }
+        return undefined;
+      }
+
+      if (!value || typeof value !== 'object') {
+        return undefined;
+      }
+
+      for (const key of ['message', 'error', 'errors', 'detail', 'title']) {
+        const message = visit(value[key]);
+        if (message) return message;
+      }
+
+      return undefined;
+    };
+
+    return visit(details) || statusText || 'Request failed';
+  }
+
+  /** Keep network error details serializable, matching `SazitoError.details`. */
+  private serializeErrorDetails(error: any): { name: string; message: string } {
+    return {
+      name: typeof error?.name === 'string' ? error.name : 'Error',
+      message: typeof error?.message === 'string' ? error.message : String(error)
+    };
   }
 
   /**

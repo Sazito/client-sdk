@@ -9,19 +9,21 @@ export interface JsonObject {
 }
 export type JsonArray = JsonValue[];
 
-/**
- * Unified response pattern for all API calls
- * No exceptions are thrown - errors are returned in the error field
- */
-export interface SazitoResponse<T> {
-  data?: T;
-  error?: {
-    status?: number;
-    message: string;
-    type: 'network' | 'api' | 'validation';
-    details?: JsonValue;
-  };
+/** Error returned by every SDK API method. */
+export interface SazitoError {
+  status?: number;
+  message: string;
+  type: 'network' | 'api' | 'validation';
+  details?: JsonValue;
 }
+
+/**
+ * Unified response pattern for all API calls.
+ * API failures are returned in `error`; public API methods do not throw them.
+ */
+export type SazitoResponse<T> =
+  | { data: T; error?: never }
+  | { data?: never; error: SazitoError };
 
 /**
  * Paginated response wrapper

@@ -31,20 +31,19 @@ export class MenuAPI {
       }
     );
 
+    if (response.error) {
+      return { error: response.error };
+    }
+
     // Transform and clean the response (removes staticUrl, unnecessary fields)
-    const transformed = response.data
-      ? transformMenuResponse<{ tree: MenuTree }>(response.data)
-      : response.data;
+    const transformed = transformMenuResponse<{ tree: MenuTree }>(response.data);
 
     // Transform the raw tree structure into a clean navigation array
     // Response is camelCased by HTTP client: tree.treeStructure.nodes
     const nodes = transformed?.tree?.treeStructure?.nodes || [];
     const processedMenu = this.convertRawTreeToNavigation(nodes);
 
-    return {
-      ...response,
-      data: processedMenu
-    };
+    return { data: processedMenu };
   }
 
   /**

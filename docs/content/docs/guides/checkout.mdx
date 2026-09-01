@@ -260,23 +260,114 @@ accepts a number in pixels.
 
 ## Payment gateway return
 
-When a gateway redirects back, render `SazitoCheckoutPage` with `paymentReturnParams`. The checkout auto-resolves the outcome and shows the result screen.
+When a gateway redirects back, render `SazitoCheckoutPage` with
+`paymentReturnParams`. The checkout auto-resolves the outcome and shows the
+result screen.
+
+Some Sazito payment methods return to a nested legacy URL instead of using
+query parameters. For example:
+
+```text
+/checkout/paymentinplaceresult/payment/304/identifier/6f8a717eb211f0839e522a5358932968
+```
+
+A regular `app/checkout/page.tsx` route does not match this URL, so Next.js
+returns a 404 before the checkout component can resolve the payment. The
+recommended App Router setup is an [optional catch-all route](https://nextjs.org/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments).
+
+Replace `app/checkout/page.tsx` with
+`app/checkout/[[...callback]]/page.tsx`. The optional catch-all continues to
+serve `/checkout` and also accepts nested payment-result URLs:
+
+```tsx
+// app/checkout/[[...callback]]/page.tsx
+import { SazitoCheckoutPage } from '@sazito/checkout/next';
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+interface CheckoutPageProps {
+  params: Promise<{ callback?: string[] }>;
+  searchParams: Promise<SearchParams>;
+}
+
+function toStringRecord(params: SearchParams): Record<string, string> {
+  const result: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(params)) {
+    const firstValue = Array.isArray(value) ? value[0] : value;
+    if (firstValue !== undefined) result[key] = firstValue;
+  }
+
+  return result;
+}
+
+function getPaymentReturnParams(
+  callback: string[] | undefined,
+  query: SearchParams,
+): Record<string, string> | undefined {
+  const [
+    resultRoute,
+    paymentSegment,
+    paymentId,
+    identifierSegment,
+    paymentIdentifier,
+  ] = callback ?? [];
+
+  if (
+    !resultRoute?.toLowerCase().endsWith('result') ||
+    paymentSegment !== 'payment' ||
+    identifierSegment !== 'identifier' ||
+    !paymentId ||
+    !/^\d+$/.test(paymentId) ||
+    !paymentIdentifier
+  ) {
+    return undefined;
+  }
+
+  return {
+    ...toStringRecord(query),
+    id: paymentId,
+    paymentIdentifier,
+  };
+}
+
+export default async function CheckoutPage({
+  params,
+  searchParams,
+}: CheckoutPageProps) {
+  const [{ callback }, query] = await Promise.all([params, searchParams]);
+  const paymentReturnParams = getPaymentReturnParams(callback, query);
+
+  return (
+    <SazitoCheckoutPage
+      credentials={{ cart: { identifier: '<cart-identifier>' } }}
+      config={{ locale: 'fa', continueShoppingUrl: '/' }}
+      paymentReturnParams={paymentReturnParams}
+    />
+  );
+}
+```
+
+The payment ID and identifier from the path are mapped to the `id` and
+`paymentIdentifier` callback fields expected by the SDK. Any gateway query
+parameters are forwarded as well. Keep the checkout under the same
+`SazitoProvider` and SDK client used to create the payment so its persisted
+invoice and payment credentials remain available during verification.
+
+If a gateway already returns to a dedicated query-string URL, a separate route
+can still pass its search parameters directly:
 
 ```tsx
 // app/checkout/return/page.tsx
 import { SazitoCheckoutPage } from '@sazito/checkout/next';
 
-export default function ReturnPage({
+export default async function ReturnPage({
   searchParams,
 }: {
-  searchParams: Record<string, string>;
+  searchParams: Promise<Record<string, string>>;
 }) {
   return (
-    <SazitoCheckoutPage
-      credentials={{ cart: { identifier: '<cart-identifier>' } }}
-      config={{ locale: 'fa', returnUrl: '/checkout/return' }}
-      paymentReturnParams={searchParams}
-    />
+    <SazitoCheckoutPage paymentReturnParams={await searchParams} />
   );
 }
 ```

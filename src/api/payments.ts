@@ -267,7 +267,7 @@ export class PaymentsAPI {
     return {
       error: {
         message: 'Payment polling exited unexpectedly',
-        type: 'network'
+        type: 'api'
       }
     };
   }
