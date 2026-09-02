@@ -104,8 +104,6 @@ works when no payment credentials remain in browser storage:
 const result = await client.payments.verify({
   id: 304,
   paymentIdentifier: '6f8a717eb211f0839e522a5358932968',
-  // Include any gateway-specific callback fields as needed:
-  tatoken: searchParams.get('tatoken') ?? undefined,
 });
 ```
 
