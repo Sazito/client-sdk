@@ -90,7 +90,9 @@ export interface CreatePaymentInput {
 }
 
 export interface PaymentStepInput {
+  /** Payment ID supplied by Sazito's gateway-return path. */
   id?: number;
+  /** Payment identifier supplied by Sazito's gateway-return path. */
   paymentIdentifier?: string;
   payload?: JsonObject;
   tatoken?: string;

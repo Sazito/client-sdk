@@ -706,7 +706,19 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     async resolvePaymentReturn(params) {
       await withLock(async () => {
         set({ step: 'result', status: 'polling', result: { status: 'pending' } });
-        const action = await binding.client.payments.verify(paymentReturnInput(params));
+        const input = paymentReturnInput(params);
+        if (
+          input?.id != null &&
+          Number.isInteger(input.id) &&
+          input.id > 0 &&
+          input.paymentIdentifier?.trim()
+        ) {
+          binding.credentials.setPaymentCredentials({
+            id: input.id,
+            identifier: input.paymentIdentifier.trim()
+          });
+        }
+        const action = await binding.client.payments.verify(input);
         if (action.error || !action.data) {
           setError(fromSdkError(action.error ?? { message: '', type: 'api' }, get().locale, 'result'));
           return;

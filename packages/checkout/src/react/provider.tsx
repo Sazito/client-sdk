@@ -33,13 +33,15 @@ export function CheckoutProvider({
   const cartIdentifier = credentials?.cart?.identifier;
   const invoiceId = credentials?.invoice?.id;
   const invoiceIdentifier = credentials?.invoice?.identifier;
+  const paymentId = credentials?.payment?.id;
+  const paymentIdentifier = credentials?.payment?.identifier;
   const engine = useMemo<CheckoutEngine>(() => {
     const nextEngine = createCheckoutEngine({ client, credentials, config });
     nextEngine.setEffectExecutor(createBrowserEffectExecutor(config));
     return nextEngine;
     // Recreate only when the SDK/session changes. Config-only updates are applied below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, cartIdentifier, invoiceId, invoiceIdentifier]);
+  }, [client, cartIdentifier, invoiceId, invoiceIdentifier, paymentId, paymentIdentifier]);
 
   useEffect(() => {
     engine.setEffectExecutor(createBrowserEffectExecutor(config));

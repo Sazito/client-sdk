@@ -56,6 +56,17 @@
       },
       "default": "./dist/next/index.js"
     },
+    "./next/payment-return": {
+      "import": {
+        "types": "./dist/next/payment-return.d.ts",
+        "default": "./dist/next/payment-return.js"
+      },
+      "require": {
+        "types": "./dist/next/payment-return.d.cts",
+        "default": "./dist/next/payment-return.cjs"
+      },
+      "default": "./dist/next/payment-return.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "typesVersions": {
@@ -68,6 +79,9 @@
       ],
       "next": [
         "dist/next/index.d.ts"
+      ],
+      "next/payment-return": [
+        "dist/next/payment-return.d.ts"
       ]
     }
   },

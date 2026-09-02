@@ -185,10 +185,17 @@ describe('checkout engine — happy path', () => {
     };
     const engine = createCheckoutEngine({
       client,
-      credentials: { cart: { identifier: 'isolated-cart' } }
+      credentials: {
+        cart: { identifier: 'isolated-cart' },
+        payment: { id: 304, identifier: 'return-payment' }
+      }
     });
 
     expect(credentials.getCartCredentials()?.identifier).toBe('isolated-cart');
+    expect(credentials.getPaymentCredentials()).toEqual({
+      id: 304,
+      identifier: 'return-payment'
+    });
     await engine.actions.start();
     expect(client.cart.get).toHaveBeenCalled();
     expect(engine.getState().error).toBeNull();
@@ -732,5 +739,29 @@ describe('checkout engine — happy path', () => {
     // pending → poll → showOrder
     await vi.waitFor(() => expect(engine.getState().result?.status).toBe('success'));
     expect(engine.getState().step).toBe('result');
+  });
+
+  it('restores payment credentials from callback parameters before verification', async () => {
+    const credentials = new CredentialsManager(new MemoryStorage());
+    const client = {
+      ...makeMockClient(),
+      getCredentialsManager: () => credentials
+    };
+    const engine = createCheckoutEngine({ client });
+
+    await engine.actions.resolvePaymentReturn({
+      id: '304',
+      paymentIdentifier: 'callback-payment'
+    });
+
+    expect(credentials.getPaymentCredentials()).toEqual({
+      id: 304,
+      identifier: 'callback-payment'
+    });
+    expect(client.payments.verify).toHaveBeenCalledWith({
+      id: 304,
+      paymentIdentifier: 'callback-payment'
+    });
+    expect(engine.getState().result?.status).toBe('success');
   });
 });

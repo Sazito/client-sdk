@@ -138,7 +138,20 @@ export interface CheckoutTheme {
 export interface CheckoutCredentials {
   cart?: { id?: number; identifier: string };
   invoice?: { id: number; identifier: string };
+  payment?: { id: number; identifier: string };
 }
+
+/** Normalized payment callback data accepted by `SazitoCheckoutPage`. */
+export interface CheckoutPaymentReturn {
+  payment: { id: number; identifier: string };
+  params: Record<string, string>;
+}
+
+/** Search-param shape exposed by current Next.js App Router pages. */
+export type PaymentReturnSearchParams = Record<
+  string,
+  string | string[] | undefined
+>;
 
 export interface CheckoutConfig {
   locale?: CheckoutLocale;
@@ -146,7 +159,11 @@ export interface CheckoutConfig {
   theme?: CheckoutTheme;
   /** URL for the "continue shopping" / back-to-store action. */
   continueShoppingUrl?: string;
-  /** URL the gateway returns to after payment. Defaults to current URL. */
+  /**
+   * Reserved for gateways that support a caller-provided return URL.
+   * Current Sazito legacy callbacks use their generated nested result path.
+   * @deprecated Use an optional catch-all route with `parsePaymentReturn`.
+   */
   returnUrl?: string;
   /** Pending-payment poll interval in ms (default 15000). */
   pollIntervalMs?: number;

@@ -75,8 +75,8 @@ Use this for JSON-mode step requests (commonly `cardtocardpayment`) after `creat
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `input.paymentIdentifier` | `string` | Optional | Overrides stored payment identifier in JSON mode. |
-| `input.id` | `number` | Optional | Optional payment ID override in JSON body. |
+| `input.paymentIdentifier` | `string` | Optional | With `input.id`, restores callback payment credentials; otherwise overrides the stored identifier. |
+| `input.id` | `number` | Optional | With `input.paymentIdentifier`, selects the callback payment endpoint and persists both values. |
 | `input.payload` | `Record<string, any>` | Optional | Gateway-specific JSON payload. |
 | `input.tatoken` | `string` | Optional | Gateway/session token. |
 | `input.trackingData` | `Record<string, any>` | Optional | Tracking payload. |
@@ -91,6 +91,26 @@ const cardToCardStep = await client.payments.processStep({
   code: '894512',
 });
 ```
+
+### Verify
+
+Use: `payments.verify(input?, options?)`.
+
+Verifies a returning gateway payment. When both callback credential fields are
+provided, the SDK restores them before making the request, so verification also
+works when no payment credentials remain in browser storage:
+
+```ts
+const result = await client.payments.verify({
+  id: 304,
+  paymentIdentifier: '6f8a717eb211f0839e522a5358932968',
+  // Include any gateway-specific callback fields as needed:
+  tatoken: searchParams.get('tatoken') ?? undefined,
+});
+```
+
+If `id` and `paymentIdentifier` are omitted, `verify` uses the payment created
+earlier on the same SDK client.
 
 ### Process Step (Form Mode)
 

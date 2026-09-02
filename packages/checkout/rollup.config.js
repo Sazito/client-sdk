@@ -12,7 +12,8 @@ const external = [
 const input = {
   'core/index': 'src/core/index.ts',
   'react/index': 'src/react/index.ts',
-  'next/index': 'src/next/index.ts'
+  'next/index': 'src/next/index.ts',
+  'next/payment-return': 'src/next/payment-return.ts'
 };
 
 const clientBanner = (chunk) =>

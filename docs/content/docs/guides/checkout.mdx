@@ -104,7 +104,8 @@ client from a domain.
 |---|---|---|
 | `credentials` | `CheckoutCredentials` | Cart (and optionally invoice) identifiers to attach to. |
 | `config` | `CheckoutConfig` | Locale, theme, URLs, event hook, behaviour flags. |
-| `paymentReturnParams` | `Record<string, string>` | Query params from a returning payment gateway. Triggers result-resolution mode instead of bootstrapping a fresh flow. |
+| `paymentReturn` | `CheckoutPaymentReturn` | Parsed nested gateway callback returned by `parsePaymentReturn`. Triggers result-resolution mode and restores payment credentials. |
+| `paymentReturnParams` | `Record<string, string>` | Legacy query-only callback parameters. Prefer `paymentReturn` for nested Sazito callback URLs. |
 | `className` | `string` | Extra class on the root element. |
 | `renderNextButton` | `(props: RenderButtonProps) => ReactNode` | Replace the continue / next button across all steps. |
 | `renderBackButton` | `(props: RenderButtonProps) => ReactNode` | Replace the back button across all steps. |
@@ -117,10 +118,13 @@ client from a domain.
 interface CheckoutCredentials {
   cart?: { id?: number; identifier: string };
   invoice?: { id: number; identifier: string };
+  payment?: { id: number; identifier: string };
 }
 ```
 
-Typically only `cart.identifier` is needed. Supply `invoice` to re-attach to an already-created invoice (e.g. returning from a gateway).
+Typically only `cart.identifier` is needed. Supply `invoice` to re-attach to an
+already-created invoice. `parsePaymentReturn` supplies `payment` automatically
+for nested gateway callbacks.
 
 ### `CheckoutConfig`
 
@@ -130,7 +134,7 @@ Typically only `cart.identifier` is needed. Supply `invoice` to re-attach to an 
 | `direction` | `'rtl' \| 'ltr'` | derived from locale | Override text direction explicitly. |
 | `theme` | `CheckoutTheme` | — | Visual overrides — see [Theming](#theming). |
 | `continueShoppingUrl` | `string` | — | URL for the back button on the cart step and the "continue shopping" link on the result screen. |
-| `returnUrl` | `string` | current URL | URL the payment gateway redirects to. |
+| `returnUrl` | `string` | — | Reserved for gateways that support a caller-provided return URL. Legacy Sazito callbacks use their generated nested result path. |
 | `pollIntervalMs` | `number` | `15000` | How often (ms) to poll for a pending payment result after gateway return. |
 | `currencyLabel` | `string` | locale default | Override the currency unit label (e.g. `'تومان'`). |
 | `onEvent` | `(event: CheckoutEvent) => void` | — | Analytics hook — called for every checkout lifecycle event. See [Analytics](#analytics). |
@@ -261,8 +265,8 @@ accepts a number in pixels.
 ## Payment gateway return
 
 When a gateway redirects back, render `SazitoCheckoutPage` with
-`paymentReturnParams`. The checkout auto-resolves the outcome and shows the
-result screen.
+`paymentReturn`. The checkout restores the payment credentials, resolves the
+outcome, and shows the result screen.
 
 Some Sazito payment methods return to a nested legacy URL instead of using
 query parameters. For example:
@@ -282,6 +286,8 @@ serve `/checkout` and also accepts nested payment-result URLs:
 ```tsx
 // app/checkout/[[...callback]]/page.tsx
 import { SazitoCheckoutPage } from '@sazito/checkout/next';
+import { parsePaymentReturn } from '@sazito/checkout/next/payment-return';
+import { notFound } from 'next/navigation';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -290,69 +296,29 @@ interface CheckoutPageProps {
   searchParams: Promise<SearchParams>;
 }
 
-function toStringRecord(params: SearchParams): Record<string, string> {
-  const result: Record<string, string> = {};
-
-  for (const [key, value] of Object.entries(params)) {
-    const firstValue = Array.isArray(value) ? value[0] : value;
-    if (firstValue !== undefined) result[key] = firstValue;
-  }
-
-  return result;
-}
-
-function getPaymentReturnParams(
-  callback: string[] | undefined,
-  query: SearchParams,
-): Record<string, string> | undefined {
-  const [
-    resultRoute,
-    paymentSegment,
-    paymentId,
-    identifierSegment,
-    paymentIdentifier,
-  ] = callback ?? [];
-
-  if (
-    !resultRoute?.toLowerCase().endsWith('result') ||
-    paymentSegment !== 'payment' ||
-    identifierSegment !== 'identifier' ||
-    !paymentId ||
-    !/^\d+$/.test(paymentId) ||
-    !paymentIdentifier
-  ) {
-    return undefined;
-  }
-
-  return {
-    ...toStringRecord(query),
-    id: paymentId,
-    paymentIdentifier,
-  };
-}
-
 export default async function CheckoutPage({
   params,
   searchParams,
 }: CheckoutPageProps) {
   const [{ callback }, query] = await Promise.all([params, searchParams]);
-  const paymentReturnParams = getPaymentReturnParams(callback, query);
+  const paymentReturn = parsePaymentReturn(callback, query);
+
+  if (callback && !paymentReturn) notFound();
 
   return (
     <SazitoCheckoutPage
       credentials={{ cart: { identifier: '<cart-identifier>' } }}
       config={{ locale: 'fa', continueShoppingUrl: '/' }}
-      paymentReturnParams={paymentReturnParams}
+      paymentReturn={paymentReturn}
     />
   );
 }
 ```
 
-The payment ID and identifier from the path are mapped to the `id` and
-`paymentIdentifier` callback fields expected by the SDK. Any gateway query
-parameters are forwarded as well. Keep the checkout under the same
-`SazitoProvider` and SDK client used to create the payment so its persisted
-invoice and payment credentials remain available during verification.
+`parsePaymentReturn` validates the callback shape, maps the payment ID and
+identifier, and forwards any gateway query parameters. The callback credentials
+are restored before verification, so the return flow does not depend solely on
+an existing `localStorage` entry.
 
 If a gateway already returns to a dedicated query-string URL, a separate route
 can still pass its search parameters directly:

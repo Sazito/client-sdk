@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type React from 'react';
 import { CheckoutProvider, useCheckout, useSazitoClient } from '../react';
 import {
@@ -9,11 +9,18 @@ import {
   type RenderButtonProps,
   type RenderEmptyCartProps,
 } from '../ui';
-import type { CheckoutConfig, CheckoutCredentials } from '../core';
+import type {
+  CheckoutConfig,
+  CheckoutCredentials,
+  CheckoutPaymentReturn
+} from '../core';
 
 export interface SazitoCheckoutPageProps {
   credentials?: CheckoutCredentials;
   config?: CheckoutConfig;
+  /** Parsed nested gateway callback. Prefer `parsePaymentReturn()` to create it. */
+  paymentReturn?: CheckoutPaymentReturn;
+  /** @deprecated Prefer `paymentReturn`; retained for query-only callbacks. */
   paymentReturnParams?: Record<string, string>;
   className?: string;
   renderNextButton?: (props: RenderButtonProps) => React.ReactNode;
@@ -25,6 +32,7 @@ export interface SazitoCheckoutPageProps {
 export function SazitoCheckoutPage({
   credentials,
   config,
+  paymentReturn,
   paymentReturnParams,
   className,
   renderNextButton,
@@ -32,17 +40,21 @@ export function SazitoCheckoutPage({
   renderEmptyCart,
   emptyCart,
 }: SazitoCheckoutPageProps) {
-  const isReturn = paymentReturnParams != null;
+  const returnParams = paymentReturn?.params ?? paymentReturnParams;
+  const isReturn = returnParams != null;
+  const checkoutCredentials = paymentReturn
+    ? { ...credentials, payment: paymentReturn.payment }
+    : credentials;
   const client = useSazitoClient();
 
   return (
     <CheckoutProvider
       client={client}
-      credentials={credentials}
+      credentials={checkoutCredentials}
       config={config}
       autoStart={!isReturn}
     >
-      {isReturn ? <ResolveReturn params={paymentReturnParams} /> : null}
+      {returnParams ? <ResolveReturn params={returnParams} /> : null}
       <SazitoCheckout
         theme={config?.theme}
         continueShoppingUrl={config?.continueShoppingUrl}
@@ -58,9 +70,15 @@ export function SazitoCheckoutPage({
 
 function ResolveReturn({ params }: { params: Record<string, string> }) {
   const { actions } = useCheckout();
+  const resolvedKey = useRef<string | null>(null);
+  const paramsKey = JSON.stringify(
+    Object.entries(params).sort(([a], [b]) => a.localeCompare(b))
+  );
+
   useEffect(() => {
+    if (resolvedKey.current === paramsKey) return;
+    resolvedKey.current = paramsKey;
     void actions.resolvePaymentReturn(params);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [actions, params, paramsKey]);
   return null;
 }

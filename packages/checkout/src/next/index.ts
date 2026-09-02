@@ -28,3 +28,7 @@ export {
   SazitoProvider,
   type SazitoProviderProps,
 } from '../react';
+export type {
+  CheckoutPaymentReturn,
+  PaymentReturnSearchParams
+} from '../core';

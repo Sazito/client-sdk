@@ -63,4 +63,7 @@ function seedCredentials(
   if (seed.invoice?.identifier && typeof seed.invoice.id === 'number') {
     credentials.setInvoiceCredentials({ id: seed.invoice.id, identifier: seed.invoice.identifier });
   }
+  if (seed.payment?.identifier && typeof seed.payment.id === 'number') {
+    credentials.setPaymentCredentials({ id: seed.payment.id, identifier: seed.payment.identifier });
+  }
 }

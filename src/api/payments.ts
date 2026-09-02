@@ -180,6 +180,20 @@ export class PaymentsAPI {
     input: PaymentStepInput | undefined,
     options?: RequestOptions
   ): Promise<SazitoResponse<PaymentAction>> {
+    const callbackId = input?.id;
+    const callbackIdentifier = input?.paymentIdentifier?.trim();
+    if (
+      callbackId != null &&
+      Number.isInteger(callbackId) &&
+      callbackId > 0 &&
+      callbackIdentifier
+    ) {
+      this.credentials.setPaymentCredentials({
+        id: callbackId,
+        identifier: callbackIdentifier
+      });
+    }
+
     const paymentCreds = this.credentials.getPaymentCredentials();
 
     if (!paymentCreds) {
@@ -191,12 +205,14 @@ export class PaymentsAPI {
       };
     }
 
-    const { paymentIdentifier, ...restInput } = input ?? {};
+    const restInput = { ...input };
+    delete restInput.id;
+    delete restInput.paymentIdentifier;
 
     const response = await this.http.post<PaymentAction>(
       `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
       {
-        paymentIdentifier: paymentIdentifier || paymentCreds.identifier,
+        paymentIdentifier: callbackIdentifier || paymentCreds.identifier,
         ...restInput
       },
       this.withExactJsonHeader(options)

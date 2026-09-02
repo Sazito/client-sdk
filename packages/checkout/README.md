@@ -15,6 +15,7 @@ pnpm add @sazito/client-sdk @sazito/checkout react@18 react-dom@18
 @sazito/checkout/core   framework-agnostic engine (store, operateCart port, effects, selectors)
 @sazito/checkout/react  CheckoutProvider + useCheckout() hook
 @sazito/checkout/next   <SazitoCheckoutPage /> — the drop-in checkout component
+@sazito/checkout/next/payment-return   server-safe Next.js callback parser
 @sazito/checkout/styles.css  self-contained, themeable, RTL/LTR styles
 ```
 
@@ -58,6 +59,43 @@ export default function Checkout() {
   );
 }
 ```
+
+## Payment gateway returns in Next.js
+
+Use one optional catch-all route so the same page handles `/checkout` and
+Sazito's nested callback URLs. The parser restores callback payment credentials
+and preserves gateway query parameters:
+
+```tsx
+// app/checkout/[[...callback]]/page.tsx
+import { SazitoCheckoutPage } from '@sazito/checkout/next';
+import { parsePaymentReturn } from '@sazito/checkout/next/payment-return';
+import { notFound } from 'next/navigation';
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function CheckoutPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ callback?: string[] }>;
+  searchParams: Promise<SearchParams>;
+}) {
+  const [{ callback }, query] = await Promise.all([params, searchParams]);
+  const paymentReturn = parsePaymentReturn(callback, query);
+
+  if (callback && !paymentReturn) notFound();
+
+  return (
+    <SazitoCheckoutPage
+      paymentReturn={paymentReturn}
+    />
+  );
+}
+```
+
+`paymentReturnParams` remains available for existing query-only callback
+integrations.
 
 ### Theme variables
 
