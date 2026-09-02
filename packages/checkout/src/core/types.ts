@@ -21,7 +21,11 @@ import type {
   PaymentMethod,
   PaymentAction,
   PaymentGateway,
-  Order
+  Order,
+  OrderInvoice,
+  OrderInvoiceItem,
+  OrderShippingItem,
+  OrderPublicId
 } from '@sazito/client-sdk';
 
 export type {
@@ -41,7 +45,11 @@ export type {
   PaymentMethod,
   PaymentAction,
   PaymentGateway,
-  Order
+  Order,
+  OrderInvoice,
+  OrderInvoiceItem,
+  OrderShippingItem,
+  OrderPublicId
 };
 
 /** How a discount code changes the order. */

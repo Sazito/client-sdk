@@ -5,6 +5,7 @@ export {
   type SazitoCheckoutProps,
   type RenderButtonProps,
   type RenderEmptyCartProps,
+  type RenderResultProps,
   type EmptyCartOptions,
 } from './SazitoCheckout';
 export { Stepper } from './Stepper';

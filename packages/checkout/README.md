@@ -184,6 +184,40 @@ The built-in empty-cart screen can be customized without replacing its layout:
 For complete control, use `renderEmptyCart`; it receives the resolved title,
 description, action label, icon, and continue-shopping URL.
 
+The post-payment screen has the same replacement path through `renderResult`:
+
+```tsx
+<SazitoCheckoutPage
+  config={{ continueShoppingUrl: '/products' }}
+  renderResult={({ status, order, result, continueShoppingUrl, onRetry }) => (
+    <StorefrontOrderResult
+      status={status}
+      order={order}
+      message={result?.message}
+      continueHref={continueShoppingUrl}
+      onRetry={onRetry}
+    />
+  )}
+/>
+```
+
+The custom renderer receives the normalized result status, finalized order,
+continue-shopping URL, and a retry action. Payment verification and pending
+polling remain managed by the checkout engine.
+
+| `RenderResultProps` field | Type | Meaning |
+|---|---|---|
+| `result` | `CheckoutResult \| null` | Full result, backend message, and optional order |
+| `status` | `success \| failed \| pending \| stock_violated` | Normalized result status |
+| `order` | `Order \| undefined` | Finalized order convenience reference |
+| `continueShoppingUrl` | `string \| undefined` | Configured storefront destination |
+| `onRetry` | `() => void` | Return to the payment step |
+
+`renderResult` is called only on the result step. It replaces the built-in
+`ResultStep`, while checkout verification, polling, the root theme/direction,
+the stepper, and the `.szc-result-wrap` layout remain active. The same prop is
+available on `SazitoCheckout` when composing `CheckoutProvider` manually.
+
 ## Flow (v1 scope)
 
 4 states — `cart → shipping → payment → result`:
@@ -193,7 +227,9 @@ description, action label, icon, and continue-shopping URL.
   switching** for physical items; digital items skip shipping.
 - **Payment** — payment-method selection + discount code; the **Finish purchase**
   (پایان خرید) CTA places the order directly (redirect / POST / pending-poll).
-- **Result** — success / failed / pending, with order reference.
+- **Result** — success / failed / pending, with the order code, public ID,
+  shipping methods, purchased items, quantities, line totals, and invoice totals
+  whenever the payment response includes an order.
 
 Deferred (post-v1): card-to-card upload, invoice dynamic forms, wallet credit
 UI (engine keeps `toggleCredit`), multi-rate item reallocation, the legacy

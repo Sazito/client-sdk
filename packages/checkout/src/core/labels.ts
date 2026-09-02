@@ -89,6 +89,12 @@ export interface Strings {
   paymentPending: string;
   paymentPendingHint: string;
   orderNumber: string;
+  orderId: string;
+  orderConfirmedHint: string;
+  orderDetails: string;
+  orderItems: string;
+  product: string;
+  lineTotal: string;
   tryAgain: string;
   // status / errors
   loading: string;
@@ -171,7 +177,13 @@ const fa: Strings = {
   paymentFailed: 'پرداخت ناموفق بود',
   paymentPending: 'در حال بررسی پرداخت',
   paymentPendingHint: 'پرداخت شما در حال پردازش است. لطفاً صبر کنید.',
-  orderNumber: 'شماره سفارش',
+  orderNumber: 'کد سفارش',
+  orderId: 'شناسه سفارش',
+  orderConfirmedHint: 'سفارش شما با موفقیت ثبت شد.',
+  orderDetails: 'جزئیات سفارش',
+  orderItems: 'اقلام سفارش',
+  product: 'محصول',
+  lineTotal: 'جمع قیمت',
   tryAgain: 'تلاش دوباره',
   loading: 'در حال بارگذاری…',
   processing: 'در حال پردازش…',
@@ -253,7 +265,13 @@ const en: Strings = {
   paymentFailed: 'Payment failed',
   paymentPending: 'Verifying payment',
   paymentPendingHint: 'Your payment is being processed. Please wait.',
-  orderNumber: 'Order number',
+  orderNumber: 'Order code',
+  orderId: 'Order ID',
+  orderConfirmedHint: 'Your order is confirmed. Its details and purchased items are shown below.',
+  orderDetails: 'Order details',
+  orderItems: 'Order items',
+  product: 'Product',
+  lineTotal: 'Line total',
   tryAgain: 'Try again',
   loading: 'Loading…',
   processing: 'Processing…',

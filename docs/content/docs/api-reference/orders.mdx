@@ -8,7 +8,7 @@ description: Authenticated order listing and detail retrieval.
 `orders` is for post-checkout access in authenticated sessions.
 
 - Use this module for order history and order detail pages after checkout.
-- For guest checkout completion, immediate order data comes from `payments.initialize()` when `action === 'showOrder'`.
+- For guest checkout completion, immediate order data comes from `payments.initialize()` when `action === 'show_order'` or `action === 'pending'`.
 - After user login, use `orders.list`/`orders.get` for long-term order retrieval.
 
 ## Methods
@@ -58,11 +58,13 @@ if (firstOrderId) {
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `number` | Required | Order ID. |
-| `orderNumber` | `string` | Required | Human-readable order number. |
+| `id` | `number \| string` | Required | Order ID. Its response type is preserved. |
+| `orderNumber` | `number \| string` | Required | Human-readable order number. Its response type is preserved. |
 | `orderIdentifier` | `string` | Required | Stable order identifier token. |
-| `invoice.invoiceItems` | `InvoiceItem[]` | Required | Purchased items. |
-| `invoice.shippingItems` | `any[]` | Required | Shipping assignments on order invoice. |
+| `invoice.netTotal` | `number` | Required | Invoice total before final adjustments. |
+| `invoice.finalTotal` | `number` | Required | Final charged total. |
+| `invoice.invoiceItems` | `OrderInvoiceItem[]` | Required | Purchased items transformed from the documented checkout response fields. |
+| `invoice.shippingItems` | `OrderShippingItem[]` | Required | Shipping assignments, including invoice item IDs and the selected rate. |
 
 ## Known errors
 
@@ -270,9 +272,9 @@ Source: `src/types/order.ts`
 | --- | --- | --- |
 | `pageNumber` | `number` | Optional |
 | `pageSize` | `number` | Optional |
-| `filters` | `Array<{ name: string; value: any }>` | Optional |
+| `filters` | `Array<{ name: string; value: JsonValue }>` | Optional |
 | `filters.[].name` | `string` | Required |
-| `filters.[].value` | `any` | Required |
+| `filters.[].value` | `JsonValue` | Required |
 
 #### Order
 
@@ -280,33 +282,74 @@ Source: `src/types/order.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `id` | `number` | Required |
-| `orderNumber` | `string` | Required |
+| `id` | `OrderPublicId` | Required |
+| `orderNumber` | `OrderPublicId` | Required |
 | `orderIdentifier` | `string` | Required |
-| `invoice` | `{     shippingItems: any[];     invoiceItems: InvoiceItem[];   }` | Required |
-| `invoice.shippingItems` | `any[]` | Required |
-| `invoice.invoiceItems` | `InvoiceItem[]` | Required |
+| `invoice` | `OrderInvoice` | Required |
 
-#### InvoiceItem
+#### OrderInvoice
 
-Source: `src/types/invoice.ts`
+Source: `src/types/order.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `id` | `number \| string` | Required |
-| `productVariantId` | `number` | Required |
+| `invoiceItems` | `OrderInvoiceItem[]` | Required |
+| `shippingItems` | `OrderShippingItem[]` | Required |
+| `netTotal` | `number` | Required |
+| `finalTotal` | `number` | Required |
+| `shippingTotal` | `number` | Optional |
+| `discountTotal` | `number` | Optional |
+| `creditTotal` | `number` | Optional |
+| `vat` | `number` | Optional |
+| `vatPercent` | `number` | Optional |
+| `itemsTotalRawPrice` | `number` | Optional |
+| `itemsDiscount` | `number` | Optional |
+| `customerProfit` | `number` | Optional |
+| `customerProfitPercentage` | `number` | Optional |
+| `discountUsages` | `Array<{     discountCode?: { code?: string };   }>` | Optional |
+| `discountUsages.[].discountCode` | `{ code?: string }` | Optional |
+| `discountUsages.[].discountCode.code` | `string` | Optional |
+
+#### OrderInvoiceItem
+
+Source: `src/types/order.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `productVariantId` | `OrderPublicId` | Required |
 | `name` | `string` | Required |
-| `quantity` | `number` | Required |
-| `unitPrice` | `number` | Required |
-| `lineTotal` | `number` | Required |
-| `rawPrice` | `number` | Required |
-| `customerProfit` | `number` | Required |
-| `image` | `Image` | Required |
-| `product` | `CheckoutProductSnapshot` | Required |
-| `commercialFiles` | `any` | Optional |
-| `formAttributes` | `Record<string, FormAttributeValue> \| InvoiceItemFormAttributes` | Optional |
-| `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
-| `formFields` | `Record<string, any>` | Optional |
+| `image` | `{ url?: string }` | Optional |
+| `image.url` | `string` | Optional |
+| `variantAttributes` | `Array<{     name: string;     value: string;   }>` | Required |
+| `variantAttributes.[].name` | `string` | Required |
+| `variantAttributes.[].value` | `string` | Required |
+| `singleItemPrice` | `number` | Required |
+| `noOfItems` | `number` | Required |
+| `totalItemsPrice` | `number` | Required |
+| `customerProfit` | `number` | Optional |
+| `formAttributes` | `unknown` | Optional |
+| `bookingAttributes` | `unknown` | Optional |
+| `productVariant` | `{     commercialFiles?: Array<{ id: OrderPublicId }>;     product: {       productType: string;     };   }` | Required |
+| `productVariant.commercialFiles` | `Array<{ id: OrderPublicId }>` | Optional |
+| `productVariant.commercialFiles[].id` | `OrderPublicId` | Required |
+| `productVariant.product` | `{       productType: string;     }` | Required |
+| `productVariant.product.productType` | `string` | Required |
+
+#### OrderShippingItem
+
+Source: `src/types/order.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `OrderPublicId` | Required |
+| `invoiceItemIds` | `OrderPublicId[]` | Required |
+| `rate` | `{     id?: OrderPublicId;     name: string;     price: number;     type?: string;     icon?: string;     color?: string;   }` | Required |
+| `rate.id` | `OrderPublicId` | Optional |
+| `rate.name` | `string` | Required |
+| `rate.price` | `number` | Required |
+| `rate.type` | `string` | Optional |
+| `rate.icon` | `string` | Optional |
+| `rate.color` | `string` | Optional |
 
 #### ShippingAddress
 
@@ -321,15 +364,14 @@ Source: `src/types/invoice.ts`
 | `mobilePhone` | `string` | Optional |
 | `phoneNumber` | `string` | Optional |
 | `email` | `string` | Optional |
-| `region` | `Region` | Optional |
-| `city` | `City` | Required |
+| `region` | `ShippingAddressRegion` | Optional |
+| `city` | `ShippingAddressCity` | Required |
 | `address` | `string` | Required |
 | `postalCode` | `string` | Optional |
+| `description` | `string` | Optional |
 | `latitude` | `number` | Optional |
 | `longitude` | `number` | Optional |
 | `userSetCoordinatesBefore` | `boolean` | Optional |
-| `createdAt` | `string` | Optional |
-| `updatedAt` | `string` | Optional |
 
 #### PaymentMethod
 
@@ -339,5 +381,10 @@ Source: `src/types/payment.ts`
 | --- | --- | --- |
 | `id` | `number` | Required |
 | `code` | `PaymentGateway` | Required |
+| `title` | `string` | Required |
+| `titleFa` | `string` | Required |
+| `description` | `string \| null` | Required |
+| `paymentSubType` | `number \| null` | Required |
+| `order` | `number` | Required |
 | `isDefault` | `boolean` | Required |
 {/* AUTO_FIELDS_END */}

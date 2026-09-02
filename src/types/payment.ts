@@ -69,14 +69,20 @@ export interface Payment {
   amount: number;
 }
 
-export interface PaymentAction {
-  action: 'POST' | 'REDIRECT' | 'UPLOAD' | 'pending' | 'showOrder' | 'StockViolated' | 'FAIL';
-  address?: string;
-  payload?: JsonObject;
-  order?: Order;
-  time?: number;
+interface PaymentActionBase {
   message?: string;
 }
+
+export type PaymentAction = PaymentActionBase & (
+  | { action: 'POST'; address: string; payload: Record<string, string | number> }
+  | { action: 'REDIRECT'; address: string }
+  | { action: 'UPLOAD'; time?: number }
+  | { action: 'show_otp_modal'; time?: number }
+  | { action: 'show_order'; order: Order }
+  | { action: 'pending'; order: Order }
+  | { action: 'payment_fail_error' | 'show_error' | 'FAIL' }
+  | { action: 'StockViolated' }
+);
 
 export interface PaymentCredentials {
   id: number;

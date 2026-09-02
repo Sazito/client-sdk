@@ -7,6 +7,7 @@ import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
   Order,
+  OrderPublicId,
   OrdersListResponse,
   OrderFilters,
   RequestOptions
@@ -35,6 +36,7 @@ export class OrdersAPI {
 
     const response = await this.http.get<OrdersListResponse>(ORDERS_API, {
       ...options,
+      skipTransform: true,
       params
     });
 
@@ -47,10 +49,13 @@ export class OrdersAPI {
    * Get single order by ID (requires authentication)
    */
   async get(
-    orderId: number,
+    orderId: OrderPublicId,
     options?: RequestOptions
   ): Promise<SazitoResponse<Order>> {
-    const response = await this.http.get<Order>(`${ORDERS_API}/${orderId}`, options);
+    const response = await this.http.get<Order>(`${ORDERS_API}/${orderId}`, {
+      ...options,
+      skipTransform: true
+    });
     return response.data
       ? { data: transformOrderResponse<Order>(response.data) }
       : response;

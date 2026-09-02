@@ -72,14 +72,14 @@ export class HttpClient {
   async post<T>(
     endpoint: string,
     body?: any,
-    options?: RequestOptions
+    options?: RequestOptions & { skipRequestTransform?: boolean }
   ): Promise<SazitoResponse<T>> {
     const url = this.buildUrl(endpoint);
     const isMultipartBody = this.isMultipartBody(body);
 
     // Transform JSON-like payloads to snake_case; keep multipart bodies untouched
     const transformedBody = body
-      ? isMultipartBody ? body : transformRequestKeys(body)
+      ? isMultipartBody || options?.skipRequestTransform ? body : transformRequestKeys(body)
       : undefined;
 
     // Invalidate related cache

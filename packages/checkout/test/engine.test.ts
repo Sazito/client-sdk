@@ -120,8 +120,8 @@ function makeMockClient() {
       getMethods: vi.fn(async () => ok([{ id: 3, code: 'zarinpalpayment', isDefault: true }])),
       create: vi.fn(async () => ok({ id: 8, identifier: 'p1', paymentType: { code: 'zarinpalpayment' }, amount: 1200 })),
       initialize: vi.fn(async () => ok({ action: 'REDIRECT', address: 'https://gateway/pay' })),
-      verify: vi.fn(async () => ok({ action: 'showOrder', order: { id: 1, orderNumber: 'ORD-1', orderIdentifier: 'oi', invoice: { shippingItems: [], invoiceItems: [] } } })),
-      pollUntilSettled: vi.fn(async () => ok({ action: 'showOrder', order: { id: 1, orderNumber: 'ORD-1', orderIdentifier: 'oi', invoice: { shippingItems: [], invoiceItems: [] } } }))
+      verify: vi.fn(async () => ok({ action: 'show_order', order: { id: 1, orderNumber: 'ORD-1', orderIdentifier: 'oi', invoice: { shippingItems: [], invoiceItems: [], netTotal: 0, finalTotal: 0 } } })),
+      pollUntilSettled: vi.fn(async () => ok({ action: 'show_order', order: { id: 1, orderNumber: 'ORD-1', orderIdentifier: 'oi', invoice: { shippingItems: [], invoiceItems: [], netTotal: 0, finalTotal: 0 } } }))
     }
   };
 }
@@ -736,7 +736,7 @@ describe('checkout engine — happy path', () => {
     const { engine, client } = setup();
     client.payments.verify.mockResolvedValueOnce({ data: { action: 'pending' } } as never);
     await engine.actions.resolvePaymentReturn({});
-    // pending → poll → showOrder
+    // pending → poll → show_order
     await vi.waitFor(() => expect(engine.getState().result?.status).toBe('success'));
     expect(engine.getState().step).toBe('result');
   });

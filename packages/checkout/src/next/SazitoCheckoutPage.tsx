@@ -8,6 +8,7 @@ import {
   type EmptyCartOptions,
   type RenderButtonProps,
   type RenderEmptyCartProps,
+  type RenderResultProps,
 } from '../ui';
 import { parsePaymentReturnUrl } from '../core';
 import type {
@@ -27,6 +28,7 @@ export interface SazitoCheckoutPageProps {
   renderNextButton?: (props: RenderButtonProps) => React.ReactNode;
   renderBackButton?: (props: RenderButtonProps) => React.ReactNode;
   renderEmptyCart?: (props: RenderEmptyCartProps) => React.ReactNode;
+  renderResult?: (props: RenderResultProps) => React.ReactNode;
   emptyCart?: EmptyCartOptions;
 }
 
@@ -39,6 +41,7 @@ export function SazitoCheckoutPage({
   renderNextButton,
   renderBackButton,
   renderEmptyCart,
+  renderResult,
   emptyCart,
 }: SazitoCheckoutPageProps) {
   // The explicit server-parsed value remains authoritative. As a fallback,
@@ -74,6 +77,7 @@ export function SazitoCheckoutPage({
         renderNextButton={renderNextButton}
         renderBackButton={renderBackButton}
         renderEmptyCart={renderEmptyCart}
+        renderResult={renderResult}
         emptyCart={emptyCart}
       />
     </CheckoutProvider>

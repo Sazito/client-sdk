@@ -11,7 +11,8 @@ description: Drop-in multi-step checkout UI for Next.js apps built on the Sazito
 - Shipping address form with region / city cascading selects
 - Shipping method selection (multiple groups supported)
 - Payment method selection and gateway redirect
-- Post-payment result screen (success, pending, failed, stock violated)
+- Post-payment result screen (success, pending, failed, stock violated) with
+  order code, public ID, shipping methods, purchased-item details, and totals
 - Automatic pending-payment polling after gateway return
 
 Steps run in order: **cart → shipping → payment → result**
@@ -111,6 +112,7 @@ client from a domain.
 | `renderBackButton` | `(props: RenderButtonProps) => ReactNode` | Replace the back button across all steps. |
 | `emptyCart` | `EmptyCartOptions` | Customize the built-in empty state's title, description, icon, action label, or action URL. |
 | `renderEmptyCart` | `(props: RenderEmptyCartProps) => ReactNode` | Replace the empty-cart screen. Receives the resolved content and `continueShoppingUrl`. |
+| `renderResult` | `(props: RenderResultProps) => ReactNode` | Replace the post-payment result screen. Receives the result, status, finalized order, continue-shopping URL, and retry action. |
 
 ### `CheckoutCredentials`
 
@@ -423,6 +425,71 @@ Use `renderEmptyCart` when the storefront has its own empty-state component:
     />
   )}
 />
+```
+
+## Replacing the result screen
+
+Use `renderResult` to replace the complete post-payment screen while keeping
+the checkout engine's payment verification and pending polling:
+
+```tsx
+import type { RenderResultProps } from '@sazito/checkout/next';
+
+function StorefrontResult({
+  status,
+  order,
+  result,
+  continueShoppingUrl,
+  onRetry,
+}: RenderResultProps) {
+  if (status === 'pending') return <PaymentVerification />;
+
+  if (status !== 'success') {
+    return (
+      <PaymentError message={result?.message} onRetry={onRetry} />
+    );
+  }
+
+  return (
+    <OrderSuccess
+      order={order}
+      continueHref={continueShoppingUrl ?? '/products'}
+    />
+  );
+}
+
+<SazitoCheckoutPage
+  credentials={{ cart: { identifier: '<cart-identifier>' } }}
+  config={{ locale: 'fa', continueShoppingUrl: '/products' }}
+  renderResult={(props) => <StorefrontResult {...props} />}
+/>
+```
+
+`onRetry` returns the checkout to the payment step. `order` is populated for
+both `show_order` and `pending` responses and contains the order code, public
+ID, shipping assignments, purchased invoice items, and invoice totals.
+
+### `RenderResultProps`
+
+| Prop | Type | Description |
+|---|---|---|
+| `result` | `CheckoutResult \| null` | Complete engine result. Includes the backend `message` and finalized `order` when available. It can be `null` during the initial resolving render. |
+| `status` | `'success' \| 'failed' \| 'pending' \| 'stock_violated'` | Normalized status. Defaults to `pending` until a result is resolved. |
+| `order` | `Order \| undefined` | Convenience reference to `result.order`. Available for valid `show_order` and `pending` responses. |
+| `continueShoppingUrl` | `string \| undefined` | Value configured through `config.continueShoppingUrl`. The custom renderer decides whether and how to navigate to it. |
+| `onRetry` | `() => void` | Clears the result view and returns to the payment step. Use for `failed` and `stock_violated` states. |
+
+Supplying `renderResult` replaces only the result content; the checkout root,
+direction, theme variables, stepper, and `.szc-result-wrap` layout container
+remain mounted. The callback runs only while the active step is `result`.
+Returning `null` intentionally leaves the result area empty.
+
+The slot is also available when composing the React UI directly:
+
+```tsx
+<CheckoutProvider client={sazito} credentials={credentials}>
+  <SazitoCheckout renderResult={(props) => <StorefrontResult {...props} />} />
+</CheckoutProvider>
 ```
 
 ## Replacing action buttons

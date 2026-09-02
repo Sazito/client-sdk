@@ -2,17 +2,69 @@
  * Order-related types
  */
 
-import { InvoiceItem } from './invoice';
-import { JsonObject, JsonValue } from './common';
+import { JsonValue } from './common';
+
+export type OrderPublicId = number | string;
+
+export interface OrderInvoiceItem {
+  productVariantId: OrderPublicId;
+  name: string;
+  image?: { url?: string };
+  variantAttributes: Array<{
+    name: string;
+    value: string;
+  }>;
+  singleItemPrice: number;
+  noOfItems: number;
+  totalItemsPrice: number;
+  customerProfit?: number;
+  formAttributes?: unknown;
+  bookingAttributes?: unknown;
+  productVariant: {
+    commercialFiles?: Array<{ id: OrderPublicId }>;
+    product: {
+      productType: string;
+    };
+  };
+}
+
+export interface OrderShippingItem {
+  id: OrderPublicId;
+  invoiceItemIds: OrderPublicId[];
+  rate: {
+    id?: OrderPublicId;
+    name: string;
+    price: number;
+    type?: string;
+    icon?: string;
+    color?: string;
+  };
+}
+
+export interface OrderInvoice {
+  invoiceItems: OrderInvoiceItem[];
+  shippingItems: OrderShippingItem[];
+  netTotal: number;
+  finalTotal: number;
+  shippingTotal?: number;
+  discountTotal?: number;
+  creditTotal?: number;
+  vat?: number;
+  vatPercent?: number;
+  itemsTotalRawPrice?: number;
+  itemsDiscount?: number;
+  customerProfit?: number;
+  customerProfitPercentage?: number;
+  discountUsages?: Array<{
+    discountCode?: { code?: string };
+  }>;
+}
 
 export interface Order {
-  id: number;
-  orderNumber: string;
+  id: OrderPublicId;
+  orderNumber: OrderPublicId;
   orderIdentifier: string;
-  invoice: {
-    shippingItems: JsonObject[];
-    invoiceItems: InvoiceItem[];
-  };
+  invoice: OrderInvoice;
 }
 
 export interface OrdersListResponse {

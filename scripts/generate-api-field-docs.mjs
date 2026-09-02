@@ -56,7 +56,9 @@ const PAGE_TYPE_MAP = {
   'docs/content/docs/api-reference/orders.mdx': [
     'src/types/order.ts:OrderFilters',
     'src/types/order.ts:Order',
-    'src/types/invoice.ts:InvoiceItem',
+    'src/types/order.ts:OrderInvoice',
+    'src/types/order.ts:OrderInvoiceItem',
+    'src/types/order.ts:OrderShippingItem',
     'src/types/invoice.ts:ShippingAddress',
     'src/types/payment.ts:PaymentMethod',
   ],

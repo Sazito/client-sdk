@@ -2,7 +2,13 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import { useCheckout } from '../react';
-import { formatNumber, type CheckoutTheme } from '../core';
+import {
+  formatNumber,
+  type CheckoutResult,
+  type CheckoutResultStatus,
+  type CheckoutTheme,
+  type Order
+} from '../core';
 import { Button, ErrorBanner, Spinner } from './primitives';
 import { Stepper, CartIcon, TruckIcon, CardIcon, ClipboardIcon } from './Stepper';
 import { OrderSummary } from './OrderSummary';
@@ -31,6 +37,20 @@ export interface RenderEmptyCartProps {
   icon: ReactNode;
 }
 
+/** Props passed to a custom checkout result renderer. */
+export interface RenderResultProps {
+  /** Complete post-payment result, including any backend message and order. */
+  result: CheckoutResult | null;
+  /** Normalized result status. Falls back to `pending` while resolving. */
+  status: CheckoutResultStatus;
+  /** Finalized order returned by Sazito on a successful payment. */
+  order?: Order;
+  /** Configured destination for the continue-shopping action. */
+  continueShoppingUrl?: string;
+  /** Return to the payment step after a failed or stock-violated result. */
+  onRetry: () => void;
+}
+
 /** Content-level customisation for the built-in empty-cart screen. */
 export interface EmptyCartOptions {
   /** Empty-state heading. Defaults to the active locale. */
@@ -54,6 +74,8 @@ export interface SazitoCheckoutProps {
   renderNextButton?: (props: RenderButtonProps) => ReactNode;
   renderBackButton?: (props: RenderButtonProps) => ReactNode;
   renderEmptyCart?: (props: RenderEmptyCartProps) => ReactNode;
+  /** Completely replace the built-in post-payment result screen. */
+  renderResult?: (props: RenderResultProps) => ReactNode;
   emptyCart?: EmptyCartOptions;
 }
 
@@ -96,12 +118,14 @@ export function SazitoCheckout({
   renderNextButton,
   renderBackButton,
   renderEmptyCart,
+  renderResult,
   emptyCart,
 }: SazitoCheckoutProps) {
   const { state, actions, t, summary, money } = useCheckout();
   const { step, direction, flags, error } = state;
 
   const isResult = step === 'result';
+  const resultStatus = state.result?.status ?? 'pending';
   const bootstrapping =
     step === 'cart' && !error && (!state.cart || !state.invoice || flags.bootstrapping);
   const emptyCartError = error?.code === 'no_cart';
@@ -292,7 +316,17 @@ export function SazitoCheckout({
         <ErrorBanner message={error.message} />
       ) : isResult ? (
         <div className="szc-result-wrap">
-          <ResultStep continueShoppingUrl={continueShoppingUrl} />
+          {renderResult ? (
+            renderResult({
+              result: state.result,
+              status: resultStatus,
+              order: state.result?.order,
+              continueShoppingUrl,
+              onRetry: () => actions.goToStep('payment')
+            })
+          ) : (
+            <ResultStep continueShoppingUrl={continueShoppingUrl} />
+          )}
         </div>
       ) : (
         <>

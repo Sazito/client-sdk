@@ -9,14 +9,15 @@ description: Checkout payment APIs for gateway selection, payment creation, veri
 
 - Depends on invoice credentials (`invoices.create` must run first).
 - Supports redirect/post gateways and manual step-based flows like card-to-card upload/code verification.
-- When payment reaches `showOrder`, SDK runs checkout finalization automatically.
+- When payment reaches `show_order`, SDK runs checkout finalization automatically.
 
 ## V2 contract notes
 
 - `payments.getMethods` sends the current invoice identifier to `/api/v2/payments/list`.
 - `/api/v2/payments/{id}/process_payment_step` behavior depends on exact `Content-Type`.
-- JSON mode must use exact `application/json` when top-level `paymentIdentifier` is needed.
+- JSON mode uses exact `application/json`. The SDK sends the wire field as `payment_identifier`.
 - Use form mode for gateways that post callback/form payloads.
+- Action values are preserved exactly and are case-sensitive; the SDK does not rename them.
 
 ## Methods
 
@@ -56,7 +57,7 @@ Initializes current payment and returns next action.
 
 Returns: `SazitoResponse<PaymentAction>`.
 
-When payment verification succeeds (`action === 'showOrder'`), the SDK automatically
+When payment verification succeeds (`action === 'show_order'`), the SDK automatically
 calls `POST /api/v1/pinch/order` as part of checkout completion.
 
 ```ts
@@ -90,6 +91,16 @@ const cardToCardStep = await client.payments.processStep({
   imageUrl: 'https://cdn.example.com/payment-proof.png',
   code: '894512',
 });
+```
+
+This produces the exact endpoint body:
+
+```json
+{
+  "payment_identifier": "<current-payment-identifier>",
+  "image_url": "https://cdn.example.com/payment-proof.png",
+  "code": "894512"
+}
 ```
 
 ### Verify
@@ -168,12 +179,15 @@ client.payments.clearPayment();
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `action` | `'POST' \| 'REDIRECT' \| 'UPLOAD' \| 'pending' \| 'showOrder' \| 'FAIL' \| 'StockViolated'` | Required | Next action type. |
+| `action` | `'POST' \| 'REDIRECT' \| 'UPLOAD' \| 'show_otp_modal' \| 'show_order' \| 'pending' \| 'payment_fail_error' \| 'show_error' \| 'FAIL' \| 'StockViolated'` | Required | Exact, case-sensitive next action type returned by the API. |
 | `address` | `string` | Optional | Redirect/post URL. |
-| `payload` | `Record<string, any>` | Optional | POST payload for gateway. |
-| `order` | `Order` | Optional | Finalized order when action is `showOrder`. |
-| `time` | `number` | Optional | Upload deadline timestamp/seconds. |
+| `payload` | `Record<string, string \| number>` | Optional | Hidden form fields for `POST`. |
+| `order` | `Order` | Optional | Required by both `show_order` and `pending`. Response keys inside the order are camel-cased once by the SDK. |
+| `time` | `number` | Optional | Upload or OTP window in minutes. |
 | `message` | `string` | Optional | Error/action message. |
+
+For `pending`, call `pollUntilSettled()` (15 seconds by default). Polling stops when
+the action changes to `show_order` or a failure action.
 
 ## Known errors
 
@@ -469,14 +483,7 @@ Source: `src/types/payment.ts`
 
 Source: `src/types/payment.ts`
 
-| Field | Type | Required |
-| --- | --- | --- |
-| `action` | `'POST' \| 'REDIRECT' \| 'UPLOAD' \| 'pending' \| 'showOrder' \| 'StockViolated' \| 'FAIL'` | Required |
-| `address` | `string` | Optional |
-| `payload` | `Record<string, any>` | Optional |
-| `order` | `Order` | Optional |
-| `time` | `number` | Optional |
-| `message` | `string` | Optional |
+Type: `PaymentActionBase & (   \| { action: 'POST'; address: string; payload: Record<string, string \| number> }   \| { action: 'REDIRECT'; address: string }   \| { action: 'UPLOAD'; time?: number }   \| { action: 'show_otp_modal'; time?: number }   \| { action: 'show_order'; order: Order }   \| { action: 'pending'; order: Order }   \| { action: 'payment_fail_error' \| 'show_error' \| 'FAIL' }   \| { action: 'StockViolated' } )`
 
 #### PaymentStepInput
 
@@ -484,6 +491,11 @@ Source: `src/types/payment.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
+| `id` | `number` | Optional |
+| `paymentIdentifier` | `string` | Optional |
+| `payload` | `JsonObject` | Optional |
+| `tatoken` | `string` | Optional |
+| `trackingData` | `JsonObject` | Optional |
 | `isFailed` | `string` | Optional |
 | `imageUrl` | `string` | Optional |
 | `code` | `string` | Optional |

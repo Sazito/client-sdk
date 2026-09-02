@@ -9,6 +9,7 @@ import {
   PaymentMethod,
   Payment,
   PaymentAction,
+  Order,
   PaymentStepInput,
   PaymentStepFormFields,
   RequestOptions,
@@ -16,7 +17,10 @@ import {
   JsonObject
 } from '../types';
 import { PAYMENTS_API, PINCH_API } from '../constants/endpoints';
-import { transformPaymentMethodsResponse, transformRequestKeys } from '../utils/transformers';
+import {
+  transformOrderResponse,
+  transformPaymentMethodsResponse
+} from '../utils/transformers';
 
 export class PaymentsAPI {
   private readonly pinchedPayments = new Set<number>();
@@ -140,7 +144,7 @@ export class PaymentsAPI {
   /**
    * Initialize payment: start the payment step before redirecting the user to
    * the gateway. Returns the next {@link PaymentAction} (typically REDIRECT or
-   * POST for hosted gateways, or showOrder for zero-amount/instant payments).
+   * POST for hosted gateways, or show_order for zero-amount/instant payments).
    */
   async initialize(options?: RequestOptions): Promise<SazitoResponse<PaymentAction>> {
     return this.submitPaymentStep(undefined, options);
@@ -150,7 +154,7 @@ export class PaymentsAPI {
    * Verify payment after the user returns from the gateway. Forwards the
    * gateway callback parameters (e.g. `tatoken`, `trackingData`, `isFailed`,
    * `code`) to the same payment-step endpoint and returns the settled
-   * {@link PaymentAction} (showOrder on success, FAIL/StockViolated otherwise,
+   * {@link PaymentAction} (show_order on success, FAIL/StockViolated otherwise,
    * or pending if the gateway has not reported back yet).
    */
   async verify(
@@ -205,17 +209,10 @@ export class PaymentsAPI {
       };
     }
 
-    const restInput = { ...input };
-    delete restInput.id;
-    delete restInput.paymentIdentifier;
-
     const response = await this.http.post<PaymentAction>(
       `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
-      {
-        paymentIdentifier: callbackIdentifier || paymentCreds.identifier,
-        ...restInput
-      },
-      this.withExactJsonHeader(options)
+      this.buildProcessStepBody(input, callbackIdentifier || paymentCreds.identifier),
+      { ...this.withExactJsonHeader(options), skipRequestTransform: true }
     );
 
     return this.finalizeStepResponse(response, paymentCreds.id, options);
@@ -252,7 +249,7 @@ export class PaymentsAPI {
     const response = await this.http.post<PaymentAction>(
       `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
       formData,
-      options
+      { ...options, skipTransform: true }
     );
 
     return this.finalizeStepResponse(response, paymentCreds.id, options);
@@ -265,27 +262,17 @@ export class PaymentsAPI {
     options?: RequestOptions,
     intervalMs: number = 15000
   ): Promise<SazitoResponse<PaymentAction>> {
-    let isPending = true;
-    while (isPending) {
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
       const response = await this.verify(undefined, options);
       if (!response.data) {
         return response;
       }
 
       if (response.data.action !== 'pending') {
-        isPending = false;
         return response;
       }
-
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
-
-    return {
-      error: {
-        message: 'Payment polling exited unexpectedly',
-        type: 'api'
-      }
-    };
   }
 
   /**
@@ -305,7 +292,8 @@ export class PaymentsAPI {
       headers: {
         ...headers,
         'Content-Type': 'application/json'
-      }
+      },
+      skipTransform: true
     };
   }
 
@@ -324,7 +312,7 @@ export class PaymentsAPI {
       return input;
     }
 
-    const transformedInput = transformRequestKeys(input) as Record<string, JsonValue>;
+    const transformedInput = this.buildProcessStepBody(input, paymentIdentifier);
     const formData = new FormData();
 
     Object.entries(transformedInput).forEach(([key, value]) => {
@@ -336,6 +324,23 @@ export class PaymentsAPI {
     }
 
     return formData;
+  }
+
+  private buildProcessStepBody(
+    input: PaymentStepInput | PaymentStepFormFields | undefined,
+    paymentIdentifier: string
+  ): JsonObject {
+    const body: JsonObject = { payment_identifier: paymentIdentifier };
+    if (!input) return body;
+
+    if ('payload' in input && input.payload !== undefined) body.payload = input.payload;
+    if ('tatoken' in input && input.tatoken !== undefined) body.tatoken = input.tatoken;
+    if ('trackingData' in input && input.trackingData !== undefined) body.tracking_data = input.trackingData;
+    if ('isFailed' in input && input.isFailed !== undefined) body.is_failed = input.isFailed;
+    if ('imageUrl' in input && input.imageUrl !== undefined) body.image_url = input.imageUrl;
+    if ('code' in input && input.code !== undefined) body.code = input.code;
+
+    return body;
   }
 
   private appendFormValue(formData: FormData, key: string, value: JsonValue): void {
@@ -412,19 +417,94 @@ export class PaymentsAPI {
         : (envelope as JsonObject);
 
     const normalizedAction = this.normalizeAction(actionPayload);
+    if (!normalizedAction) {
+      return {
+        error: { message: 'Invalid payment step result', type: 'api' }
+      };
+    }
     await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentId, options);
     return { data: normalizedAction };
   }
 
-  private normalizeAction(action: PaymentAction | JsonObject): PaymentAction {
-    if (action?.action === 'show_order') {
-      return {
-        ...action,
-        action: 'showOrder'
-      } as PaymentAction;
-    }
+  private normalizeAction(action: JsonObject): PaymentAction | null {
+    const actionName = typeof action.action === 'string' ? action.action : '';
+    const message = typeof action.message === 'string' ? action.message : undefined;
 
-    return action as PaymentAction;
+    switch (actionName) {
+      case 'POST':
+        if (typeof action.address !== 'string' || !this.isPostPayload(action.payload)) return null;
+        return { action: 'POST', address: action.address, payload: action.payload, message };
+      case 'REDIRECT':
+        return typeof action.address === 'string'
+          ? { action: 'REDIRECT', address: action.address, message }
+          : null;
+      case 'UPLOAD':
+        return { action: 'UPLOAD', time: this.optionalNumber(action.time), message };
+      case 'show_otp_modal':
+        return { action: 'show_otp_modal', time: this.optionalNumber(action.time), message };
+      case 'show_order':
+      case 'pending': {
+        if (!action.order || typeof action.order !== 'object' || Array.isArray(action.order)) return null;
+        const order = transformOrderResponse<Order>(action.order);
+        if (!this.isCheckoutOrder(order)) return null;
+        return actionName === 'show_order'
+          ? { action: 'show_order', order, message }
+          : { action: 'pending', order, message };
+      }
+      case 'payment_fail_error':
+        return { action: 'payment_fail_error', message };
+      case 'show_error':
+        return { action: 'show_error', message };
+      case 'FAIL':
+        return { action: 'FAIL', message };
+      case 'StockViolated':
+        return { action: 'StockViolated', message };
+      default:
+        return null;
+    }
+  }
+
+  private optionalNumber(value: JsonValue | undefined): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  }
+
+  private isPostPayload(value: JsonValue | undefined): value is Record<string, string | number> {
+    return !!value && typeof value === 'object' && !Array.isArray(value) &&
+      Object.values(value).every((entry) => typeof entry === 'string' || typeof entry === 'number');
+  }
+
+  private isCheckoutOrder(order: Order): boolean {
+    const isPublicId = (value: unknown) =>
+      (typeof value === 'number' && Number.isFinite(value)) ||
+      (typeof value === 'string' && value.length > 0);
+    const invoice = order.invoice;
+
+    return isPublicId(order.id) &&
+      isPublicId(order.orderNumber) &&
+      typeof order.orderIdentifier === 'string' && order.orderIdentifier.length > 0 &&
+      !!invoice &&
+      Array.isArray(invoice.invoiceItems) &&
+      Array.isArray(invoice.shippingItems) &&
+      typeof invoice.netTotal === 'number' && Number.isFinite(invoice.netTotal) &&
+      typeof invoice.finalTotal === 'number' && Number.isFinite(invoice.finalTotal) &&
+      invoice.invoiceItems.every((item) =>
+        isPublicId(item.productVariantId) &&
+        typeof item.name === 'string' &&
+        Array.isArray(item.variantAttributes) &&
+        item.variantAttributes.every((attribute) =>
+          typeof attribute.name === 'string' && typeof attribute.value === 'string'
+        ) &&
+        typeof item.singleItemPrice === 'number' && Number.isFinite(item.singleItemPrice) &&
+        typeof item.noOfItems === 'number' && Number.isFinite(item.noOfItems) &&
+        typeof item.totalItemsPrice === 'number' && Number.isFinite(item.totalItemsPrice) &&
+        typeof item.productVariant?.product?.productType === 'string'
+      ) &&
+      invoice.shippingItems.every((item) =>
+        isPublicId(item.id) &&
+        Array.isArray(item.invoiceItemIds) &&
+        typeof item.rate?.name === 'string' &&
+        typeof item.rate?.price === 'number' && Number.isFinite(item.rate.price)
+      );
   }
 
   private async callPinchAfterSuccessfulPayment(
@@ -432,7 +512,7 @@ export class PaymentsAPI {
     paymentId: number,
     options?: RequestOptions
   ): Promise<void> {
-    if (action.action !== 'showOrder') {
+    if (action.action !== 'show_order') {
       return;
     }
 

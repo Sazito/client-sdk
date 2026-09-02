@@ -7,6 +7,7 @@ export {
   type RenderButtonProps,
   type RenderEmptyCartProps,
   type RenderEmptyCartProps as RenderEmptyCartPageProps,
+  type RenderResultProps,
   type EmptyCartOptions,
   Button,
   type ButtonProps,

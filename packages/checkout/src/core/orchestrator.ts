@@ -298,7 +298,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           fields: stringifyFields(action.payload)
         });
         return;
-      case 'showOrder':
+      case 'show_order':
         set({
           step: 'result',
           status: 'idle',
@@ -307,6 +307,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         emit('payment_succeeded', { step: 'result' });
         return;
       case 'FAIL':
+      case 'payment_fail_error':
+      case 'show_error':
         set({
           step: 'result',
           status: 'idle',
@@ -323,22 +325,22 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         setError(makeError('stock_violated', get().locale, 'result'));
         return;
       case 'pending':
-        set({ step: 'result', status: 'polling', result: { status: 'pending' } });
+        set({
+          step: 'result',
+          status: 'polling',
+          result: { status: 'pending', order: action.order, message: action.message }
+        });
         emit('payment_pending', { step: 'result' });
         void pollPending();
         return;
       case 'UPLOAD':
+      case 'show_otp_modal':
         // Card-to-card upload is out of scope for v1; surface a clear failure.
         set({
           step: 'result',
           status: 'idle',
           result: { status: 'failed', message: action.message }
         });
-        return;
-      default:
-        // Unknown/unhandled action from the gateway — never stall silently.
-        console.error('[Sazito Checkout] Unhandled payment action:', action);
-        failResult(action.message || makeError('payment_failed', get().locale, 'result').message);
         return;
     }
   }
@@ -970,7 +972,7 @@ function parseJsonObject(value: string | undefined): Record<string, unknown> | u
   }
 }
 
-function stringifyFields(payload: PaymentAction['payload']): Record<string, string> {
+function stringifyFields(payload: Record<string, string | number> | undefined): Record<string, string> {
   const fields: Record<string, string> = {};
   if (payload && typeof payload === 'object') {
     for (const [key, value] of Object.entries(payload)) {
