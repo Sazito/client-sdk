@@ -97,6 +97,11 @@ export default async function CheckoutPage({
 `paymentReturnParams` remains available for existing query-only callback
 integrations.
 
+As a fallback, `SazitoCheckoutPage` also recognizes this callback suffix from
+the browser URL when `paymentReturn` is omitted. The catch-all route is still
+required so Next.js serves the callback URL, and explicit server parsing remains
+recommended because it validates the route before rendering.
+
 ### Theme variables
 
 `config.theme` (or the `theme` prop on `SazitoCheckout`) accepts:

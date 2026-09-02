@@ -38,6 +38,52 @@ export function parsePaymentReturn(
   };
 }
 
+/**
+ * Parse a complete checkout URL containing Sazito's nested payment callback.
+ * The callback may be mounted below any checkout base path; only its final
+ * five path segments are significant.
+ */
+export function parsePaymentReturnUrl(
+  url: string | URL
+): CheckoutPaymentReturn | undefined {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = typeof url === 'string'
+      ? new URL(url, 'https://checkout.sazito.invalid')
+      : url;
+  } catch {
+    return undefined;
+  }
+
+  const segments = parsedUrl.pathname
+    .split('/')
+    .filter(Boolean)
+    .map(decodePathSegment);
+
+  if (segments.length < 5) {
+    return undefined;
+  }
+
+  const searchParams: Record<string, string> = {};
+  for (const [key, value] of parsedUrl.searchParams) {
+    // Match Next.js search-param normalization: preserve the first value.
+    if (searchParams[key] === undefined) {
+      searchParams[key] = value;
+    }
+  }
+
+  return parsePaymentReturn(segments.slice(-5), searchParams);
+}
+
+function decodePathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 function normalizeSearchParams(
   searchParams: PaymentReturnSearchParams
 ): Record<string, string> {

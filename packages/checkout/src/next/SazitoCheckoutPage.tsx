@@ -9,6 +9,7 @@ import {
   type RenderButtonProps,
   type RenderEmptyCartProps,
 } from '../ui';
+import { parsePaymentReturnUrl } from '../core';
 import type {
   CheckoutConfig,
   CheckoutCredentials,
@@ -40,10 +41,21 @@ export function SazitoCheckoutPage({
   renderEmptyCart,
   emptyCart,
 }: SazitoCheckoutPageProps) {
-  const returnParams = paymentReturn?.params ?? paymentReturnParams;
+  // The explicit server-parsed value remains authoritative. As a fallback,
+  // detect Sazito's well-known nested callback in the browser. This prevents a
+  // caught callback route from silently booting a fresh checkout when the host
+  // forgot to forward its catch-all params.
+  const detectedPaymentReturn =
+    paymentReturn == null &&
+    paymentReturnParams == null &&
+    typeof window !== 'undefined'
+      ? parsePaymentReturnUrl(window.location.href)
+      : undefined;
+  const resolvedPaymentReturn = paymentReturn ?? detectedPaymentReturn;
+  const returnParams = resolvedPaymentReturn?.params ?? paymentReturnParams;
   const isReturn = returnParams != null;
-  const checkoutCredentials = paymentReturn
-    ? { ...credentials, payment: paymentReturn.payment }
+  const checkoutCredentials = resolvedPaymentReturn
+    ? { ...credentials, payment: resolvedPaymentReturn.payment }
     : credentials;
   const client = useSazitoClient();
 

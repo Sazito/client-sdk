@@ -1,4 +1,4 @@
-export { parsePaymentReturn } from '../core/payment-return';
+export { parsePaymentReturn, parsePaymentReturnUrl } from '../core/payment-return';
 export type {
   CheckoutPaymentReturn,
   PaymentReturnSearchParams
