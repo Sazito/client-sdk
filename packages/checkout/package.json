@@ -1,6 +1,6 @@
 {
   "name": "@sazito/checkout",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Headless checkout engine + React UI for the Sazito platform, powered by @sazito/client-sdk",
   "license": "MIT",
   "repository": {
