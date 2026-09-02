@@ -102,6 +102,10 @@ the browser URL when `paymentReturn` is omitted. The catch-all route is still
 required so Next.js serves the callback URL, and explicit server parsing remains
 recommended because it validates the route before rendering.
 
+The same browser fallback runs in `CheckoutProvider`, so storefronts that
+compose `CheckoutProvider` and `SazitoCheckout` directly also resolve the
+payment return instead of bootstrapping the cart step.
+
 ### Theme variables
 
 `config.theme` (or the `theme` prop on `SazitoCheckout`) accepts:

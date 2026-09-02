@@ -4,6 +4,7 @@ import { useEffect, useMemo, type ReactNode } from 'react';
 import {
   createCheckoutEngine,
   createBrowserEffectExecutor,
+  parsePaymentReturnUrl,
   type CheckoutConfig,
   type CheckoutCredentials,
   type CheckoutEngine
@@ -30,13 +31,29 @@ export function CheckoutProvider({
   const contextClient = useSazitoClient();
   const client = clientProp ?? contextClient;
 
-  const cartIdentifier = credentials?.cart?.identifier;
-  const invoiceId = credentials?.invoice?.id;
-  const invoiceIdentifier = credentials?.invoice?.identifier;
-  const paymentId = credentials?.payment?.id;
-  const paymentIdentifier = credentials?.payment?.identifier;
+  // Catch callback URLs at the provider boundary as well as in the Next.js
+  // drop-in page. Some storefronts compose CheckoutProvider + SazitoCheckout
+  // directly, and would otherwise bootstrap the cart when a gateway returns.
+  const detectedPaymentReturn =
+    autoStart && typeof window !== 'undefined'
+      ? parsePaymentReturnUrl(window.location.href)
+      : undefined;
+  const effectiveCredentials = detectedPaymentReturn
+    ? { ...credentials, payment: detectedPaymentReturn.payment }
+    : credentials;
+  const paymentReturnKey = detectedPaymentReturn
+    ? JSON.stringify(
+        Object.entries(detectedPaymentReturn.params).sort(([a], [b]) => a.localeCompare(b))
+      )
+    : null;
+
+  const cartIdentifier = effectiveCredentials?.cart?.identifier;
+  const invoiceId = effectiveCredentials?.invoice?.id;
+  const invoiceIdentifier = effectiveCredentials?.invoice?.identifier;
+  const paymentId = effectiveCredentials?.payment?.id;
+  const paymentIdentifier = effectiveCredentials?.payment?.identifier;
   const engine = useMemo<CheckoutEngine>(() => {
-    const nextEngine = createCheckoutEngine({ client, credentials, config });
+    const nextEngine = createCheckoutEngine({ client, credentials: effectiveCredentials, config });
     nextEngine.setEffectExecutor(createBrowserEffectExecutor(config));
     return nextEngine;
     // Recreate only when the SDK/session changes. Config-only updates are applied below.
@@ -49,10 +66,17 @@ export function CheckoutProvider({
 
   useEffect(() => {
     if (autoStart) {
-      void engine.actions.start();
+      if (detectedPaymentReturn) {
+        void engine.actions.resolvePaymentReturn(detectedPaymentReturn.params);
+      } else {
+        void engine.actions.start();
+      }
     }
     return () => engine.destroy();
-  }, [engine, autoStart]);
+    // paymentReturnKey represents the normalized callback params and prevents
+    // object identity from retriggering verification on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, autoStart, paymentReturnKey]);
 
   const value = useMemo(() => engine, [engine]);
 

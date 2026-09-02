@@ -325,6 +325,9 @@ If the catch-all route renders `SazitoCheckoutPage` without forwarding
 from the browser URL. Explicit server parsing is still recommended so malformed
 catch-all paths can be rejected with `notFound()` before rendering.
 
+This fallback also runs in `CheckoutProvider`, covering custom React layouts
+that compose the provider and `SazitoCheckout` directly.
+
 If a gateway already returns to a dedicated query-string URL, a separate route
 can still pass its search parameters directly:
 
