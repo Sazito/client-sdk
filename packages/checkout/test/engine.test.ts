@@ -803,7 +803,6 @@ describe('checkout engine — happy path', () => {
   it('shows success for the final payment-in-place API response', async () => {
     const client = createSazitoClient({
       domain: 'shop.example.com',
-      paymentsBasePath: '/api/v1/payments',
       customFetchApi: async (input) => {
         if (String(input).includes('/pinch/order')) {
           return new Response(JSON.stringify({ result: true }), {
@@ -846,6 +845,43 @@ describe('checkout engine — happy path', () => {
       status: 'success',
       order: { id: 3216, orderNumber: 'OR0000003216' }
     });
+  });
+
+  it('verifies the same payment callback only once', async () => {
+    const { engine, client } = setup();
+    const callback = {
+      id: '3727',
+      paymentIdentifier: 'payment-token',
+      RefId: 'bank-reference'
+    };
+
+    await Promise.all([
+      engine.actions.resolvePaymentReturn(callback),
+      engine.actions.resolvePaymentReturn({ ...callback })
+    ]);
+
+    expect(client.payments.verify).toHaveBeenCalledTimes(1);
+    expect(engine.getState().result?.status).toBe('success');
+  });
+
+  it('does not downgrade a confirmed order when a callback replay fails', async () => {
+    const { engine, client } = setup();
+
+    await engine.actions.resolvePaymentReturn({
+      id: '3727',
+      paymentIdentifier: 'payment-token'
+    });
+    client.payments.verify.mockResolvedValueOnce({
+      data: { action: 'payment_fail_error' }
+    } as never);
+
+    await engine.actions.resolvePaymentReturn({
+      id: '3727',
+      paymentIdentifier: 'payment-token',
+      replay: '1'
+    });
+
+    expect(engine.getState().result?.status).toBe('success');
   });
 
   it('normalizes nullable result collections from older SDK versions', async () => {

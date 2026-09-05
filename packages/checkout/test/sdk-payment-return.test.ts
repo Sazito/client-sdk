@@ -319,7 +319,6 @@ describe('PaymentsAPI gateway return', () => {
   it('accepts the final payment-in-place success response with null order collections', async () => {
     const client = createSazitoClient({
       domain: 'shop.example.com',
-      paymentsBasePath: '/api/v1/payments',
       customFetchApi: async (input) => {
         if (String(input).includes('/pinch/order')) {
           return new Response(JSON.stringify({ result: true }), {
@@ -383,7 +382,6 @@ describe('PaymentsAPI gateway return', () => {
   it('accepts the final payment failure response with a null order', async () => {
     const client = createSazitoClient({
       domain: 'shop.example.com',
-      paymentsBasePath: '/api/v1/payments',
       customFetchApi: async () => new Response(JSON.stringify({
         result: {
           order: null,
@@ -411,10 +409,9 @@ describe('PaymentsAPI gateway return', () => {
   it('unwraps a storefront proxy response log before reading the payment action', async () => {
     const client = createSazitoClient({
       domain: 'shop.example.com',
-      paymentsBasePath: '/api/v1/payments',
       customFetchApi: async () => new Response(JSON.stringify({
         method: 'POST',
-        path: '/api/v1/payments/3728/process_payment_step',
+        path: '/api/v2/payments/3728/process_payment_step',
         response: {
           result: {
             order: null,
@@ -516,6 +513,31 @@ describe('PaymentsAPI gateway return', () => {
 
     expect(requestUrl).toBe(
       'https://payments-api.example.com/custom/v2/payments/789/process_payment_step'
+    );
+  });
+
+  it('uses the Sazito API origin and v2 payment verification path by default', async () => {
+    let requestUrl = '';
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async (input) => {
+        requestUrl = String(input);
+        return new Response(JSON.stringify({
+          result: { action: 'payment_fail_error', order: null },
+          error: '',
+          error_code: 0,
+          status: 0
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+    });
+
+    await client.payments.verify({
+      id: 3728,
+      paymentIdentifier: 'payment-token'
+    });
+
+    expect(requestUrl).toBe(
+      'http://api.sazito.com:8080/api/v2/payments/3728/process_payment_step'
     );
   });
 

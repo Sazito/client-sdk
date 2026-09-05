@@ -94,6 +94,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
   const binding: CheckoutSdkBinding = createSdkBinding(options);
   const store: Store<CheckoutState> = createStore(initialState(config));
   let paymentVerificationTraceSequence = 0;
+  let paymentReturnResolution: { key: string; promise: Promise<void> } | null = null;
 
   let effectExecutor: CheckoutEffectExecutor = noopEffectExecutor;
   let lock: Promise<unknown> = Promise.resolve();
@@ -266,6 +267,10 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
 
   // Push a terminal failure onto the result step (step 4) with a visible message.
   function failResult(message: string, err?: CheckoutError): void {
+    // A gateway callback may be replayed by React effects or the host router.
+    // Once the backend has returned a confirmed order, a later replay must not
+    // replace that terminal success with payment_fail_error.
+    if (get().result?.status === 'success') return;
     set({
       step: 'result',
       status: 'idle',
@@ -726,7 +731,36 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     },
 
     async resolvePaymentReturn(params) {
-      await withLock(async () => {
+      const resolutionKey = serializePaymentReturnParams(params);
+      if (get().result?.status === 'success') {
+        logPaymentVerification(undefined, 'callback_after_success_skipped', {
+          callbackParameterNames: Object.keys(params),
+          paymentId: params.id,
+          paymentIdentifier: params.paymentIdentifier
+        });
+        return;
+      }
+      if (paymentReturnResolution?.key === resolutionKey) {
+        logPaymentVerification(undefined, 'duplicate_callback_skipped', {
+          callbackParameterNames: Object.keys(params),
+          paymentId: params.id,
+          paymentIdentifier: params.paymentIdentifier
+        });
+        await paymentReturnResolution.promise;
+        return;
+      }
+
+      const resolutionPromise = withLock(async () => {
+        // Another callback may have completed while this one waited for the
+        // engine lock. A confirmed order is terminal for this engine instance.
+        if (get().result?.status === 'success') {
+          logPaymentVerification(undefined, 'queued_callback_after_success_skipped', {
+            callbackParameterNames: Object.keys(params),
+            paymentId: params.id,
+            paymentIdentifier: params.paymentIdentifier
+          });
+          return;
+        }
         const traceId = nextPaymentVerificationTraceId('callback');
         logPaymentVerification(traceId, 'started', {
           callbackParameterNames: Object.keys(params),
@@ -771,10 +805,13 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         }
         handlePaymentAction(action.data, traceId);
       });
+      paymentReturnResolution = { key: resolutionKey, promise: resolutionPromise };
+      await resolutionPromise;
     },
 
     reset() {
       addressRevision += 1;
+      paymentReturnResolution = null;
       set(initialState(config));
     }
   };
@@ -1080,6 +1117,12 @@ function paymentReturnInput(params: Record<string, string>): PaymentStepInput | 
   if (Object.keys(payload).length > 0) input.payload = payload;
 
   return Object.keys(input).length > 0 ? input : undefined;
+}
+
+function serializePaymentReturnParams(params: Record<string, string>): string {
+  return JSON.stringify(
+    Object.entries(params).sort(([left], [right]) => left.localeCompare(right))
+  );
 }
 
 function stringifyFields(payload: Record<string, string | number> | undefined): Record<string, string> {
