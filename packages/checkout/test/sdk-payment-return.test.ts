@@ -3,6 +3,49 @@ import { createSazitoClient } from '../../../src/index';
 import type { InvoiceItem, Order, OrderInvoiceItem } from '../../../src/index';
 
 describe('PaymentsAPI gateway return', () => {
+  it('creates payment credentials from both nested and direct v2 response shapes', async () => {
+    const responses = [
+      { result: { payment: { id: 324, payment_identifier: 'nested-token', payment_amount: 10000, payment_type: { id: 3, reference_code: 'paymentinplace' } } } },
+      { result: { id: 325, payment_identifier: 'direct-token', payment_amount: 10000, payment_type: { id: 3, reference_code: 'paymentinplace' } } }
+    ];
+
+    for (const body of responses) {
+      const requestBodies: unknown[] = [];
+      const client = createSazitoClient({
+        domain: 'shop.example.com',
+        customFetchApi: async (_input, init) => {
+          requestBodies.push(JSON.parse(String(init?.body)));
+          return new Response(JSON.stringify(body), {
+            headers: { 'content-type': 'application/json' }
+          });
+        }
+      });
+      client.getCredentialsManager().setInvoiceCredentials({ id: 338, identifier: 'invoice-token' });
+
+      const response = await client.payments.create(3);
+      expect(response.error).toBeUndefined();
+      expect(response.data?.id).toBe(body.result.payment?.id ?? body.result.id);
+      expect(response.data?.identifier).toBe(body.result.payment?.payment_identifier ?? body.result.payment_identifier);
+      expect(requestBodies[0]).toMatchObject({ invoice_id: 338, invoice_identifier: 'invoice-token', payment_type: 3 });
+    }
+  });
+
+  it('reports an actionable error when payment creation has no usable credentials', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async () => new Response(JSON.stringify({ result: { payment: { id: 0, payment_identifier: '' } } }), {
+        headers: { 'content-type': 'application/json' }
+      })
+    });
+    client.getCredentialsManager().setInvoiceCredentials({ id: 338, identifier: 'invoice-token' });
+
+    const response = await client.payments.create(3);
+    expect(response.error).toMatchObject({
+      type: 'api',
+      message: 'Payment creation response is missing a valid payment ID or identifier.'
+    });
+  });
+
   it.each([null, undefined])('accepts a confirmed simple-product order with attributes %s', async (attributes) => {
     const client = createSazitoClient({
       domain: 'shop.example.com',

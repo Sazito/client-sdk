@@ -79,6 +79,7 @@ export class PaymentsAPI {
     paymentTypeId: number,
     options?: RequestOptions
   ): Promise<SazitoResponse<Payment>> {
+    const traceId = this.nextVerificationTraceId('create');
     if (!Number.isInteger(paymentTypeId) || paymentTypeId <= 0) {
       return {
         error: {
@@ -91,6 +92,7 @@ export class PaymentsAPI {
     const invoiceCreds = this.credentials.getInvoiceCredentials();
 
     if (!invoiceCreds) {
+      this.logVerification(traceId, 'validation_failed', { reason: 'No invoice found' });
       return {
         error: {
           message: 'No invoice found',
@@ -105,11 +107,17 @@ export class PaymentsAPI {
     const response = await this.http.post<JsonObject>(
       this.paymentsBasePath,
       {
+        // The v2 creator validates both invoice credentials. Keeping the
+        // numeric id here also supports deployments that do not resolve an
+        // invoice by identifier alone.
+        invoice_id: invoiceCreds.id,
         invoice_identifier: invoiceCreds.identifier,
         payment_type: paymentTypeId
       },
       { ...options, skipTransform: true }
     );
+
+    this.logVerification(traceId, 'create_response_received', response);
 
     if (response.error) {
       return { error: response.error };
@@ -117,18 +125,21 @@ export class PaymentsAPI {
 
     if (response.data) {
       const envelope = response.data as JsonObject;
-      const rawPayment = (
-        envelope && typeof envelope === 'object' && 'result' in envelope
-          ? (envelope.result as JsonObject)?.payment
-          : envelope.payment
-      ) as JsonObject | undefined;
+      const rawPayment = this.extractPaymentPayload(envelope);
 
       if (rawPayment && typeof rawPayment === 'object') {
-        const identifier = String(rawPayment.payment_identifier ?? '');
+        const identifier = String(
+          rawPayment.payment_identifier ?? rawPayment.paymentIdentifier ?? rawPayment.identifier ?? ''
+        ).trim();
         const id = Number(rawPayment.id ?? 0);
-        const rawType = rawPayment.payment_type as JsonObject | undefined;
+        const rawType = (rawPayment.payment_type ?? rawPayment.paymentType) as JsonObject | undefined;
 
         if (this.normalizePaymentId(id) === null || !identifier.trim()) {
+          this.logVerification(traceId, 'create_response_invalid', {
+            candidateKeys: Object.keys(rawPayment),
+            paymentId: id,
+            hasPaymentIdentifier: Boolean(identifier.trim())
+          });
           return { error: {
             message: 'Payment creation response is missing a valid payment ID or identifier.',
             type: 'api'
@@ -138,10 +149,10 @@ export class PaymentsAPI {
         const payment: Payment = {
           id,
           identifier,
-          amount: Number(rawPayment.payment_amount ?? 0),
+          amount: Number(rawPayment.payment_amount ?? rawPayment.paymentAmount ?? rawPayment.amount ?? 0),
           paymentType: {
             id: rawType?.id != null ? Number(rawType.id) : undefined,
-            code: (rawType?.reference_code ?? '') as Payment['paymentType']['code']
+            code: (rawType?.reference_code ?? rawType?.referenceCode ?? rawType?.code ?? '') as Payment['paymentType']['code']
           }
         };
 
@@ -153,7 +164,16 @@ export class PaymentsAPI {
       }
     }
 
-    return { data: response.data as unknown as Payment };
+    this.logVerification(traceId, 'create_response_invalid', {
+      reason: 'No payment object found',
+      responseData: response.data
+    });
+    return {
+      error: {
+        message: 'Payment creation response is missing a valid payment ID or identifier.',
+        type: 'api'
+      }
+    };
   }
 
   /**
@@ -542,6 +562,40 @@ export class PaymentsAPI {
     return { data: { id: storedId, identifier: storedIdentifier } };
   }
 
+  /**
+   * Payment creation has been returned in a few compatible envelope shapes
+   * across v2 deployments: `{ result: { payment: ... } }`, a direct payment
+   * under `result`, and (for request-log proxies) under `response.result`.
+   * Keep the shape handling here so the credential parser never silently
+   * stores an invoice identifier or a zero payment id.
+   */
+  private extractPaymentPayload(data: JsonObject): JsonObject | undefined {
+    const isObject = (value: JsonValue | undefined): value is JsonObject =>
+      Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+    const candidates: JsonObject[] = [];
+    const addCandidate = (value: JsonValue | undefined): void => {
+      if (!isObject(value) || candidates.includes(value)) return;
+      candidates.push(value);
+      if (isObject(value.response)) addCandidate(value.response);
+      if (isObject(value.result)) addCandidate(value.result);
+      if (isObject(value.payment)) addCandidate(value.payment);
+    };
+    addCandidate(data);
+
+    return candidates.find((candidate) =>
+      isObject(candidate.payment) ||
+      candidate.id !== undefined ||
+      candidate.payment_identifier !== undefined ||
+      candidate.paymentIdentifier !== undefined
+    )?.payment as JsonObject | undefined
+      ?? candidates.find((candidate) =>
+        candidate.id !== undefined ||
+        candidate.payment_identifier !== undefined ||
+        candidate.paymentIdentifier !== undefined
+      );
+  }
+
   private normalizePaymentId(value: string | number): number | null {
     const id = typeof value === 'string' && value.trim() ? Number(value) : value;
     return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
@@ -820,7 +874,7 @@ export class PaymentsAPI {
     this.logVerification(traceId, 'pinch_succeeded', pinchResponse);
   }
 
-  private nextVerificationTraceId(operation: 'callback' | 'poll' | 'status'): string {
+  private nextVerificationTraceId(operation: 'callback' | 'poll' | 'status' | 'create'): string {
     this.verificationTraceSequence += 1;
     return `${operation}-${Date.now()}-${this.verificationTraceSequence}`;
   }
