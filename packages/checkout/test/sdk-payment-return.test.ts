@@ -3,6 +3,60 @@ import { createSazitoClient } from '../../../src/index';
 import type { InvoiceItem, Order, OrderInvoiceItem } from '../../../src/index';
 
 describe('PaymentsAPI gateway return', () => {
+  it.each([null, undefined])('accepts a confirmed simple-product order with attributes %s', async (attributes) => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async () => new Response(JSON.stringify({
+        result: {
+          action: 'show_order',
+          order: {
+            id: 265, order_number: 'OR0000000265', order_identifier: 'order-token',
+            invoice: {
+              invoice_items: [{
+                id: 761, name: 'Zishop', no_of_items: 1,
+                product_variant: { id: 1051, product: { product_type: 'simple' } },
+                variant_attributes: attributes,
+                single_item_price: 840000, total_items_price: 840000
+              }],
+              shipping_items: [], net_total: 840000, final_total: 840000
+            }
+          }
+        }, error: '', error_code: 0, status: 0
+      }), { headers: { 'content-type': 'application/json' } })
+    });
+    const response = await client.payments.verify({ id: 324, paymentIdentifier: 'payment-token' });
+    expect(response.error).toBeUndefined();
+    expect(response.data).toMatchObject({
+      action: 'show_order', order: {
+        id: 265, invoice: { invoiceItems: [{ productVariantId: 1051, variantAttributes: [] }] }
+      }
+    });
+  });
+
+  it.each(['initialize', 'getPaymentStep', 'verify', 'processStepForm'] as const)(
+    'does not send %s with a zero payment ID from storage', async (method) => {
+      const fetchApi = vi.fn();
+      const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+      client.getCredentialsManager().setPaymentCredentials({ id: 0, identifier: 'payment-token' });
+      const response = method === 'processStepForm'
+        ? await client.payments.processStepForm({})
+        : await client.payments[method]();
+      expect(response.error?.type).toBe('validation');
+      expect(fetchApi).not.toHaveBeenCalled();
+    }
+  );
+
+  it('uses callback ID 324 even if a zero ID is stored', async () => {
+    const fetchApi = vi.fn(async () => new Response(JSON.stringify({ result: { action: 'FAIL' } })));
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    client.getCredentialsManager().setPaymentCredentials({ id: 0, identifier: 'payment-token' });
+    await client.payments.verify({ id: 324, paymentIdentifier: 'payment-token' });
+    expect(fetchApi).toHaveBeenCalledWith(
+      'http://api.sazito.com:8080/api/v2/payments/324/process_payment_step', expect.anything()
+    );
+    expect(client.getCredentialsManager().getPaymentCredentials()?.id).toBe(324);
+  });
+
   it('keeps order invoice items compatible with the established InvoiceItem type', () => {
     const orderItem: OrderInvoiceItem = {
       id: 91,

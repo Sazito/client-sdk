@@ -128,6 +128,13 @@ export class PaymentsAPI {
         const id = Number(rawPayment.id ?? 0);
         const rawType = rawPayment.payment_type as JsonObject | undefined;
 
+        if (this.normalizePaymentId(id) === null || !identifier.trim()) {
+          return { error: {
+            message: 'Payment creation response is missing a valid payment ID or identifier.',
+            type: 'api'
+          } };
+        }
+
         const payment: Payment = {
           id,
           identifier,
@@ -274,17 +281,28 @@ export class PaymentsAPI {
     input: PaymentStepInput | undefined,
     options?: RequestOptions
   ): Promise<SazitoResponse<PaymentAction>> {
+    const traceId = this.nextVerificationTraceId('status');
     const credentials = this.resolvePaymentCredentials(input?.id, input?.paymentIdentifier);
-    if ('error' in credentials) return { error: credentials.error };
+    if ('error' in credentials) {
+      this.logVerification(traceId, 'validation_failed', credentials);
+      return { error: credentials.error };
+    }
     const paymentCreds = credentials.data;
+    const endpoint = `${this.paymentsBasePath}/${paymentCreds.id}/process_payment_step`;
+    this.logVerification(traceId, 'request_prepared', {
+      method: 'POST', endpoint, contentType: 'application/json',
+      credentialSource: input?.id != null || input?.paymentIdentifier != null ? 'input' : 'storage',
+      paymentId: paymentCreds.id
+    });
 
     const response = await this.http.post<PaymentAction>(
-      `${this.paymentsBasePath}/${paymentCreds.id}/process_payment_step`,
+      endpoint,
       this.buildProcessStepBody(input, paymentCreds.identifier),
       { ...this.withExactJsonHeader(options), skipRequestTransform: true }
     );
 
-    return this.finalizeStepResponse(response, paymentCreds.id, options);
+    this.logVerification(traceId, 'response_received', response);
+    return this.finalizeStepResponse(response, paymentCreds.id, options, traceId);
   }
 
   /**
@@ -294,16 +312,9 @@ export class PaymentsAPI {
     input: FormData | PaymentStepFormFields,
     options?: RequestOptions
   ): Promise<SazitoResponse<PaymentAction>> {
-    const paymentCreds = this.credentials.getPaymentCredentials();
-
-    if (!paymentCreds) {
-      return {
-        error: {
-          message: 'No payment found',
-          type: 'validation'
-        }
-      };
-    }
+    const credentials = this.resolvePaymentCredentials();
+    if ('error' in credentials) return { error: credentials.error };
+    const paymentCreds = credentials.data;
 
     const formData = this.buildProcessStepFormData(input, paymentCreds.identifier);
     if (!formData) {
@@ -520,7 +531,15 @@ export class PaymentsAPI {
         }
       };
     }
-    return { data: stored };
+    const storedId = this.normalizePaymentId(stored.id);
+    const storedIdentifier = typeof stored.identifier === 'string' ? stored.identifier.trim() : '';
+    if (storedId === null || !storedIdentifier) {
+      return { error: {
+        message: 'Stored payment credentials are invalid. Restore the payment ID and identifier from the original gateway return URL.',
+        type: 'validation'
+      } };
+    }
+    return { data: { id: storedId, identifier: storedIdentifier } };
   }
 
   private normalizePaymentId(value: string | number): number | null {
@@ -801,7 +820,7 @@ export class PaymentsAPI {
     this.logVerification(traceId, 'pinch_succeeded', pinchResponse);
   }
 
-  private nextVerificationTraceId(operation: 'callback' | 'poll'): string {
+  private nextVerificationTraceId(operation: 'callback' | 'poll' | 'status'): string {
     this.verificationTraceSequence += 1;
     return `${operation}-${Date.now()}-${this.verificationTraceSequence}`;
   }

@@ -1078,7 +1078,7 @@ function transformCheckoutInvoiceItem(item: TransformValue): TransformObject {
       : undefined,
     variantAttributes: Array.isArray(item.variant_attributes)
       ? item.variant_attributes.map(transformCheckoutVariantAttribute)
-      : undefined,
+      : [],
     singleItemPrice: toNumber(item.single_item_price),
     noOfItems: toNumber(item.no_of_items),
     totalItemsPrice: toNumber(item.total_items_price),
