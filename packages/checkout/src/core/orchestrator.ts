@@ -3,7 +3,7 @@
  * state machine on top of @sazito/client-sdk. Owns the store, serializes
  * mutations, and emits typed side-effects for the host to perform.
  */
-import type { PaymentAction, PaymentStepInput, ShippingAddress, ShippingAddressInput, Invoice } from '@sazito/client-sdk';
+import type { CheckoutOrder, PaymentAction, PaymentStepInput, ShippingAddress, ShippingAddressInput, Invoice } from '@sazito/client-sdk';
 import { createStore, type Store } from './store';
 import { createSdkBinding, type CheckoutSdkBinding } from './sdk-binding';
 import { fromSdkError, makeError } from './errors';
@@ -302,7 +302,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         set({
           step: 'result',
           status: 'idle',
-          result: { status: 'success', order: action.order }
+          result: { status: 'success', order: normalizeResultOrder(action.order) },
+          error: null
         });
         emit('payment_succeeded', { step: 'result' });
         return;
@@ -328,7 +329,12 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         set({
           step: 'result',
           status: 'polling',
-          result: { status: 'pending', order: action.order, message: action.message }
+          result: {
+            status: 'pending',
+            order: normalizeResultOrder(action.order),
+            message: action.message
+          },
+          error: null
         });
         emit('payment_pending', { step: 'result' });
         void pollPending();
@@ -711,7 +717,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
 
     async resolvePaymentReturn(params) {
       await withLock(async () => {
-        set({ step: 'result', status: 'polling', result: { status: 'pending' } });
+        set({ step: 'result', status: 'polling', result: { status: 'pending' }, error: null });
         const input = paymentReturnInput(params);
         if (
           input?.id != null &&
@@ -739,6 +745,22 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       set(initialState(config));
     }
   };
+
+  // Older compatible SDK releases may pass the backend's nullable collection
+  // fields through unchanged. Keep the checkout result UI safe even when it is
+  // paired with one of those versions.
+  function normalizeResultOrder(order: CheckoutOrder | undefined): CheckoutOrder | undefined {
+    if (!order) return undefined;
+    const invoice = order.invoice;
+    return {
+      ...order,
+      invoice: {
+        ...invoice,
+        invoiceItems: Array.isArray(invoice?.invoiceItems) ? invoice.invoiceItems : [],
+        shippingItems: Array.isArray(invoice?.shippingItems) ? invoice.shippingItems : []
+      }
+    };
+  }
 
   // Internal (lock-free) order placement shared by `placeOrder` & `next` (payment step).
   async function placeOrderInternal(): Promise<void> {

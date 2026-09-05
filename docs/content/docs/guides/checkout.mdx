@@ -356,6 +356,37 @@ export default async function ReturnPage({
 
 If the gateway returns `status: 'pending'`, the checkout polls every `pollIntervalMs` until it resolves.
 
+### Test the return flow with mock data
+
+The documentation checkout includes local payment-result scenarios, so you can
+exercise verification without creating an order or contacting a payment gateway.
+Start the docs app and open the demo:
+
+```bash
+pnpm --dir docs dev
+```
+
+```text
+http://localhost:3000/checkout-demo?mockPayment=success-minimal
+```
+
+You can also change **Payment result** in the demo toolbar:
+
+| Scenario | Expected result |
+|---|---|
+| `success-minimal` | Success with only the required order identifiers. This protects against the former `Invalid payment step result` failure when totals are absent. |
+| `success-full` | Success with order totals. |
+| `pending-success` | Pending callback followed by a successful JSON status poll. |
+| `failure` | Gateway-declared payment failure. |
+| `malformed` | Intentionally invalid `show_order` payload; this should display `Invalid payment step result`. |
+| `live` | Normal checkout using the configured domain and cart identifier. |
+
+Mock mode intercepts only the payment verification and post-success pinch calls.
+It also asserts that the initial callback is sent as
+`application/x-www-form-urlencoded` with `payment_identifier` and
+`payload[RefId]`; the pending poll must remain JSON. No real payment, cart, or
+gateway redirect is performed.
+
 ## Analytics
 
 Pass `onEvent` to receive structured events at every step. Use it to send to any analytics provider:

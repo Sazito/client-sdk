@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CredentialsManager, MemoryStorage } from '@sazito/client-sdk';
+import { createSazitoClient, CredentialsManager, MemoryStorage } from '@sazito/client-sdk';
 import { createCheckoutEngine } from '../src/core/orchestrator';
 import type { CheckoutEffect } from '../src/core/types';
 
@@ -797,6 +797,98 @@ describe('checkout engine — happy path', () => {
     expect(engine.getState().result).toEqual({
       status: 'failed',
       message: 'Verification response was invalid'
+    });
+  });
+
+  it('shows success for the final payment-in-place API response', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      paymentsBasePath: '/api/v1/payments',
+      customFetchApi: async (input) => {
+        if (String(input).includes('/pinch/order')) {
+          return new Response(JSON.stringify({ result: true }), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({
+          result: {
+            order: {
+              id: 3216,
+              order_identifier: '5e02e1bff83bb0f43273ee696245c139',
+              order_number: 'OR0000003216',
+              invoice: {
+                invoice_items: null,
+                shipping_items: null,
+                net_total: 0,
+                final_total: 0
+              }
+            },
+            action: 'show_order',
+            message: null
+          },
+          error: '',
+          error_code: 0,
+          status: 0
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+    });
+    const engine = createCheckoutEngine({ client, config: { locale: 'fa' } });
+
+    await engine.actions.resolvePaymentReturn({
+      id: '3727',
+      paymentIdentifier: '0ef922a0adeb3288cdf170f5b7d2d311'
+    });
+
+    expect(engine.getState().error).toBeNull();
+    expect(engine.getState().status).toBe('idle');
+    expect(engine.getState().step).toBe('result');
+    expect(engine.getState().result).toMatchObject({
+      status: 'success',
+      order: { id: 3216, orderNumber: 'OR0000003216' }
+    });
+  });
+
+  it('normalizes nullable result collections from older SDK versions', async () => {
+    const { engine, client } = setup();
+    client.payments.verify.mockResolvedValueOnce({
+      data: {
+        action: 'show_order',
+        order: {
+          id: 3216,
+          orderNumber: 'OR0000003216',
+          orderIdentifier: 'order-token',
+          invoice: { invoiceItems: null, shippingItems: null }
+        }
+      }
+    } as never);
+
+    await engine.actions.resolvePaymentReturn({
+      id: '3727',
+      paymentIdentifier: 'payment-token'
+    });
+
+    expect(engine.getState().result).toMatchObject({
+      status: 'success',
+      order: { invoice: { invoiceItems: [], shippingItems: [] } }
+    });
+  });
+
+  it('shows the final payment_fail_error response as a payment failure', async () => {
+    const { engine, client } = setup();
+    client.payments.verify.mockResolvedValueOnce({
+      data: { action: 'payment_fail_error' }
+    } as never);
+
+    await engine.actions.resolvePaymentReturn({
+      id: '3728',
+      paymentIdentifier: 'failed-payment'
+    });
+
+    expect(engine.getState().status).toBe('idle');
+    expect(engine.getState().step).toBe('result');
+    expect(engine.getState().result).toEqual({
+      status: 'failed',
+      message: undefined
     });
   });
 });

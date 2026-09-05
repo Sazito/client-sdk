@@ -120,7 +120,6 @@ describe('PaymentsAPI gateway return', () => {
               invoice: {
                 invoice_items: [
                   {
-                    product_variant_id: '15',
                     name: 'Red shoes',
                     image: { url: 'https://cdn.example.com/red-shoes.jpg' },
                     variant_attributes: [{ name: 'Color', value: 'Red' }],
@@ -131,6 +130,7 @@ describe('PaymentsAPI gateway return', () => {
                     form_attributes: { gift: true },
                     booking_attributes: { slot: 'morning' },
                     product_variant: {
+                      id: '15',
                       commercial_files: [{ id: 'file-1' }],
                       product: { product_type: 'physical' }
                     }
@@ -269,6 +269,143 @@ describe('PaymentsAPI gateway return', () => {
       expect(response.data.order.invoice.netTotal).toBeUndefined();
       expect(response.data.order.invoice.finalTotal).toBeUndefined();
     }
+  });
+
+  it('derives the invoice item variant ID from the real nested backend shape', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async () => new Response(JSON.stringify({ result: {
+        action: 'show_order',
+        order: {
+          id: 123,
+          order_number: 'OR0000000123',
+          order_identifier: 'order-token',
+          invoice: {
+            invoice_items: [{
+              id: 91,
+              name: 'Red shoes',
+              variant_attributes: [],
+              no_of_items: 1,
+              single_item_price: 240000,
+              total_items_price: 240000,
+              product_variant: {
+                id: 15,
+                commercial_files: [],
+                product: { product_type: 'physical' }
+              }
+            }],
+            shipping_items: []
+          }
+        }
+      } }), { headers: { 'Content-Type': 'application/json' } })
+    });
+
+    const response = await client.payments.verify({
+      id: 304,
+      paymentIdentifier: 'payment-token'
+    });
+
+    expect(response.error).toBeUndefined();
+    expect(response.data).toMatchObject({
+      action: 'show_order',
+      order: {
+        invoice: {
+          invoiceItems: [{ productVariantId: 15 }]
+        }
+      }
+    });
+  });
+
+  it('accepts the final payment-in-place success response with null order collections', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      paymentsBasePath: '/api/v1/payments',
+      customFetchApi: async (input) => {
+        if (String(input).includes('/pinch/order')) {
+          return new Response(JSON.stringify({ result: true }), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({
+          result: {
+            order: {
+              id: 3216,
+              order_identifier: '5e02e1bff83bb0f43273ee696245c139',
+              order_number: 'OR0000003216',
+              invoice: {
+                id: 0,
+                invoice_identifier: '',
+                invoice_items: null,
+                shipping_items: null,
+                net_total: 0,
+                final_total: 0,
+                discount_usages: null,
+                receipts: null
+              },
+              order_comments: null,
+              editions: []
+            },
+            action: 'show_order',
+            address: '',
+            payload: null,
+            time: 0,
+            message: null
+          },
+          error: '',
+          error_code: 0,
+          status: 0
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+    });
+
+    const response = await client.payments.verify({
+      id: 3727,
+      paymentIdentifier: '0ef922a0adeb3288cdf170f5b7d2d311'
+    });
+
+    expect(response.error).toBeUndefined();
+    expect(response.data).toMatchObject({
+      action: 'show_order',
+      order: {
+        id: 3216,
+        orderNumber: 'OR0000003216',
+        orderIdentifier: '5e02e1bff83bb0f43273ee696245c139',
+        invoice: {
+          invoiceItems: [],
+          shippingItems: [],
+          netTotal: 0,
+          finalTotal: 0
+        }
+      }
+    });
+  });
+
+  it('accepts the final payment failure response with a null order', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      paymentsBasePath: '/api/v1/payments',
+      customFetchApi: async () => new Response(JSON.stringify({
+        result: {
+          order: null,
+          action: 'payment_fail_error',
+          address: '',
+          payload: null,
+          time: 0,
+          message: null
+        },
+        error: '',
+        error_code: 0,
+        status: 0
+      }), { headers: { 'Content-Type': 'application/json' } })
+    });
+
+    const response = await client.payments.verify({
+      id: 3728,
+      paymentIdentifier: 'failed-payment'
+    });
+
+    expect(response.error).toBeUndefined();
+    expect(response.data).toMatchObject({ action: 'payment_fail_error' });
   });
 
   it('uses JSON with only the payment identifier for a status request', async () => {

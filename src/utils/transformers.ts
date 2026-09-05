@@ -1067,7 +1067,11 @@ function transformCheckoutInvoiceItem(item: TransformValue): TransformObject {
   const product = isPlainObject(variant.product) ? variant.product : {};
 
   return {
-    productVariantId: toIdentifier(item.product_variant_id),
+    // The payment completion response serializes the full product variant and
+    // omits InvoiceItem.ProductVariantID (`json:"-"`) on the backend. Keep
+    // accepting the flat field for compatibility, but derive the public ID
+    // from the nested variant used by the real `show_order` payload.
+    productVariantId: toIdentifier(item.product_variant_id ?? variant.id),
     name: toOptionalString(item.name),
     image: isPlainObject(item.image)
       ? { url: toOptionalString(item.image.url) }
