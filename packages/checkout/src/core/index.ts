@@ -6,7 +6,11 @@ export { createCheckoutEngine, type CheckoutEngine } from './orchestrator';
 export { createStore, type Store } from './store';
 export { createSdkBinding, type CheckoutSdkBinding } from './sdk-binding';
 export { createBrowserEffectExecutor, noopEffectExecutor } from './effects';
-export { parsePaymentReturn, parsePaymentReturnUrl } from './payment-return';
+export {
+  parsePaymentReturn,
+  parsePaymentReturnUrl,
+  SAZITO_PAYMENT_RESULT_MARKERS
+} from './payment-return';
 export { makeEvent } from './events';
 export { fromSdkError, makeError, messageForCode } from './errors';
 export {

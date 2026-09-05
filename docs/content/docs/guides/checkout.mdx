@@ -317,10 +317,16 @@ export default async function CheckoutPage({
 }
 ```
 
-`parsePaymentReturn` validates the callback shape, maps the payment ID and
+`parsePaymentReturn` validates the callback shape against Sazito's known gateway
+result markers, maps the payment ID and
 identifier, and forwards any gateway query parameters. The callback credentials
 are restored before verification, so the return flow does not depend solely on
 an existing `localStorage` entry.
+
+The verification request is URL encoded according to Sazito's server contract;
+pending status checks remain JSON requests. To support a custom gateway marker,
+pass `{ gatewayResultMarkers: ['custompaymentresult'] }` as the parser's third
+argument.
 
 If the catch-all route renders `SazitoCheckoutPage` without forwarding
 `paymentReturn`, the component also recognizes the callback suffix directly

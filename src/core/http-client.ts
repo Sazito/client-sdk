@@ -19,7 +19,7 @@ export class HttpClient {
 
   constructor(config: Required<SazitoConfig>) {
     this.config = config;
-    this.baseUrl = 'http://api.sazito.com:8080';
+    this.baseUrl = config.apiBaseUrl.replace(/\/$/, '');
     this.domain = config.domain;
     this.tokenStorage = new TokenStorage();
     this.cache = new CacheManager();
@@ -76,10 +76,12 @@ export class HttpClient {
   ): Promise<SazitoResponse<T>> {
     const url = this.buildUrl(endpoint);
     const isMultipartBody = this.isMultipartBody(body);
+    const isFormUrlEncodedBody = this.isFormUrlEncodedBody(body);
+    const isRawBody = isMultipartBody || isFormUrlEncodedBody;
 
-    // Transform JSON-like payloads to snake_case; keep multipart bodies untouched
+    // Transform JSON-like payloads to snake_case; keep native body types untouched.
     const transformedBody = body
-      ? isMultipartBody || options?.skipRequestTransform ? body : transformRequestKeys(body)
+      ? isRawBody || options?.skipRequestTransform ? body : transformRequestKeys(body)
       : undefined;
 
     // Invalidate related cache
@@ -89,7 +91,7 @@ export class HttpClient {
     return this.request<T>('POST', url, {
       ...options,
       body: transformedBody,
-      rawBody: isMultipartBody,
+      rawBody: isRawBody,
       omitJsonContentType: isMultipartBody
     });
   }
@@ -351,6 +353,10 @@ export class HttpClient {
 
   private isMultipartBody(body: any): boolean {
     return typeof FormData !== 'undefined' && body instanceof FormData;
+  }
+
+  private isFormUrlEncodedBody(body: any): boolean {
+    return typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams;
   }
 
   /**

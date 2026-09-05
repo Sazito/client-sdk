@@ -169,6 +169,11 @@ export type PaymentReturnSearchParams = Record<
   string | string[] | undefined
 >;
 
+export interface PaymentReturnParserOptions {
+  /** Replace the built-in Sazito gateway-result marker allowlist. */
+  gatewayResultMarkers?: readonly string[];
+}
+
 export interface CheckoutConfig {
   locale?: CheckoutLocale;
   direction?: CheckoutDirection;

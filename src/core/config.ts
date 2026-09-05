@@ -15,6 +15,10 @@ export interface RetryConfig {
 
 export interface SazitoConfig {
   domain: string;                    // Without https (e.g., 'mystore.sazito.com')
+  /** Sazito API origin. Keeps the legacy SDK origin when omitted. */
+  apiBaseUrl?: string;
+  /** Payments collection path for deployments with a custom API version map. */
+  paymentsBasePath?: string;
   timeout?: number;                  // Request timeout in ms (default: 30000)
   retry?: RetryConfig;
   cache?: {
@@ -32,6 +36,8 @@ export interface SazitoConfig {
 }
 
 export const DEFAULT_CONFIG: Required<Omit<SazitoConfig, 'domain' | 'customFetchApi'>> = {
+  apiBaseUrl: 'http://api.sazito.com:8080',
+  paymentsBasePath: '/api/v2/payments',
   timeout: 30000,
   retry: {
     enabled: true,

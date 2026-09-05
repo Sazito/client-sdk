@@ -11,6 +11,8 @@ export function ResultStep({ continueShoppingUrl }: { continueShoppingUrl?: stri
   const order = result?.order;
   const invoice = order?.invoice;
   const showDetails = Boolean(order && (status === 'success' || status === 'pending'));
+  const showSummary = invoice?.netTotal != null || invoice?.finalTotal != null;
+  const isFailure = status === 'failed' || status === 'stock_violated';
 
   const titleMap = {
     success: t.paymentSuccess,
@@ -20,25 +22,35 @@ export function ResultStep({ continueShoppingUrl }: { continueShoppingUrl?: stri
   } as const;
 
   return (
-    <section className={`szc-result szc-result--${status}`}>
-      <div className="szc-result__hero" role="status" aria-live="polite">
+    <section className={`szc-result szc-result--${status}${showDetails ? '' : ' szc-result--compact'}`}>
+      <div
+        className="szc-result__hero"
+        role={isFailure ? 'alert' : 'status'}
+        aria-live={isFailure ? 'assertive' : 'polite'}
+      >
         <div className="szc-result__icon">
-          {status === 'success' ? (
-            <CheckCircle />
-          ) : status === 'pending' ? (
-            <Spinner />
-          ) : (
-            <CrossCircle />
-          )}
+          <span className="szc-result__icon-mark">
+            {status === 'success' ? (
+              <CheckCircle />
+            ) : status === 'pending' ? (
+              <Spinner />
+            ) : (
+              <CrossCircle />
+            )}
+          </span>
         </div>
 
-        <h2 className="szc-result__title">{titleMap[status]}</h2>
+        <div className="szc-result__copy">
+          <h2 className="szc-result__title">{titleMap[status]}</h2>
 
-        {status === 'pending' ? <p className="szc-muted">{t.paymentPendingHint}</p> : null}
-        {result?.message ? <p className="szc-muted">{result.message}</p> : null}
-        {status === 'success' && order ? (
-          <p className="szc-result__hint">{t.orderConfirmedHint}</p>
-        ) : null}
+          {status === 'pending' ? <p className="szc-result__hint">{t.paymentPendingHint}</p> : null}
+          {result?.message ? (
+            <p className="szc-result__message" dir="auto">{result.message}</p>
+          ) : null}
+          {status === 'success' && order ? (
+            <p className="szc-result__hint">{t.orderConfirmedHint}</p>
+          ) : null}
+        </div>
 
         {order ? (
           <dl className="szc-result__reference">
@@ -135,8 +147,10 @@ export function ResultStep({ continueShoppingUrl }: { continueShoppingUrl?: stri
             </section>
           ) : null}
 
-          <dl className="szc-result-summary">
-            <SummaryRow label={t.subtotal} value={money(invoice.netTotal)} />
+          {showSummary ? <dl className="szc-result-summary">
+            {invoice.netTotal != null ? (
+              <SummaryRow label={t.subtotal} value={money(invoice.netTotal)} />
+            ) : null}
             {invoice.shippingTotal != null ? (
               <SummaryRow label={t.shipping} value={money(invoice.shippingTotal)} />
             ) : null}
@@ -152,8 +166,10 @@ export function ResultStep({ continueShoppingUrl }: { continueShoppingUrl?: stri
             {invoice.customerProfit != null && invoice.customerProfit > 0 ? (
               <SummaryRow label={t.yourSavings} value={money(invoice.customerProfit)} savings />
             ) : null}
-            <SummaryRow label={t.total} value={money(invoice.finalTotal)} total />
-          </dl>
+            {invoice.finalTotal != null ? (
+              <SummaryRow label={t.total} value={money(invoice.finalTotal)} total />
+            ) : null}
+          </dl> : null}
         </div>
       ) : null}
     </section>

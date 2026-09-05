@@ -1,7 +1,23 @@
 import type {
   CheckoutPaymentReturn,
+  PaymentReturnParserOptions,
   PaymentReturnSearchParams
 } from './types';
+
+export const SAZITO_PAYMENT_RESULT_MARKERS = [
+  'mellatpaymentresult', 'pecpaymentresult', 'uppaymentresult',
+  'seppaymentresult', 'vandarpaymentresult', 'yourgatepaymentresult',
+  'bazarpaymentresult', 'zifypaymentresult', 'zibalpaymentresult',
+  'snapppaypaymentresult', 'torobpaypaymentresult', 'ghestapaypaymentresult',
+  'azkipaymentresult', 'digipaypaymentresult', 'greenpaypaymentresult',
+  'novapaypaymentresult', 'zarinpluspaymentresult', 'tomanpaymentresult',
+  'tarapaymentresult', 'ozonpaymentresult', 'millipaypaymentresult',
+  'ayriapaymentresult', 'sadadpaymentresult', 'freepaymentresult',
+  'paymentinplaceresult', 'cardtocardpaymentresult', 'zarinpalpaymentresult',
+  'directpayresult', 'paypingpaymentresult', 'podpaymentresult',
+  'sabinpaymentresult', 'firoozepaymentresult', 'technopaypaymentresult',
+  'buywithdigikalaresult'
+] as const;
 
 /**
  * Parse Sazito's nested payment callback path into checkout-ready data.
@@ -9,16 +25,22 @@ import type {
  */
 export function parsePaymentReturn(
   segments: readonly string[] | undefined,
-  searchParams: PaymentReturnSearchParams = {}
+  searchParams: PaymentReturnSearchParams = {},
+  options: PaymentReturnParserOptions = {}
 ): CheckoutPaymentReturn | undefined {
   const [resultRoute, paymentSegment, rawPaymentId, identifierSegment, rawIdentifier] =
     segments ?? [];
   const paymentId = Number(rawPaymentId);
   const identifier = rawIdentifier?.trim();
+  const allowedMarkers = new Set(
+    (options.gatewayResultMarkers ?? SAZITO_PAYMENT_RESULT_MARKERS)
+      .map((marker) => marker.toLowerCase())
+  );
 
   if (
     segments?.length !== 5 ||
-    !resultRoute?.toLowerCase().endsWith('result') ||
+    !resultRoute ||
+    !allowedMarkers.has(resultRoute.toLowerCase()) ||
     paymentSegment?.toLowerCase() !== 'payment' ||
     identifierSegment?.toLowerCase() !== 'identifier' ||
     !Number.isSafeInteger(paymentId) ||
@@ -44,7 +66,8 @@ export function parsePaymentReturn(
  * five path segments are significant.
  */
 export function parsePaymentReturnUrl(
-  url: string | URL
+  url: string | URL,
+  options: PaymentReturnParserOptions = {}
 ): CheckoutPaymentReturn | undefined {
   let parsedUrl: URL;
 
@@ -73,7 +96,7 @@ export function parsePaymentReturnUrl(
     }
   }
 
-  return parsePaymentReturn(segments.slice(-5), searchParams);
+  return parsePaymentReturn(segments.slice(-5), searchParams, options);
 }
 
 function decodePathSegment(segment: string): string {

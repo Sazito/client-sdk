@@ -42,8 +42,10 @@ export interface CheckoutShippingItem {
 export interface CheckoutInvoice {
   invoiceItems: CheckoutInvoiceItem[];
   shippingItems: CheckoutShippingItem[];
-  netTotal: number;
-  finalTotal: number;
+  /** May be omitted by the payment verification response. */
+  netTotal?: number;
+  /** May be omitted by the payment verification response. */
+  finalTotal?: number;
   shippingTotal?: number;
   discountTotal?: number;
   creditTotal?: number;

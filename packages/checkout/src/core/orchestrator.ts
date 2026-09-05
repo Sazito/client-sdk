@@ -342,6 +342,9 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           result: { status: 'failed', message: action.message }
         });
         return;
+      case 'unknown':
+        failResult(action.message ?? makeError('payment_failed', get().locale, 'result').message);
+        return;
     }
   }
 
@@ -349,7 +352,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     const interval = config.pollIntervalMs ?? 15000;
     const res = await binding.client.payments.pollUntilSettled(undefined, interval);
     if (res.error || !res.data) {
-      setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'result'));
+      const err = fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'result');
+      failResult(err.message, err);
       return;
     }
     handlePaymentAction(res.data);
@@ -722,7 +726,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         }
         const action = await binding.client.payments.verify(input);
         if (action.error || !action.data) {
-          setError(fromSdkError(action.error ?? { message: '', type: 'api' }, get().locale, 'result'));
+          const err = fromSdkError(action.error ?? { message: '', type: 'api' }, get().locale, 'result');
+          failResult(err.message, err);
           return;
         }
         handlePaymentAction(action.data);
@@ -938,38 +943,24 @@ function toAddressInput(form: AddressFormValues): ShippingAddressInput {
   };
 }
 
-// Map raw gateway-return query params into the typed payment-step input.
-// Only the string-valued callback fields are forwarded; `trackingData` /
-// `payload` are parsed from JSON when the gateway sends them encoded.
+// Preserve every gateway-return field and its original casing. The SDK wraps
+// these values as `payload[fieldName]` in the form-encoded verification call.
 function paymentReturnInput(params: Record<string, string>): PaymentStepInput | undefined {
   if (!params || Object.keys(params).length === 0) {
     return undefined;
   }
 
   const input: PaymentStepInput = {};
-  if (params.tatoken != null) input.tatoken = params.tatoken;
-  if (params.isFailed != null) input.isFailed = params.isFailed;
-  if (params.code != null) input.code = params.code;
-  if (params.imageUrl != null) input.imageUrl = params.imageUrl;
   if (params.id != null && Number.isFinite(Number(params.id))) input.id = Number(params.id);
   if (params.paymentIdentifier != null) input.paymentIdentifier = params.paymentIdentifier;
 
-  const trackingData = parseJsonObject(params.trackingData);
-  if (trackingData) input.trackingData = trackingData as PaymentStepInput['trackingData'];
-  const payload = parseJsonObject(params.payload);
-  if (payload) input.payload = payload as PaymentStepInput['payload'];
+  const payload: Record<string, string> = {};
+  for (const [name, value] of Object.entries(params)) {
+    if (name !== 'id' && name !== 'paymentIdentifier') payload[name] = value;
+  }
+  if (Object.keys(payload).length > 0) input.payload = payload;
 
   return Object.keys(input).length > 0 ? input : undefined;
-}
-
-function parseJsonObject(value: string | undefined): Record<string, unknown> | undefined {
-  if (!value) return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function stringifyFields(payload: Record<string, string | number> | undefined): Record<string, string> {

@@ -18,6 +18,8 @@ const client = createSazitoClient({
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `domain` | `string` | Required | Store domain without protocol. |
+| `apiBaseUrl` | `string` | Optional | API origin. |
+| `paymentsBasePath` | `string` | Optional | Payments base path; defaults to `/api/v2/payments`. |
 | `timeout` | `number` | Optional | Global request timeout. |
 | `retry` | `RetryConfig` | Optional | Retry policy for 5xx responses. |
 | `cache` | `Record<string, CacheConfig>` | Optional | Module-level cache policy. |
@@ -138,6 +140,8 @@ Source: `src/core/config.ts`
 | Field | Type | Required |
 | --- | --- | --- |
 | `domain` | `string` | Required |
+| `apiBaseUrl` | `string` | Optional |
+| `paymentsBasePath` | `string` | Optional |
 | `timeout` | `number` | Optional |
 | `retry` | `RetryConfig` | Optional |
 | `cache` | `{     products?: CacheConfig;     categories?: CacheConfig;     cart?: CacheConfig;     orders?: CacheConfig;     search?: CacheConfig;     cms?: CacheConfig;     tags?: CacheConfig;     entityRoutes?: CacheConfig;   }` | Optional |

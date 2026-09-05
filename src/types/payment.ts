@@ -3,7 +3,7 @@
  */
 
 import type { CheckoutOrder } from './checkout-order';
-import type { JsonObject } from './common';
+import type { JsonObject, JsonValue, RequestOptions } from './common';
 
 export type PaymentGateway =
   | 'mellatpayment'      // Bank Mellat
@@ -71,6 +71,8 @@ export interface Payment {
 
 interface PaymentActionBase {
   message?: string;
+  /** Complete backend result before SDK normalization. */
+  raw?: JsonObject;
 }
 
 export type PaymentAction = PaymentActionBase & (
@@ -82,6 +84,7 @@ export type PaymentAction = PaymentActionBase & (
   | { action: 'pending'; order: CheckoutOrder }
   | { action: 'payment_fail_error' | 'show_error' | 'FAIL' }
   | { action: 'StockViolated' }
+  | { action: 'unknown'; backendAction: string; raw: JsonObject }
 );
 
 export interface PaymentCredentials {
@@ -106,6 +109,31 @@ export interface PaymentStepInput {
   isFailed?: string;
   imageUrl?: string;
   code?: string;
+}
+
+export type PaymentCallbackFieldValue = JsonValue | undefined;
+export type PaymentCallbackFields = Record<string, PaymentCallbackFieldValue>;
+
+/** Raw gateway callback accepted by the SSR-compatible verification request. */
+export interface VerifyPaymentCallbackInput {
+  paymentId: string | number;
+  paymentIdentifier: string;
+  /** Form/body fields are added first. */
+  body?: PaymentCallbackFields;
+  /** Query fields are added second and win when a name is duplicated. */
+  query?: PaymentCallbackFields;
+}
+
+/** Controls the repeated JSON status check after a `pending` callback result. */
+export interface PaymentPollingOptions extends RequestOptions {
+  /** Delay before each request, including the first one. Defaults to 15 seconds. */
+  intervalMs?: number;
+  /** Overall polling deadline. Defaults to five minutes. */
+  pollingTimeoutMs?: number;
+  /** Optional maximum number of status requests. */
+  maxAttempts?: number;
+  /** Skip the initial delay when an immediate status check is desired. */
+  immediate?: boolean;
 }
 
 export type PaymentStepFormValue = string | number | boolean | null | undefined;

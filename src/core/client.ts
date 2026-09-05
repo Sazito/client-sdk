@@ -71,7 +71,11 @@ export class SazitoClient {
     this.cart = new CartAPI(this.http, this.credentialsManager);
     this.invoices = new InvoicesAPI(this.http, this.credentialsManager);
     this.shipping = new ShippingAPI(this.http, this.credentialsManager);
-    this.payments = new PaymentsAPI(this.http, this.credentialsManager);
+    this.payments = new PaymentsAPI(
+      this.http,
+      this.credentialsManager,
+      mergedConfig.paymentsBasePath
+    );
     this.orders = new OrdersAPI(this.http);
     this.users = new UsersAPI(this.http);
     this.search = new SearchAPI(this.http);

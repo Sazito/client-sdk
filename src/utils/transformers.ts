@@ -1030,7 +1030,7 @@ export function transformCheckoutOrderResponse<T = TransformObject>(response: Tr
   const invoice = isPlainObject(order.invoice) ? order.invoice : {};
   const invoiceItems = Array.isArray(invoice.invoice_items)
     ? invoice.invoice_items.map(transformCheckoutInvoiceItem)
-    : undefined;
+    : [];
   const shippingItems = Array.isArray(invoice.shipping_items)
     ? invoice.shipping_items.map(transformCheckoutShippingItem)
     : [];

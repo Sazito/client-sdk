@@ -60,11 +60,48 @@ describe('PaymentsAPI gateway return', () => {
 
     const request = requests[0];
     expect(String(request?.input)).toContain('/payments/304/process_payment_step');
-    expect(JSON.parse(String(request?.init?.body))).toEqual({
-      payment_identifier: 'callback-payment',
-      image_url: 'https://cdn.example.com/receipt.jpg',
-      code: 'cancelled'
+    expect(new Headers(request?.init?.headers).get('content-type')).toBe(
+      'application/x-www-form-urlencoded;charset=UTF-8'
+    );
+    const form = new URLSearchParams(String(request?.init?.body));
+    expect(Object.fromEntries(form)).toEqual({
+      'payload[imageUrl]': 'https://cdn.example.com/receipt.jpg',
+      'payload[code]': 'cancelled',
+      payment_identifier: 'callback-payment'
     });
+  });
+
+  it('preserves callback names, encoding, and query-over-body precedence', async () => {
+    let request: { input: RequestInfo | URL; init?: RequestInit } | undefined;
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async (input, init) => {
+        request = { input, init };
+        return new Response(JSON.stringify({ result: {
+          action: 'future_backend_action', metadata: { version: 2 }
+        } }), { headers: { 'Content-Type': 'application/json' } });
+      }
+    });
+
+    const response = await client.payments.verifyPaymentCallback({
+      paymentId: '789',
+      paymentIdentifier: ' pi_abc ',
+      body: { RefId: 'body value', ResCode: '0', unicode: 'پرداخت' },
+      query: { RefId: 'query+value&more', payment_identifier: 'untrusted' }
+    });
+
+    expect(response.data).toEqual({
+      action: 'unknown',
+      backendAction: 'future_backend_action',
+      raw: { action: 'future_backend_action', metadata: { version: 2 } },
+      message: undefined
+    });
+    const form = new URLSearchParams(String(request?.init?.body));
+    expect(form.get('payload[RefId]')).toBe('query+value&more');
+    expect(form.get('payload[ResCode]')).toBe('0');
+    expect(form.get('payload[unicode]')).toBe('پرداخت');
+    expect(form.get('payload[payment_identifier]')).toBe('untrusted');
+    expect(form.get('payment_identifier')).toBe('pi_abc');
   });
 
   it.each([
@@ -207,7 +244,7 @@ describe('PaymentsAPI gateway return', () => {
     }
   });
 
-  it.each(['show_order', 'pending'])('rejects missing checkout totals for %s', async (action) => {
+  it.each(['show_order', 'pending'])('accepts the SSR order shape when totals are omitted for %s', async (action) => {
     const client = createSazitoClient({
       domain: 'shop.example.com',
       customFetchApi: async () => new Response(JSON.stringify({ result: {
@@ -219,6 +256,134 @@ describe('PaymentsAPI gateway return', () => {
       } }), { headers: { 'Content-Type': 'application/json' } })
     });
     const response = await client.payments.verify({ id: 304, paymentIdentifier: 'payment-token' });
+    expect(response.data).toMatchObject({
+      action,
+      order: {
+        id: 123,
+        orderNumber: '10001',
+        orderIdentifier: 'order-token',
+        invoice: { invoiceItems: [], shippingItems: [] }
+      }
+    });
+    if (response.data?.action === 'show_order' || response.data?.action === 'pending') {
+      expect(response.data.order.invoice.netTotal).toBeUndefined();
+      expect(response.data.order.invoice.finalTotal).toBeUndefined();
+    }
+  });
+
+  it('uses JSON with only the payment identifier for a status request', async () => {
+    let request: { input: RequestInfo | URL; init?: RequestInit } | undefined;
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async (input, init) => {
+        request = { input, init };
+        return new Response(JSON.stringify({ result: { action: 'payment_fail_error' } }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    });
+    client.getCredentialsManager().setPaymentCredentials({ id: 789, identifier: 'pi_abc' });
+
+    const response = await client.payments.getPaymentStep();
+
+    expect(response.data?.action).toBe('payment_fail_error');
+    expect(new Headers(request?.init?.headers).get('content-type')).toBe('application/json');
+    expect(JSON.parse(String(request?.init?.body))).toEqual({ payment_identifier: 'pi_abc' });
+  });
+
+  it('supports a configured API origin and payments base path', async () => {
+    let requestUrl = '';
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      apiBaseUrl: 'https://payments-api.example.com/',
+      paymentsBasePath: '/custom/v2/payments',
+      customFetchApi: async (input) => {
+        requestUrl = String(input);
+        return new Response(JSON.stringify({ result: { action: 'FAIL' } }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    });
+
+    await client.payments.verifyPaymentCallback({
+      paymentId: 789,
+      paymentIdentifier: 'pi_abc'
+    });
+
+    expect(requestUrl).toBe(
+      'https://payments-api.example.com/custom/v2/payments/789/process_payment_step'
+    );
+  });
+
+  it('cancels polling before making a request', async () => {
+    const fetchApi = vi.fn() as unknown as typeof fetch;
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    client.getCredentialsManager().setPaymentCredentials({ id: 789, identifier: 'pi_abc' });
+    const controller = new AbortController();
+    controller.abort();
+
+    const response = await client.payments.pollUntilSettled({ signal: controller.signal });
+
+    expect(response.error?.message).toBe('Payment verification cancelled.');
+    expect(fetchApi).not.toHaveBeenCalled();
+  });
+
+  it('polls with JSON until a pending payment becomes successful', async () => {
+    const stepBodies: string[] = [];
+    let stepAttempt = 0;
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async (input, init) => {
+        if (String(input).includes('/pinch/order')) {
+          return new Response(JSON.stringify({ result: true }), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        stepBodies.push(String(init?.body));
+        stepAttempt += 1;
+        const result = stepAttempt === 1
+          ? { action: 'pending', order: {
+              id: 1, order_number: '10001', order_identifier: 'order-token',
+              invoice: { invoice_items: [], shipping_items: [] }
+            } }
+          : { action: 'show_order', order: {
+              id: 1, order_number: '10001', order_identifier: 'order-token',
+              invoice: { invoice_items: [], shipping_items: [] }
+            } };
+        return new Response(JSON.stringify({ result }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    });
+    client.getCredentialsManager().setPaymentCredentials({ id: 789, identifier: 'pi_abc' });
+
+    const response = await client.payments.pollUntilSettled({
+      immediate: true,
+      intervalMs: 0,
+      maxAttempts: 3
+    });
+
+    expect(response.data?.action).toBe('show_order');
+    expect(stepBodies.map((body) => JSON.parse(body))).toEqual([
+      { payment_identifier: 'pi_abc' },
+      { payment_identifier: 'pi_abc' }
+    ]);
+  });
+
+  it('rejects malformed success results that omit required order identifiers', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async () => new Response(JSON.stringify({ result: {
+        action: 'show_order',
+        order: { id: 123, invoice: { invoice_items: [], shipping_items: [] } }
+      } }), { headers: { 'Content-Type': 'application/json' } })
+    });
+
+    const response = await client.payments.verify({
+      id: 304,
+      paymentIdentifier: 'payment-token'
+    });
+
     expect(response.error?.message).toBe('Invalid payment step result');
   });
 
@@ -277,7 +442,21 @@ describe('PaymentsAPI gateway return', () => {
           discountUsages: undefined
         }
       },
-      message: undefined
+      message: undefined,
+      raw: {
+        action: 'pending',
+        order: {
+          id: 123,
+          order_number: '10001',
+          order_identifier: 'order-token',
+          invoice: {
+            invoice_items: [],
+            shipping_items: [],
+            net_total: 100000,
+            final_total: 110000
+          }
+        }
+      }
     });
   });
 });

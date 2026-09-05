@@ -764,4 +764,39 @@ describe('checkout engine — happy path', () => {
     });
     expect(engine.getState().result?.status).toBe('success');
   });
+
+  it('forwards gateway-specific callback fields without renaming them', async () => {
+    const { engine, client } = setup();
+
+    await engine.actions.resolvePaymentReturn({
+      id: '304',
+      paymentIdentifier: 'callback-payment',
+      RefId: 'bank-reference',
+      ResCode: '0'
+    });
+
+    expect(client.payments.verify).toHaveBeenCalledWith({
+      id: 304,
+      paymentIdentifier: 'callback-payment',
+      payload: { RefId: 'bank-reference', ResCode: '0' }
+    });
+  });
+
+  it('moves a verification error into the visible failed result state', async () => {
+    const { engine, client } = setup();
+    client.payments.verify.mockResolvedValueOnce({
+      error: { message: 'Verification response was invalid', type: 'api' }
+    } as never);
+
+    await engine.actions.resolvePaymentReturn({
+      id: '304',
+      paymentIdentifier: 'callback-payment'
+    });
+
+    expect(engine.getState().status).toBe('idle');
+    expect(engine.getState().result).toEqual({
+      status: 'failed',
+      message: 'Verification response was invalid'
+    });
+  });
 });

@@ -52,8 +52,8 @@ describe('account orders remain independent of payment completion', () => {
     expect(id).toBe(123);
     expect(orderNumber).toBe('10001');
 
-    // These errors must remain: a payment completion has a stronger contract.
-    // @ts-expect-error A checkout invoice requires netTotal and finalTotal.
+    // Payment verification can omit totals, but the account and checkout order
+    // contracts must still remain distinct.
     const incompleteCheckout: CheckoutInvoice = { invoiceItems: [], shippingItems: [] };
     // @ts-expect-error Account Order cannot be used as a payment CheckoutOrder.
     const mixedOrder: CheckoutOrder = accountOrder;

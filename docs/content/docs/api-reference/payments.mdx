@@ -107,9 +107,11 @@ This produces the exact endpoint body:
 
 Use: `payments.verify(input?, options?)`.
 
-Verifies a returning gateway payment. When both callback credential fields are
-provided, the SDK restores them before making the request, so verification also
-works when no payment credentials remain in browser storage:
+Verifies a returning gateway payment with Sazito's SSR-compatible URL-encoded
+form contract. Gateway values are sent as `payload[fieldName]`. When both
+callback credential fields are provided, the SDK restores them before making
+the request, so verification also works when no payment credentials remain in
+browser storage:
 
 ```ts
 const result = await client.payments.verify({
@@ -119,7 +121,23 @@ const result = await client.payments.verify({
 ```
 
 If `id` and `paymentIdentifier` are omitted, `verify` uses the payment created
-earlier on the same SDK client.
+earlier on the same SDK client and performs one JSON status request.
+
+For server adapters that receive GET and POST callback data separately, use
+`verifyPaymentCallback`. Body fields are copied first and query fields second,
+so query values win when a field appears in both places:
+
+```ts
+const result = await client.payments.verifyPaymentCallback({
+  paymentId: 304,
+  paymentIdentifier: '6f8a717eb211f0839e522a5358932968',
+  body: requestBody,
+  query: searchParams,
+});
+```
+
+Use `getPaymentStep()` for one JSON status request. Callback verification and
+pending status polling intentionally use different encodings.
 
 ### Process Step (Form Mode)
 
@@ -144,10 +162,16 @@ const stepRes = await client.payments.processStepForm({
 
 Use: `payments.pollUntilSettled(options?, intervalMs?)`.
 
-Polls payment state via `process_payment_step` every 15 seconds by default until `action !== 'pending'`.
+Polls payment state via JSON every 15 seconds by default until
+`action !== 'pending'`. It supports `AbortSignal`, `maxAttempts`, an immediate
+first request, and a five-minute default polling deadline.
 
 ```ts
-const finalAction = await client.payments.pollUntilSettled(undefined, 5000);
+const finalAction = await client.payments.pollUntilSettled({
+  intervalMs: 5000,
+  pollingTimeoutMs: 120000,
+  signal: controller.signal,
+});
 ```
 
 ### Clear Payment
@@ -185,13 +209,16 @@ client.payments.clearPayment();
 | `order` | `CheckoutOrder` | Optional | Required by both `show_order` and `pending`. Response keys inside the order are camel-cased once by the SDK. |
 | `time` | `number` | Optional | Upload or OTP window in minutes. |
 | `message` | `string` | Optional | Error/action message. |
+| `raw` | `JsonObject` | Optional | Complete unnormalized backend result for forward compatibility. |
 
-For `pending`, call `pollUntilSettled()` (15 seconds by default). Polling stops when
-the action changes to `show_order` or a failure action.
+For `pending`, call `pollUntilSettled()` (15 seconds by default). Polling stops
+when the action changes to `show_order` or a failure/unknown action, when it is
+cancelled, or when its configured limit is reached.
 
 `CheckoutOrder` describes the payment endpoint's final order, independently of
 the account `Order` returned by `orders.get()` and `orders.list()`.
-Its invoice requires `netTotal` and `finalTotal`. Items use `variantAttributes`,
+Its invoice can omit `netTotal` and `finalTotal` in verification responses.
+Items use `variantAttributes`,
 `singleItemPrice`, `noOfItems`, `totalItemsPrice`, and nested `productVariant` data.
 IDs retain their string or number values. No invoice-item ID or original price
 is invented when the payment response does not provide one.

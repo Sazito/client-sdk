@@ -34,6 +34,7 @@ describe('parsePaymentReturn', () => {
     [],
     ['paymentinplaceresult'],
     ['paymentinplaceresult', 'payment', 'not-a-number', 'identifier', 'token'],
+    ['madeuppaymentresult', 'payment', '304', 'identifier', 'token'],
     ['paymentinplaceresult', 'payment', '304', 'wrong', 'token'],
     ['paymentinplaceresult', 'payment', '304', 'identifier', 'token', 'extra']
   ])('rejects a non-callback path: %j', (segments) => {
@@ -58,5 +59,13 @@ describe('parsePaymentReturn', () => {
 
   it('rejects an ordinary complete checkout URL', () => {
     expect(parsePaymentReturnUrl('/checkout')).toBeUndefined();
+  });
+
+  it('allows a host-configured result marker', () => {
+    expect(parsePaymentReturn(
+      ['custompaymentresult', 'payment', '304', 'identifier', 'token'],
+      {},
+      { gatewayResultMarkers: ['custompaymentresult'] }
+    )?.payment).toEqual({ id: 304, identifier: 'token' });
   });
 });

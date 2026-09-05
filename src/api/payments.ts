@@ -6,12 +6,18 @@ import { HttpClient } from '../core/http-client';
 import { CredentialsManager } from '../utils/credentials-manager';
 import {
   SazitoResponse,
+  SazitoError,
   PaymentMethod,
   Payment,
+  PaymentCredentials,
   PaymentAction,
   CheckoutOrder,
   PaymentStepInput,
   PaymentStepFormFields,
+  VerifyPaymentCallbackInput,
+  PaymentCallbackFields,
+  PaymentCallbackFieldValue,
+  PaymentPollingOptions,
   RequestOptions,
   JsonValue,
   JsonObject
@@ -27,7 +33,8 @@ export class PaymentsAPI {
 
   constructor(
     private http: HttpClient,
-    private credentials: CredentialsManager
+    private credentials: CredentialsManager,
+    private paymentsBasePath: string = PAYMENTS_API
   ) {}
 
   /**
@@ -46,7 +53,7 @@ export class PaymentsAPI {
     }
 
     const response = await this.http.post<JsonValue>(
-      `${PAYMENTS_API}/list`,
+      `${this.paymentsBasePath}/list`,
       {
         invoice_identifier: invoiceCreds.identifier
       },
@@ -95,7 +102,7 @@ export class PaymentsAPI {
     // and `invoice_identifier` to `identifier`, so the invoice value clobbers the
     // payment one. We must read `payment_identifier` directly.
     const response = await this.http.post<JsonObject>(
-      PAYMENTS_API,
+      this.paymentsBasePath,
       {
         invoice_identifier: invoiceCreds.identifier,
         payment_type: paymentTypeId
@@ -147,7 +154,7 @@ export class PaymentsAPI {
    * POST for hosted gateways, or show_order for zero-amount/instant payments).
    */
   async initialize(options?: RequestOptions): Promise<SazitoResponse<PaymentAction>> {
-    return this.submitPaymentStep(undefined, options);
+    return this.submitJsonPaymentStep(undefined, options);
   }
 
   /**
@@ -161,7 +168,65 @@ export class PaymentsAPI {
     input?: PaymentStepInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<PaymentAction>> {
-    return this.submitPaymentStep(input, options);
+    if (!input) {
+      return this.getPaymentStep(options);
+    }
+
+    const credentials = this.resolvePaymentCredentials(input.id, input.paymentIdentifier);
+    if ('error' in credentials) {
+      return { error: credentials.error };
+    }
+
+    return this.verifyPaymentCallback({
+      paymentId: credentials.data.id,
+      paymentIdentifier: credentials.data.identifier,
+      body: this.paymentStepInputToCallbackFields(input)
+    }, options);
+  }
+
+  /**
+   * Verify a gateway callback using Sazito's SSR form contract. Body fields
+   * are written first, query fields second, and every field is wrapped as
+   * `payload[name]`. The validated path identifier is always written last.
+   */
+  async verifyPaymentCallback(
+    input: VerifyPaymentCallbackInput,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<PaymentAction>> {
+    const paymentId = this.normalizePaymentId(input.paymentId);
+    const paymentIdentifier = input.paymentIdentifier?.trim();
+    if (paymentId === null || !paymentIdentifier) {
+      return {
+        error: {
+          message: 'Invalid payment callback credentials.',
+          type: 'validation'
+        }
+      };
+    }
+
+    const form = new URLSearchParams();
+    const fields = { ...(input.body ?? {}), ...(input.query ?? {}) };
+    for (const [name, value] of Object.entries(fields)) {
+      this.appendCallbackValue(form, `payload[${name}]`, value);
+    }
+    form.set('payment_identifier', paymentIdentifier);
+
+    const response = await this.http.post<PaymentAction>(
+      `${this.paymentsBasePath}/${encodeURIComponent(String(paymentId))}/process_payment_step`,
+      form,
+      {
+        ...options,
+        headers: this.withContentType(options?.headers, 'application/x-www-form-urlencoded;charset=UTF-8'),
+        skipTransform: true
+      }
+    );
+
+    return this.finalizeStepResponse(response, paymentId, options);
+  }
+
+  /** Send one JSON payment status request. Used by pending polling only. */
+  async getPaymentStep(options?: RequestOptions): Promise<SazitoResponse<PaymentAction>> {
+    return this.submitJsonPaymentStep(undefined, options);
   }
 
   /**
@@ -173,45 +238,24 @@ export class PaymentsAPI {
     input: PaymentStepInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<PaymentAction>> {
-    return this.submitPaymentStep(input, options);
+    return this.submitJsonPaymentStep(input, options);
   }
 
   /**
-   * Shared core for the `process_payment_step` endpoint used by
-   * {@link initialize}, {@link verify} and {@link processStep}.
+   * Shared JSON core for initialization, status checks and multi-step payment
+   * actions. Gateway callback verification intentionally uses form encoding.
    */
-  private async submitPaymentStep(
+  private async submitJsonPaymentStep(
     input: PaymentStepInput | undefined,
     options?: RequestOptions
   ): Promise<SazitoResponse<PaymentAction>> {
-    const callbackId = input?.id;
-    const callbackIdentifier = input?.paymentIdentifier?.trim();
-    if (
-      callbackId != null &&
-      Number.isInteger(callbackId) &&
-      callbackId > 0 &&
-      callbackIdentifier
-    ) {
-      this.credentials.setPaymentCredentials({
-        id: callbackId,
-        identifier: callbackIdentifier
-      });
-    }
-
-    const paymentCreds = this.credentials.getPaymentCredentials();
-
-    if (!paymentCreds) {
-      return {
-        error: {
-          message: 'No payment found. Please create a payment first.',
-          type: 'validation'
-        }
-      };
-    }
+    const credentials = this.resolvePaymentCredentials(input?.id, input?.paymentIdentifier);
+    if ('error' in credentials) return { error: credentials.error };
+    const paymentCreds = credentials.data;
 
     const response = await this.http.post<PaymentAction>(
-      `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
-      this.buildProcessStepBody(input, callbackIdentifier || paymentCreds.identifier),
+      `${this.paymentsBasePath}/${paymentCreds.id}/process_payment_step`,
+      this.buildProcessStepBody(input, paymentCreds.identifier),
       { ...this.withExactJsonHeader(options), skipRequestTransform: true }
     );
 
@@ -247,7 +291,7 @@ export class PaymentsAPI {
     }
 
     const response = await this.http.post<PaymentAction>(
-      `${PAYMENTS_API}/${paymentCreds.id}/process_payment_step`,
+      `${this.paymentsBasePath}/${paymentCreds.id}/process_payment_step`,
       formData,
       { ...options, skipTransform: true }
     );
@@ -259,20 +303,47 @@ export class PaymentsAPI {
    * Poll payment state every 15 seconds until action changes from pending.
    */
   async pollUntilSettled(
-    options?: RequestOptions,
+    options?: PaymentPollingOptions,
     intervalMs: number = 15000
   ): Promise<SazitoResponse<PaymentAction>> {
-    let response: SazitoResponse<PaymentAction>;
+    const interval = options?.intervalMs ?? intervalMs;
+    const pollingTimeoutMs = options?.pollingTimeoutMs ?? 300000;
+    const maxAttempts = options?.maxAttempts;
+    const startedAt = Date.now();
+    let attempt = 0;
+    let terminalResponse: SazitoResponse<PaymentAction> | undefined;
 
-    do {
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-      response = await this.verify(undefined, options);
-      if (!response.data) {
-        return response;
+    if (!Number.isFinite(interval) || interval < 0 ||
+        !Number.isFinite(pollingTimeoutMs) || pollingTimeoutMs <= 0 ||
+        (maxAttempts !== undefined && (!Number.isInteger(maxAttempts) || maxAttempts <= 0))) {
+      return { error: { message: 'Invalid payment polling options.', type: 'validation' } };
+    }
+
+    while (!terminalResponse) {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed >= pollingTimeoutMs ||
+          (maxAttempts !== undefined && attempt >= maxAttempts)) {
+        return { error: { message: 'Payment verification timed out.', type: 'network' } };
       }
-    } while (response.data.action === 'pending');
 
-    return response;
+      if (!options?.immediate || attempt > 0) {
+        const waitResult = await this.waitForPoll(
+          Math.min(interval, pollingTimeoutMs - elapsed),
+          options?.signal
+        );
+        if (waitResult) return waitResult;
+      }
+
+      if (Date.now() - startedAt >= pollingTimeoutMs) {
+        return { error: { message: 'Payment verification timed out.', type: 'network' } };
+      }
+
+      attempt += 1;
+      const response = await this.getPaymentStep(options);
+      if (!response.data || response.data.action !== 'pending') terminalResponse = response;
+    }
+
+    return terminalResponse;
   }
 
   /**
@@ -366,6 +437,103 @@ export class PaymentsAPI {
     formData.append(key, String(value));
   }
 
+  private resolvePaymentCredentials(
+    callbackId?: number,
+    callbackIdentifier?: string
+  ): { data: PaymentCredentials } | { error: SazitoError } {
+    const identifier = callbackIdentifier?.trim();
+    if (callbackId != null || callbackIdentifier != null) {
+      if (!Number.isSafeInteger(callbackId) || Number(callbackId) <= 0 || !identifier) {
+        return {
+          error: {
+            message: 'Invalid payment callback credentials.',
+            type: 'validation'
+          }
+        };
+      }
+
+      const credentials = { id: Number(callbackId), identifier };
+      this.credentials.setPaymentCredentials(credentials);
+      return { data: credentials };
+    }
+
+    const stored = this.credentials.getPaymentCredentials();
+    if (!stored) {
+      return {
+        error: {
+          message: 'No payment found. Please create a payment first.',
+          type: 'validation'
+        }
+      };
+    }
+    return { data: stored };
+  }
+
+  private normalizePaymentId(value: string | number): number | null {
+    const id = typeof value === 'string' && value.trim() ? Number(value) : value;
+    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
+  }
+
+  private paymentStepInputToCallbackFields(input: PaymentStepInput): PaymentCallbackFields {
+    const fields: PaymentCallbackFields = { ...(input.payload ?? {}) };
+    if (input.tatoken !== undefined) fields.tatoken = input.tatoken;
+    if (input.trackingData !== undefined) fields.trackingData = input.trackingData;
+    if (input.isFailed !== undefined) fields.isFailed = input.isFailed;
+    if (input.imageUrl !== undefined) fields.imageUrl = input.imageUrl;
+    if (input.code !== undefined) fields.code = input.code;
+    return fields;
+  }
+
+  private appendCallbackValue(
+    form: URLSearchParams,
+    name: string,
+    value: PaymentCallbackFieldValue
+  ): void {
+    if (value === undefined) return;
+    if (Array.isArray(value)) {
+      value.forEach((entry) => this.appendCallbackValue(form, name, entry));
+      return;
+    }
+    if (value === null) {
+      form.append(name, '');
+      return;
+    }
+    form.append(name, typeof value === 'object' ? JSON.stringify(value) : String(value));
+  }
+
+  private withContentType(
+    headers: Record<string, string> | undefined,
+    contentType: string
+  ): Record<string, string> {
+    const nextHeaders = { ...(headers ?? {}) };
+    delete nextHeaders['Content-Type'];
+    delete nextHeaders['content-type'];
+    return { ...nextHeaders, 'Content-Type': contentType };
+  }
+
+  private waitForPoll(
+    intervalMs: number,
+    signal?: AbortSignal
+  ): Promise<SazitoResponse<PaymentAction> | null> {
+    if (signal?.aborted) {
+      return Promise.resolve({
+        error: { message: 'Payment verification cancelled.', type: 'network' }
+      });
+    }
+
+    return new Promise((resolve) => {
+      const onAbort = () => {
+        clearTimeout(timeoutId);
+        resolve({ error: { message: 'Payment verification cancelled.', type: 'network' } });
+      };
+      const timeoutId = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve(null);
+      }, intervalMs);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
+  }
+
   /**
    * Post-process a `process_payment_step` response. The exact-JSON endpoint
    * returns an envelope `{ result: PaymentAction, error, error_code, status }`;
@@ -433,34 +601,36 @@ export class PaymentsAPI {
     switch (actionName) {
       case 'POST':
         if (typeof action.address !== 'string' || !this.isPostPayload(action.payload)) return null;
-        return { action: 'POST', address: action.address, payload: action.payload, message };
+        return { action: 'POST', address: action.address, payload: action.payload, message, raw: action };
       case 'REDIRECT':
         return typeof action.address === 'string'
-          ? { action: 'REDIRECT', address: action.address, message }
+          ? { action: 'REDIRECT', address: action.address, message, raw: action }
           : null;
       case 'UPLOAD':
-        return { action: 'UPLOAD', time: this.optionalNumber(action.time), message };
+        return { action: 'UPLOAD', time: this.optionalNumber(action.time), message, raw: action };
       case 'show_otp_modal':
-        return { action: 'show_otp_modal', time: this.optionalNumber(action.time), message };
+        return { action: 'show_otp_modal', time: this.optionalNumber(action.time), message, raw: action };
       case 'show_order':
       case 'pending': {
         if (!action.order || typeof action.order !== 'object' || Array.isArray(action.order)) return null;
         const order = transformCheckoutOrderResponse<CheckoutOrder>(action.order);
         if (!this.isCheckoutOrder(order)) return null;
         return actionName === 'show_order'
-          ? { action: 'show_order', order, message }
-          : { action: 'pending', order, message };
+          ? { action: 'show_order', order, message, raw: action }
+          : { action: 'pending', order, message, raw: action };
       }
       case 'payment_fail_error':
-        return { action: 'payment_fail_error', message };
+        return { action: 'payment_fail_error', message, raw: action };
       case 'show_error':
-        return { action: 'show_error', message };
+        return { action: 'show_error', message, raw: action };
       case 'FAIL':
-        return { action: 'FAIL', message };
+        return { action: 'FAIL', message, raw: action };
       case 'StockViolated':
-        return { action: 'StockViolated', message };
+        return { action: 'StockViolated', message, raw: action };
       default:
-        return null;
+        return actionName
+          ? { action: 'unknown', backendAction: actionName, raw: action, message }
+          : null;
     }
   }
 
@@ -485,8 +655,10 @@ export class PaymentsAPI {
       !!invoice &&
       Array.isArray(invoice.invoiceItems) &&
       Array.isArray(invoice.shippingItems) &&
-      typeof invoice.netTotal === 'number' && Number.isFinite(invoice.netTotal) &&
-      typeof invoice.finalTotal === 'number' && Number.isFinite(invoice.finalTotal) &&
+      (invoice.netTotal === undefined ||
+        (typeof invoice.netTotal === 'number' && Number.isFinite(invoice.netTotal))) &&
+      (invoice.finalTotal === undefined ||
+        (typeof invoice.finalTotal === 'number' && Number.isFinite(invoice.finalTotal))) &&
       invoice.invoiceItems.every((item) =>
         isPublicId(item.productVariantId) &&
         typeof item.name === 'string' &&
