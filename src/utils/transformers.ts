@@ -1100,7 +1100,9 @@ function transformCheckoutShippingItem(item: TransformValue): TransformObject {
   if (!isPlainObject(item) || !isPlainObject(item.rate)) return {};
 
   return {
-    id: toIdentifier(item.id),
+    // Completed payment-in-place orders currently serialize `id: ""` for
+    // shipping items while still providing their stable shipping number.
+    id: toIdentifier(item.id) ?? toIdentifier(item.shipping_number),
     invoiceItemIds: Array.isArray(item.invoice_item_ids)
       ? item.invoice_item_ids
           .map(toIdentifier)

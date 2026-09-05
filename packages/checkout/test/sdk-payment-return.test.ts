@@ -334,7 +334,8 @@ describe('PaymentsAPI gateway return', () => {
                 ],
                 shipping_items: [
                   {
-                    id: 'shipment-1',
+                    id: '',
+                    shipping_number: 'SH0000000410',
                     invoice_item_ids: [91],
                     rate: {
                       id: 'rate-12',
@@ -405,7 +406,7 @@ describe('PaymentsAPI gateway return', () => {
           ],
           shippingItems: [
             {
-              id: 'shipment-1',
+              id: 'SH0000000410',
               invoiceItemIds: [91],
               rate: {
                 id: 'rate-12',
