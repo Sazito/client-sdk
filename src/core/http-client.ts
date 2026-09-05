@@ -196,7 +196,10 @@ export class HttpClient {
       const result = data?.result !== undefined ? data.result : data;
 
       if (this.config.debug) {
-        console.log(`[Sazito SDK] ${method} ${url}:`, { status: response.status, data: result });
+        console.log(`[Sazito SDK] ${method} ${url}:`, this.redactDebugValue({
+          status: response.status,
+          data: result
+        }));
       }
 
       // Transform response to camelCase and beautified field names
@@ -304,6 +307,26 @@ export class HttpClient {
     };
   }
 
+  /** Preserve debug structure without printing credentials or customer PII. */
+  private redactDebugValue(value: unknown, key = ''): unknown {
+    const sensitiveKey = /authorization|cookie|password|secret|token|identifier|tracking|mobile|phone|email|postal|address|first.?name|last.?name|receipt.?ref|ref.?id/i;
+    if (sensitiveKey.test(key)) {
+      if (value === undefined || value === null || value === '') return value;
+      const text = String(value);
+      return text.length <= 4 ? '[REDACTED]' : `[REDACTED:${text.slice(-4)}]`;
+    }
+    if (Array.isArray(value)) return value.map((entry) => this.redactDebugValue(entry));
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([entryKey, entryValue]) => [
+          entryKey,
+          this.redactDebugValue(entryValue, entryKey)
+        ])
+      );
+    }
+    return value;
+  }
+
   /**
    * Build full URL with query params
    */
@@ -393,6 +416,11 @@ export class HttpClient {
    */
   getTokenStorage(): TokenStorage {
     return this.tokenStorage;
+  }
+
+  /** Whether verbose SDK diagnostics were enabled by the client config. */
+  isDebugEnabled(): boolean {
+    return this.config.debug;
   }
 
   /**

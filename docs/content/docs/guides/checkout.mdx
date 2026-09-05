@@ -138,6 +138,7 @@ for nested gateway callbacks.
 | `continueShoppingUrl` | `string` | — | URL for the back button on the cart step and the "continue shopping" link on the result screen. |
 | `returnUrl` | `string` | — | Reserved for gateways that support a caller-provided return URL. Legacy Sazito callbacks use their generated nested result path. |
 | `pollIntervalMs` | `number` | `15000` | How often (ms) to poll for a pending payment result after gateway return. |
+| `debug` | `boolean` | `false` | Log detailed, correlated payment-verification parsing and checkout state transitions. Sensitive values are redacted. |
 | `currencyLabel` | `string` | locale default | Override the currency unit label (e.g. `'تومان'`). |
 | `onEvent` | `(event: CheckoutEvent) => void` | — | Analytics hook — called for every checkout lifecycle event. See [Analytics](#analytics). |
 

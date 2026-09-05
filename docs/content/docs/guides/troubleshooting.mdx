@@ -26,4 +26,23 @@ Check:
 
 ## Debug mode
 
-Enable `debug: true` to print request, response, and retry logs.
+Enable `debug: true` on both the SDK client and checkout config to print the
+complete payment-verification trace:
+
+```tsx
+const client = createSazitoClient({
+  domain: 'mystore.sazito.com',
+  debug: true,
+});
+
+<SazitoCheckoutPage
+  config={{ debug: true }}
+/>
+```
+
+The SDK trace covers callback input, credential validation, encoded request,
+raw response, proxy/envelope unwrapping, extracted and normalized action,
+polling, and pinch finalization. The checkout trace covers callback parsing,
+SDK invocation, action routing, and the resulting UI state. Every line shares a
+correlation ID such as `callback-...`, while credentials and customer PII are
+redacted.

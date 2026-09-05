@@ -30,6 +30,7 @@ import {
 
 export class PaymentsAPI {
   private readonly pinchedPayments = new Set<number>();
+  private verificationTraceSequence = 0;
 
   constructor(
     private http: HttpClient,
@@ -193,9 +194,22 @@ export class PaymentsAPI {
     input: VerifyPaymentCallbackInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<PaymentAction>> {
+    const traceId = this.nextVerificationTraceId('callback');
     const paymentId = this.normalizePaymentId(input.paymentId);
     const paymentIdentifier = input.paymentIdentifier?.trim();
+    this.logVerification(traceId, 'started', {
+      paymentId: input.paymentId,
+      paymentIdentifier,
+      body: input.body,
+      query: input.query,
+      callbackFieldNames: Object.keys({ ...(input.body ?? {}), ...(input.query ?? {}) })
+    });
     if (paymentId === null || !paymentIdentifier) {
+      this.logVerification(traceId, 'validation_failed', {
+        reason: 'Invalid payment callback credentials',
+        normalizedPaymentId: paymentId,
+        hasPaymentIdentifier: Boolean(paymentIdentifier)
+      });
       return {
         error: {
           message: 'Invalid payment callback credentials.',
@@ -211,8 +225,17 @@ export class PaymentsAPI {
     }
     form.set('payment_identifier', paymentIdentifier);
 
+    const endpoint =
+      `${this.paymentsBasePath}/${encodeURIComponent(String(paymentId))}/process_payment_step`;
+    this.logVerification(traceId, 'request_prepared', {
+      method: 'POST',
+      endpoint,
+      contentType: 'application/x-www-form-urlencoded;charset=UTF-8',
+      form: Object.fromEntries(form.entries())
+    });
+
     const response = await this.http.post<PaymentAction>(
-      `${this.paymentsBasePath}/${encodeURIComponent(String(paymentId))}/process_payment_step`,
+      endpoint,
       form,
       {
         ...options,
@@ -221,7 +244,9 @@ export class PaymentsAPI {
       }
     );
 
-    return this.finalizeStepResponse(response, paymentId, options);
+    this.logVerification(traceId, 'response_received', response);
+
+    return this.finalizeStepResponse(response, paymentId, options, traceId);
   }
 
   /** Send one JSON payment status request. Used by pending polling only. */
@@ -306,6 +331,7 @@ export class PaymentsAPI {
     options?: PaymentPollingOptions,
     intervalMs: number = 15000
   ): Promise<SazitoResponse<PaymentAction>> {
+    const traceId = this.nextVerificationTraceId('poll');
     const interval = options?.intervalMs ?? intervalMs;
     const pollingTimeoutMs = options?.pollingTimeoutMs ?? 300000;
     const maxAttempts = options?.maxAttempts;
@@ -313,17 +339,29 @@ export class PaymentsAPI {
     let attempt = 0;
     let terminalResponse: SazitoResponse<PaymentAction> | undefined;
 
+    this.logVerification(traceId, 'poll_started', {
+      intervalMs: interval,
+      pollingTimeoutMs,
+      maxAttempts,
+      immediate: options?.immediate ?? false,
+      signalAborted: options?.signal?.aborted ?? false
+    });
+
     if (!Number.isFinite(interval) || interval < 0 ||
         !Number.isFinite(pollingTimeoutMs) || pollingTimeoutMs <= 0 ||
         (maxAttempts !== undefined && (!Number.isInteger(maxAttempts) || maxAttempts <= 0))) {
-      return { error: { message: 'Invalid payment polling options.', type: 'validation' } };
+      const result = { error: { message: 'Invalid payment polling options.', type: 'validation' as const } };
+      this.logVerification(traceId, 'poll_validation_failed', result);
+      return result;
     }
 
     while (!terminalResponse) {
       const elapsed = Date.now() - startedAt;
       if (elapsed >= pollingTimeoutMs ||
           (maxAttempts !== undefined && attempt >= maxAttempts)) {
-        return { error: { message: 'Payment verification timed out.', type: 'network' } };
+        const result = { error: { message: 'Payment verification timed out.', type: 'network' as const } };
+        this.logVerification(traceId, 'poll_timed_out', { attempt, elapsed, result });
+        return result;
       }
 
       if (!options?.immediate || attempt > 0) {
@@ -331,18 +369,34 @@ export class PaymentsAPI {
           Math.min(interval, pollingTimeoutMs - elapsed),
           options?.signal
         );
-        if (waitResult) return waitResult;
+        if (waitResult) {
+          this.logVerification(traceId, 'poll_cancelled', { attempt, result: waitResult });
+          return waitResult;
+        }
       }
 
       if (Date.now() - startedAt >= pollingTimeoutMs) {
-        return { error: { message: 'Payment verification timed out.', type: 'network' } };
+        const result = { error: { message: 'Payment verification timed out.', type: 'network' as const } };
+        this.logVerification(traceId, 'poll_timed_out', {
+          attempt,
+          elapsed: Date.now() - startedAt,
+          result
+        });
+        return result;
       }
 
       attempt += 1;
+      this.logVerification(traceId, 'poll_request_started', { attempt });
       const response = await this.getPaymentStep(options);
+      this.logVerification(traceId, 'poll_response_received', { attempt, response });
       if (!response.data || response.data.action !== 'pending') terminalResponse = response;
     }
 
+    this.logVerification(traceId, 'poll_settled', {
+      attempts: attempt,
+      elapsedMs: Date.now() - startedAt,
+      response: terminalResponse
+    });
     return terminalResponse;
   }
 
@@ -536,15 +590,18 @@ export class PaymentsAPI {
 
   /**
    * Post-process a `process_payment_step` response. The exact-JSON endpoint
-   * returns an envelope `{ result: PaymentAction, error, error_code, status }`;
-   * unwrap `result`, surface envelope-level errors, and run the pinch hook.
+   * returns an envelope `{ result: PaymentAction, error, error_code, status }`.
+   * Some storefront proxies preserve their request log wrapper and return it
+   * as `{ method, path, response: <envelope> }`; accept both shapes.
    */
   private async finalizeStepResponse(
     response: SazitoResponse<PaymentAction>,
     paymentId: number,
-    options?: RequestOptions
+    options?: RequestOptions,
+    traceId?: string
   ): Promise<SazitoResponse<PaymentAction>> {
     if (!response.data) {
+      this.logVerification(traceId, 'finished_without_data', response);
       return response;
     }
 
@@ -558,17 +615,34 @@ export class PaymentsAPI {
       try {
         parsed = JSON.parse(parsed);
       } catch {
+        this.logVerification(traceId, 'response_parse_failed', {
+          rawResponse: response.data
+        });
         return {
           error: { message: 'Invalid payment step response', type: 'api' }
         };
       }
     }
-    const envelope = parsed as JsonObject;
+    const outerEnvelope = parsed as JsonObject;
+    const envelope =
+      isObj(outerEnvelope) && isObj(outerEnvelope.response)
+        ? outerEnvelope.response
+        : outerEnvelope;
+
+    this.logVerification(traceId, 'envelope_unwrapped', {
+      hadProxyResponseWrapper: envelope !== outerEnvelope,
+      envelope
+    });
 
     if (isObj(envelope)) {
       const envError = typeof envelope.error === 'string' ? envelope.error : '';
       const envCode = Number(envelope.error_code ?? 0);
       if (envError || envCode) {
+        this.logVerification(traceId, 'envelope_error', {
+          error: envError,
+          errorCode: envCode,
+          status: envelope.status
+        });
         return {
           error: {
             message: envError || 'Payment step failed',
@@ -584,13 +658,24 @@ export class PaymentsAPI {
         ? envelope.result
         : (envelope as JsonObject);
 
+    this.logVerification(traceId, 'action_extracted', actionPayload);
+
     const normalizedAction = this.normalizeAction(actionPayload);
     if (!normalizedAction) {
+      this.logVerification(traceId, 'action_invalid', {
+        reason: 'Missing or malformed payment action fields',
+        actionPayload
+      });
       return {
         error: { message: 'Invalid payment step result', type: 'api' }
       };
     }
-    await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentId, options);
+    this.logVerification(traceId, 'action_normalized', normalizedAction);
+    await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentId, options, traceId);
+    this.logVerification(traceId, 'finished', {
+      paymentId,
+      action: normalizedAction.action
+    });
     return { data: normalizedAction };
   }
 
@@ -682,20 +767,75 @@ export class PaymentsAPI {
   private async callPinchAfterSuccessfulPayment(
     action: PaymentAction,
     paymentId: number,
-    options?: RequestOptions
+    options?: RequestOptions,
+    traceId?: string
   ): Promise<void> {
     if (action.action !== 'show_order') {
+      this.logVerification(traceId, 'pinch_skipped', {
+        reason: 'Payment action is not show_order',
+        action: action.action
+      });
       return;
     }
 
     if (this.pinchedPayments.has(paymentId)) {
+      this.logVerification(traceId, 'pinch_skipped', {
+        reason: 'Payment was already pinched',
+        paymentId
+      });
       return;
     }
 
     this.pinchedPayments.add(paymentId);
+    this.logVerification(traceId, 'pinch_started', {
+      method: 'POST',
+      endpoint: `${PINCH_API}/order`,
+      paymentId
+    });
     const pinchResponse = await this.http.post<JsonValue>(`${PINCH_API}/order`, {}, options);
     if (pinchResponse.error) {
       this.pinchedPayments.delete(paymentId);
+      this.logVerification(traceId, 'pinch_failed', pinchResponse);
+      return;
     }
+    this.logVerification(traceId, 'pinch_succeeded', pinchResponse);
+  }
+
+  private nextVerificationTraceId(operation: 'callback' | 'poll'): string {
+    this.verificationTraceSequence += 1;
+    return `${operation}-${Date.now()}-${this.verificationTraceSequence}`;
+  }
+
+  private logVerification(
+    traceId: string | undefined,
+    stage: string,
+    details: unknown
+  ): void {
+    if (!this.http.isDebugEnabled()) return;
+    console.debug(
+      `[Sazito SDK][Payment Verification][${traceId ?? 'untracked'}] ${stage}`,
+      this.redactVerificationLogValue(details)
+    );
+  }
+
+  private redactVerificationLogValue(value: unknown, key = ''): unknown {
+    const sensitiveKey = /authorization|cookie|password|secret|token|identifier|tracking|mobile|phone|email|postal|address|first.?name|last.?name|receipt.?ref|ref.?id/i;
+    if (sensitiveKey.test(key)) {
+      if (value === undefined || value === null || value === '') return value;
+      const text = String(value);
+      return text.length <= 4 ? '[REDACTED]' : `[REDACTED:${text.slice(-4)}]`;
+    }
+    if (Array.isArray(value)) {
+      return value.map((entry) => this.redactVerificationLogValue(entry));
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([entryKey, entryValue]) => [
+          entryKey,
+          this.redactVerificationLogValue(entryValue, entryKey)
+        ])
+      );
+    }
+    return value;
   }
 }

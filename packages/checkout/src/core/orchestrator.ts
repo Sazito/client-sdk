@@ -93,6 +93,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
   const config: CheckoutConfig = options.config ?? {};
   const binding: CheckoutSdkBinding = createSdkBinding(options);
   const store: Store<CheckoutState> = createStore(initialState(config));
+  let paymentVerificationTraceSequence = 0;
 
   let effectExecutor: CheckoutEffectExecutor = noopEffectExecutor;
   let lock: Promise<unknown> = Promise.resolve();
@@ -274,7 +275,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     emit('payment_failed', { step: 'result' });
   }
 
-  function handlePaymentAction(action: PaymentAction): void {
+  function handlePaymentAction(action: PaymentAction, traceId?: string): void {
+    logPaymentVerification(traceId, 'action_received', summarizePaymentAction(action));
     switch (action.action) {
       case 'REDIRECT':
         if (!action.address) {
@@ -305,6 +307,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           result: { status: 'success', order: normalizeResultOrder(action.order) },
           error: null
         });
+        logPaymentVerification(traceId, 'state_changed', summarizePaymentState());
         emit('payment_succeeded', { step: 'result' });
         return;
       case 'FAIL':
@@ -315,6 +318,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           status: 'idle',
           result: { status: 'failed', message: action.message }
         });
+        logPaymentVerification(traceId, 'state_changed', summarizePaymentState());
         emit('payment_failed', { step: 'result' });
         return;
       case 'StockViolated':
@@ -324,6 +328,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           result: { status: 'stock_violated', message: action.message }
         });
         setError(makeError('stock_violated', get().locale, 'result'));
+        logPaymentVerification(traceId, 'state_changed', summarizePaymentState());
         return;
       case 'pending':
         set({
@@ -336,6 +341,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           },
           error: null
         });
+        logPaymentVerification(traceId, 'state_changed', summarizePaymentState());
         emit('payment_pending', { step: 'result' });
         void pollPending();
         return;
@@ -356,13 +362,17 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
 
   async function pollPending(): Promise<void> {
     const interval = config.pollIntervalMs ?? 15000;
+    const traceId = nextPaymentVerificationTraceId('poll');
+    logPaymentVerification(traceId, 'started', { intervalMs: interval });
     const res = await binding.client.payments.pollUntilSettled(undefined, interval);
+    logPaymentVerification(traceId, 'sdk_response', res);
     if (res.error || !res.data) {
       const err = fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'result');
+      logPaymentVerification(traceId, 'failed', { sdkError: res.error, checkoutError: err });
       failResult(err.message, err);
       return;
     }
-    handlePaymentAction(res.data);
+    handlePaymentAction(res.data, traceId);
   }
 
   // ---- public actions ---------------------------------------------------
@@ -717,8 +727,19 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
 
     async resolvePaymentReturn(params) {
       await withLock(async () => {
+        const traceId = nextPaymentVerificationTraceId('callback');
+        logPaymentVerification(traceId, 'started', {
+          callbackParameterNames: Object.keys(params),
+          paymentId: params.id,
+          paymentIdentifier: params.paymentIdentifier
+        });
         set({ step: 'result', status: 'polling', result: { status: 'pending' }, error: null });
         const input = paymentReturnInput(params);
+        logPaymentVerification(traceId, 'input_parsed', {
+          paymentId: input?.id,
+          paymentIdentifier: input?.paymentIdentifier,
+          payloadFieldNames: input?.payload ? Object.keys(input.payload) : []
+        });
         if (
           input?.id != null &&
           Number.isInteger(input.id) &&
@@ -729,14 +750,26 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
             id: input.id,
             identifier: input.paymentIdentifier.trim()
           });
+          logPaymentVerification(traceId, 'credentials_restored', {
+            paymentId: input.id,
+            paymentIdentifier: input.paymentIdentifier
+          });
         }
+        logPaymentVerification(traceId, 'sdk_verify_started', {
+          hasInput: Boolean(input)
+        });
         const action = await binding.client.payments.verify(input);
+        logPaymentVerification(traceId, 'sdk_verify_finished', action);
         if (action.error || !action.data) {
           const err = fromSdkError(action.error ?? { message: '', type: 'api' }, get().locale, 'result');
+          logPaymentVerification(traceId, 'failed', {
+            sdkError: action.error,
+            checkoutError: err
+          });
           failResult(err.message, err);
           return;
         }
-        handlePaymentAction(action.data);
+        handlePaymentAction(action.data, traceId);
       });
     },
 
@@ -759,6 +792,70 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         invoiceItems: Array.isArray(invoice?.invoiceItems) ? invoice.invoiceItems : [],
         shippingItems: Array.isArray(invoice?.shippingItems) ? invoice.shippingItems : []
       }
+    };
+  }
+
+  function nextPaymentVerificationTraceId(operation: 'callback' | 'poll'): string {
+    paymentVerificationTraceSequence += 1;
+    return `${operation}-${Date.now()}-${paymentVerificationTraceSequence}`;
+  }
+
+  function logPaymentVerification(
+    traceId: string | undefined,
+    stage: string,
+    details: unknown
+  ): void {
+    if (!config.debug) return;
+    console.debug(
+      `[Sazito Checkout][Payment Verification][${traceId ?? 'untracked'}] ${stage}`,
+      redactPaymentLogValue(details)
+    );
+  }
+
+  function redactPaymentLogValue(value: unknown, key = ''): unknown {
+    const sensitiveKey = /authorization|cookie|password|secret|token|identifier|tracking|mobile|phone|email|postal|address|first.?name|last.?name|receipt.?ref|ref.?id/i;
+    if (sensitiveKey.test(key)) {
+      if (value === undefined || value === null || value === '') return value;
+      const text = String(value);
+      return text.length <= 4 ? '[REDACTED]' : `[REDACTED:${text.slice(-4)}]`;
+    }
+    if (Array.isArray(value)) return value.map((entry) => redactPaymentLogValue(entry));
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([entryKey, entryValue]) => [
+          entryKey,
+          redactPaymentLogValue(entryValue, entryKey)
+        ])
+      );
+    }
+    return value;
+  }
+
+  function summarizePaymentAction(action: PaymentAction): Record<string, unknown> {
+    return {
+      action: action.action,
+      message: action.message,
+      backendAction: action.action === 'unknown' ? action.backendAction : undefined,
+      order: 'order' in action && action.order ? {
+        id: action.order.id,
+        orderNumber: action.order.orderNumber,
+        orderIdentifier: action.order.orderIdentifier,
+        invoiceItemCount: action.order.invoice?.invoiceItems?.length ?? 0,
+        shippingItemCount: action.order.invoice?.shippingItems?.length ?? 0
+      } : undefined,
+      raw: action.raw
+    };
+  }
+
+  function summarizePaymentState(): Record<string, unknown> {
+    const state = get();
+    return {
+      step: state.step,
+      status: state.status,
+      resultStatus: state.result?.status,
+      resultMessage: state.result?.message,
+      orderId: state.result?.order?.id,
+      error: state.error
     };
   }
 

@@ -177,6 +177,8 @@ export interface PaymentReturnParserOptions {
 export interface CheckoutConfig {
   locale?: CheckoutLocale;
   direction?: CheckoutDirection;
+  /** Log detailed payment verification state transitions to the console. */
+  debug?: boolean;
   theme?: CheckoutTheme;
   /** URL for the "continue shopping" / back-to-store action. */
   continueShoppingUrl?: string;

@@ -408,6 +408,73 @@ describe('PaymentsAPI gateway return', () => {
     expect(response.data).toMatchObject({ action: 'payment_fail_error' });
   });
 
+  it('unwraps a storefront proxy response log before reading the payment action', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      paymentsBasePath: '/api/v1/payments',
+      customFetchApi: async () => new Response(JSON.stringify({
+        method: 'POST',
+        path: '/api/v1/payments/3728/process_payment_step',
+        response: {
+          result: {
+            order: null,
+            action: 'payment_fail_error',
+            address: '',
+            format: '',
+            payload: null,
+            time: 0,
+            callback: '',
+            token: '',
+            RedeemToken: '',
+            IsInitialize: false,
+            message: null
+          },
+          error: '',
+          error_code: 0,
+          status: 0
+        }
+      }), { headers: { 'Content-Type': 'application/json' } })
+    });
+
+    const response = await client.payments.verify({
+      id: 3728,
+      paymentIdentifier: 'failed-payment'
+    });
+
+    expect(response.error).toBeUndefined();
+    expect(response.data).toMatchObject({ action: 'payment_fail_error' });
+  });
+
+  it('logs every payment verification parsing stage in SDK debug mode', async () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      debug: true,
+      customFetchApi: async () => new Response(JSON.stringify({
+        result: { order: null, action: 'payment_fail_error', message: null },
+        error: '',
+        error_code: 0,
+        status: 0
+      }), { headers: { 'Content-Type': 'application/json' } })
+    });
+
+    await client.payments.verify({ id: 3728, paymentIdentifier: 'sensitive-payment-id' });
+
+    const stages = debug.mock.calls.map(([message]) => String(message));
+    expect(stages).toEqual(expect.arrayContaining([
+      expect.stringContaining('started'),
+      expect.stringContaining('request_prepared'),
+      expect.stringContaining('response_received'),
+      expect.stringContaining('envelope_unwrapped'),
+      expect.stringContaining('action_extracted'),
+      expect.stringContaining('action_normalized'),
+      expect.stringContaining('pinch_skipped'),
+      expect.stringContaining('finished')
+    ]));
+    expect(JSON.stringify(debug.mock.calls)).not.toContain('sensitive-payment-id');
+    debug.mockRestore();
+  });
+
   it('uses JSON with only the payment identifier for a status request', async () => {
     let request: { input: RequestInfo | URL; init?: RequestInit } | undefined;
     const client = createSazitoClient({

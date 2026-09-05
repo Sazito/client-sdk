@@ -891,4 +891,28 @@ describe('checkout engine — happy path', () => {
       message: undefined
     });
   });
+
+  it('logs checkout verification transitions when checkout debug mode is enabled', async () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+    const client = makeMockClient();
+    const engine = createCheckoutEngine({ client, config: { locale: 'fa', debug: true } });
+
+    await engine.actions.resolvePaymentReturn({
+      id: '3728',
+      paymentIdentifier: 'sensitive-payment-id'
+    });
+
+    const stages = debug.mock.calls.map(([message]) => String(message));
+    expect(stages).toEqual(expect.arrayContaining([
+      expect.stringContaining('started'),
+      expect.stringContaining('input_parsed'),
+      expect.stringContaining('credentials_restored'),
+      expect.stringContaining('sdk_verify_started'),
+      expect.stringContaining('sdk_verify_finished'),
+      expect.stringContaining('action_received'),
+      expect.stringContaining('state_changed')
+    ]));
+    expect(JSON.stringify(debug.mock.calls)).not.toContain('sensitive-payment-id');
+    debug.mockRestore();
+  });
 });
