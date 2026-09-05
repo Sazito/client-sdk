@@ -262,17 +262,17 @@ export class PaymentsAPI {
     options?: RequestOptions,
     intervalMs: number = 15000
   ): Promise<SazitoResponse<PaymentAction>> {
-    while (true) {
+    let response: SazitoResponse<PaymentAction>;
+
+    do {
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
-      const response = await this.verify(undefined, options);
+      response = await this.verify(undefined, options);
       if (!response.data) {
         return response;
       }
+    } while (response.data.action === 'pending');
 
-      if (response.data.action !== 'pending') {
-        return response;
-      }
-    }
+    return response;
   }
 
   /**
