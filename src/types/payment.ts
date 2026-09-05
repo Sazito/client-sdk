@@ -60,6 +60,7 @@ export interface PaymentMethod {
 }
 
 export interface Payment {
+  /** Zero is valid for identifier-scoped v2 routes before gateway return. */
   id: number;
   identifier: string;
   paymentType: {
@@ -88,6 +89,7 @@ export type PaymentAction = PaymentActionBase & (
 );
 
 export interface PaymentCredentials {
+  /** Zero is valid for identifier-scoped v2 routes before gateway return. */
   id: number;
   identifier: string;
 }
@@ -114,7 +116,7 @@ export interface PaymentStepInput {
 export type PaymentCallbackFieldValue = JsonValue | undefined;
 export type PaymentCallbackFields = Record<string, PaymentCallbackFieldValue>;
 
-/** Raw gateway callback accepted by the SSR-compatible verification request. */
+/** Raw gateway callback accepted by the form-encoded verification request. */
 export interface VerifyPaymentCallbackInput {
   paymentId: string | number;
   paymentIdentifier: string;

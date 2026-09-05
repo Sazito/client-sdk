@@ -1099,8 +1099,8 @@ function toAddressInput(form: AddressFormValues): ShippingAddressInput {
   };
 }
 
-// Preserve every gateway-return field and its original casing. The SDK wraps
-// these values as `payload[fieldName]` in the form-encoded verification call.
+// Preserve every gateway-return field and its original casing. The SDK sends
+// these values as direct fields in the form-encoded verification call.
 function paymentReturnInput(params: Record<string, string>): PaymentStepInput | undefined {
   if (!params || Object.keys(params).length === 0) {
     return undefined;

@@ -45,11 +45,11 @@ function createDemoFetch(mockPayment: MockPaymentScenario): typeof fetch {
         const hasValidContract =
           contentType.startsWith('application/x-www-form-urlencoded') &&
           form.get('payment_identifier') === MOCK_PAYMENT_IDENTIFIER &&
-          form.get('payload[RefId]') === 'mock-bank-reference';
+          form.get('RefId') === 'mock-bank-reference';
 
         if (!hasValidContract) {
           return jsonResponse({
-            error: 'Mock callback expected URL-encoded payload[fieldName] values.',
+            error: 'Mock callback expected direct URL-encoded gateway fields.',
             error_code: 400,
             status: 400,
           }, 400);

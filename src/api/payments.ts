@@ -107,10 +107,6 @@ export class PaymentsAPI {
     const response = await this.http.post<JsonObject>(
       this.paymentsBasePath,
       {
-        // The v2 creator validates both invoice credentials. Keeping the
-        // numeric id here also supports deployments that do not resolve an
-        // invoice by identifier alone.
-        invoice_id: invoiceCreds.id,
         invoice_identifier: invoiceCreds.identifier,
         payment_type: paymentTypeId
       },
@@ -134,7 +130,7 @@ export class PaymentsAPI {
         const id = Number(rawPayment.id ?? 0);
         const rawType = (rawPayment.payment_type ?? rawPayment.paymentType) as JsonObject | undefined;
 
-        if (this.normalizePaymentId(id) === null || !identifier.trim()) {
+        if (this.normalizePaymentId(id, true) === null || !identifier.trim()) {
           this.logVerification(traceId, 'create_response_invalid', {
             candidateKeys: Object.keys(rawPayment),
             paymentId: id,
@@ -213,9 +209,9 @@ export class PaymentsAPI {
   }
 
   /**
-   * Verify a gateway callback using Sazito's SSR form contract. Body fields
-   * are written first, query fields second, and every field is wrapped as
-   * `payload[name]`. The validated path identifier is always written last.
+   * Verify a gateway callback using Sazito's form contract. Body fields are
+   * written first and query fields second. Gateway field names and casing are
+   * preserved, and the validated payment identifier is always written last.
    */
   async verifyPaymentCallback(
     input: VerifyPaymentCallbackInput,
@@ -248,7 +244,7 @@ export class PaymentsAPI {
     const form = new URLSearchParams();
     const fields = { ...(input.body ?? {}), ...(input.query ?? {}) };
     for (const [name, value] of Object.entries(fields)) {
-      this.appendCallbackValue(form, `payload[${name}]`, value);
+      this.appendCallbackValue(form, name, value);
     }
     form.set('payment_identifier', paymentIdentifier);
 
@@ -335,6 +331,14 @@ export class PaymentsAPI {
     const credentials = this.resolvePaymentCredentials();
     if ('error' in credentials) return { error: credentials.error };
     const paymentCreds = credentials.data;
+    if (this.normalizePaymentId(paymentCreds.id) === null) {
+      return {
+        error: {
+          message: 'A positive payment ID is required for form callback processing.',
+          type: 'validation'
+        }
+      };
+    }
 
     const formData = this.buildProcessStepFormData(input, paymentCreds.identifier);
     if (!formData) {
@@ -551,7 +555,10 @@ export class PaymentsAPI {
         }
       };
     }
-    const storedId = this.normalizePaymentId(stored.id);
+    // V2 sales-flow resources use route id 0 and resolve the concrete payment
+    // from its identifier. Gateway-return URLs still carry a positive id and
+    // are validated separately above.
+    const storedId = this.normalizePaymentId(stored.id, true);
     const storedIdentifier = typeof stored.identifier === 'string' ? stored.identifier.trim() : '';
     if (storedId === null || !storedIdentifier) {
       return { error: {
@@ -567,7 +574,8 @@ export class PaymentsAPI {
    * across v2 deployments: `{ result: { payment: ... } }`, a direct payment
    * under `result`, and (for request-log proxies) under `response.result`.
    * Keep the shape handling here so the credential parser never silently
-   * stores an invoice identifier or a zero payment id.
+   * mistakes an invoice identifier for the payment identifier. A zero id is
+   * valid for identifier-scoped v2 payment routes.
    */
   private extractPaymentPayload(data: JsonObject): JsonObject | undefined {
     const isObject = (value: JsonValue | undefined): value is JsonObject =>
@@ -596,17 +604,21 @@ export class PaymentsAPI {
       );
   }
 
-  private normalizePaymentId(value: string | number): number | null {
+  private normalizePaymentId(value: string | number, allowZero = false): number | null {
     const id = typeof value === 'string' && value.trim() ? Number(value) : value;
-    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
+    return typeof id === 'number' &&
+      Number.isSafeInteger(id) &&
+      (allowZero ? id >= 0 : id > 0)
+      ? id
+      : null;
   }
 
   private paymentStepInputToCallbackFields(input: PaymentStepInput): PaymentCallbackFields {
     const fields: PaymentCallbackFields = { ...(input.payload ?? {}) };
     if (input.tatoken !== undefined) fields.tatoken = input.tatoken;
-    if (input.trackingData !== undefined) fields.trackingData = input.trackingData;
-    if (input.isFailed !== undefined) fields.isFailed = input.isFailed;
-    if (input.imageUrl !== undefined) fields.imageUrl = input.imageUrl;
+    if (input.trackingData !== undefined) fields.tracking_data = input.trackingData;
+    if (input.isFailed !== undefined) fields.is_failed = input.isFailed;
+    if (input.imageUrl !== undefined) fields.image_url = input.imageUrl;
     if (input.code !== undefined) fields.code = input.code;
     return fields;
   }

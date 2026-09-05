@@ -26,7 +26,7 @@ describe('PaymentsAPI gateway return', () => {
       expect(response.error).toBeUndefined();
       expect(response.data?.id).toBe(body.result.payment?.id ?? body.result.id);
       expect(response.data?.identifier).toBe(body.result.payment?.payment_identifier ?? body.result.payment_identifier);
-      expect(requestBodies[0]).toMatchObject({ invoice_id: 338, invoice_identifier: 'invoice-token', payment_type: 3 });
+      expect(requestBodies[0]).toEqual({ invoice_identifier: 'invoice-token', payment_type: 3 });
     }
   });
 
@@ -43,6 +43,71 @@ describe('PaymentsAPI gateway return', () => {
     expect(response.error).toMatchObject({
       type: 'api',
       message: 'Payment creation response is missing a valid payment ID or identifier.'
+    });
+  });
+
+  it('accepts the identifier-scoped zero ID returned by v2 payment creation', async () => {
+    const requests: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const responses = [
+      {
+        result: {
+          payment: {
+            id: 0,
+            payment_identifier: 'v2-payment-token',
+            payment_amount: 840000,
+            payment_type: { id: 3, reference_code: 'paymentinplace' }
+          }
+        },
+        error: '',
+        error_code: 0,
+        status: 0
+      },
+      {
+        result: {
+          order: null,
+          action: 'POST',
+          address: 'https://shop.example.com/checkout/paymentinplaceresult/payment/325/identifier/v2-payment-token',
+          payload: {}
+        },
+        error: '',
+        error_code: 0,
+        status: 0
+      }
+    ];
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async (input, init) => {
+        requests.push({ input, init });
+        return new Response(JSON.stringify(responses.shift()), {
+          headers: {
+            'content-type': requests.length === 1
+              ? 'application/json'
+              : 'text/plain'
+          }
+        });
+      }
+    });
+    client.getCredentialsManager().setInvoiceCredentials({ id: 0, identifier: 'invoice-token' });
+
+    const created = await client.payments.create(3);
+    const initialized = await client.payments.initialize();
+
+    expect(created.error).toBeUndefined();
+    expect(created.data).toMatchObject({ id: 0, identifier: 'v2-payment-token' });
+    expect(client.getCredentialsManager().getPaymentCredentials()).toEqual({
+      id: 0,
+      identifier: 'v2-payment-token'
+    });
+    expect(initialized.data).toMatchObject({
+      action: 'POST',
+      address: expect.stringContaining('/payment/325/identifier/v2-payment-token')
+    });
+    expect(requests.map(({ input }) => String(input))).toEqual([
+      'http://api.sazito.com:8080/api/v2/payments',
+      'http://api.sazito.com:8080/api/v2/payments/0/process_payment_step'
+    ]);
+    expect(JSON.parse(String(requests[1]?.init?.body))).toEqual({
+      payment_identifier: 'v2-payment-token'
     });
   });
 
@@ -76,18 +141,36 @@ describe('PaymentsAPI gateway return', () => {
     });
   });
 
-  it.each(['initialize', 'getPaymentStep', 'verify', 'processStepForm'] as const)(
-    'does not send %s with a zero payment ID from storage', async (method) => {
-      const fetchApi = vi.fn();
+  it.each(['initialize', 'getPaymentStep', 'verify'] as const)(
+    'sends %s through the identifier-scoped v2 zero route', async (method) => {
+      const fetchApi = vi.fn(async () => new Response(JSON.stringify({
+        result: { action: 'FAIL' }
+      }), { headers: { 'content-type': 'application/json' } }));
       const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
       client.getCredentialsManager().setPaymentCredentials({ id: 0, identifier: 'payment-token' });
-      const response = method === 'processStepForm'
-        ? await client.payments.processStepForm({})
-        : await client.payments[method]();
-      expect(response.error?.type).toBe('validation');
-      expect(fetchApi).not.toHaveBeenCalled();
+      const response = await client.payments[method]();
+      expect(response.error).toBeUndefined();
+      expect(response.data?.action).toBe('FAIL');
+      expect(fetchApi).toHaveBeenCalledWith(
+        'http://api.sazito.com:8080/api/v2/payments/0/process_payment_step',
+        expect.anything()
+      );
     }
   );
+
+  it('does not use the initialization ID for form callback processing', async () => {
+    const fetchApi = vi.fn();
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    client.getCredentialsManager().setPaymentCredentials({ id: 0, identifier: 'payment-token' });
+
+    const response = await client.payments.processStepForm({ ResCode: '0' });
+
+    expect(response.error).toMatchObject({
+      type: 'validation',
+      message: 'A positive payment ID is required for form callback processing.'
+    });
+    expect(fetchApi).not.toHaveBeenCalled();
+  });
 
   it('uses callback ID 324 even if a zero ID is stored', async () => {
     const fetchApi = vi.fn(async () => new Response(JSON.stringify({ result: { action: 'FAIL' } })));
@@ -98,6 +181,22 @@ describe('PaymentsAPI gateway return', () => {
       'http://api.sazito.com:8080/api/v2/payments/324/process_payment_step', expect.anything()
     );
     expect(client.getCredentialsManager().getPaymentCredentials()?.id).toBe(324);
+  });
+
+  it('rejects zero as an explicit gateway-return payment ID', async () => {
+    const fetchApi = vi.fn();
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+
+    const response = await client.payments.verify({
+      id: 0,
+      paymentIdentifier: 'callback-payment-token'
+    });
+
+    expect(response.error).toMatchObject({
+      type: 'validation',
+      message: 'Invalid payment callback credentials.'
+    });
+    expect(fetchApi).not.toHaveBeenCalled();
   });
 
   it('keeps order invoice items compatible with the established InvoiceItem type', () => {
@@ -162,8 +261,8 @@ describe('PaymentsAPI gateway return', () => {
     );
     const form = new URLSearchParams(String(request?.init?.body));
     expect(Object.fromEntries(form)).toEqual({
-      'payload[imageUrl]': 'https://cdn.example.com/receipt.jpg',
-      'payload[code]': 'cancelled',
+      image_url: 'https://cdn.example.com/receipt.jpg',
+      code: 'cancelled',
       payment_identifier: 'callback-payment'
     });
   });
@@ -194,11 +293,11 @@ describe('PaymentsAPI gateway return', () => {
       message: undefined
     });
     const form = new URLSearchParams(String(request?.init?.body));
-    expect(form.get('payload[RefId]')).toBe('query+value&more');
-    expect(form.get('payload[ResCode]')).toBe('0');
-    expect(form.get('payload[unicode]')).toBe('پرداخت');
-    expect(form.get('payload[payment_identifier]')).toBe('untrusted');
+    expect(form.get('RefId')).toBe('query+value&more');
+    expect(form.get('ResCode')).toBe('0');
+    expect(form.get('unicode')).toBe('پرداخت');
     expect(form.get('payment_identifier')).toBe('pi_abc');
+    expect([...form.keys()].some((key) => key.startsWith('payload['))).toBe(false);
   });
 
   it.each([

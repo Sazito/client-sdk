@@ -14,6 +14,10 @@ description: Checkout payment APIs for gateway selection, payment creation, veri
 ## V2 contract notes
 
 - `payments.getMethods` sends the current invoice identifier to `/api/v2/payments/list`.
+- Payment creation can return `id: 0`; v2 then resolves the payment by
+  `payment_identifier` at `/api/v2/payments/0/process_payment_step`.
+- Gateway-return verification uses the real positive payment ID embedded in
+  the callback URL; zero is not accepted as a callback payment ID.
 - `/api/v2/payments/{id}/process_payment_step` behavior depends on exact `Content-Type`.
 - JSON mode uses exact `application/json`. The SDK sends the wire field as `payment_identifier`.
 - Use form mode for gateways that post callback/form payloads.
@@ -107,9 +111,9 @@ This produces the exact endpoint body:
 
 Use: `payments.verify(input?, options?)`.
 
-Verifies a returning gateway payment with Sazito's SSR-compatible URL-encoded
-form contract. Gateway values are sent as `payload[fieldName]`. When both
-callback credential fields are provided, the SDK restores them before making
+Verifies a returning gateway payment with Sazito's URL-encoded form contract.
+Gateway values are sent as direct fields with their original names and casing.
+When both callback credential fields are provided, the SDK restores them before making
 the request, so verification also works when no payment credentials remain in
 browser storage:
 
@@ -145,6 +149,9 @@ Use: `payments.processStepForm(input, options?)`.
 
 Use this when gateway flow requires non-JSON form payload handling for
 `/api/v2/payments/{id}/process_payment_step`.
+
+This callback branch requires the positive payment ID from the gateway-return
+URL; the temporary initialization ID `0` is rejected.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
