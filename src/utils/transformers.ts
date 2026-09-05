@@ -972,8 +972,55 @@ export function transformInvoiceResponse<T = TransformObject>(response: Transfor
   } as T;
 }
 
-/** Normalize the documented checkout-order contract exactly once. */
+/** Normalize an order while preserving the public `invoice.invoiceItems` shape. */
 export function transformOrderResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T {
+  const order = transformApiResponse<TransformObject>(response);
+  if (!isPlainObject(order)) {
+    return {} as T;
+  }
+
+  if (!isPlainObject(order.invoice)) {
+    return order as T;
+  }
+
+  const invoice = transformInvoiceResponse<TransformObject>(order.invoice);
+  const { items, ...invoiceWithoutItems } = invoice;
+
+  return {
+    ...order,
+    invoice: {
+      ...invoiceWithoutItems,
+      invoiceItems: Array.isArray(items) ? items : []
+    }
+  } as T;
+}
+
+/** Normalize order collections and their pagination metadata. */
+export function transformOrdersListResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T {
+  const result = transformApiResponse<TransformObject>(response);
+  if (!isPlainObject(result)) {
+    return {} as T;
+  }
+
+  const orders = Array.isArray(result.orders)
+    ? result.orders.map((order) => transformOrderResponse<TransformObject>(order))
+    : [];
+  const pageNumber = toNumber(result.pageNumber ?? result.page);
+  const pageSize = toNumber(result.pageSize);
+  const totalCount = toNumber(result.totalCount ?? result.total) ?? orders.length;
+  const resultWithoutGenericPagination = removeKeys(result, ['page', 'total']);
+
+  return {
+    ...resultWithoutGenericPagination,
+    orders,
+    totalCount,
+    ...(pageNumber !== undefined ? { pageNumber } : {}),
+    ...(pageSize !== undefined ? { pageSize } : {})
+  } as T;
+}
+
+/** Normalize the documented checkout-order contract exactly once. */
+export function transformCheckoutOrderResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T {
   const result = unwrapRawResult(response);
   const order = isPlainObject(result.order) ? result.order : result;
   if (!isPlainObject(order)) {
@@ -982,10 +1029,10 @@ export function transformOrderResponse<T = TransformObject>(response: TransformV
 
   const invoice = isPlainObject(order.invoice) ? order.invoice : {};
   const invoiceItems = Array.isArray(invoice.invoice_items)
-    ? invoice.invoice_items.map(transformOrderInvoiceItem)
-    : [];
+    ? invoice.invoice_items.map(transformCheckoutInvoiceItem)
+    : undefined;
   const shippingItems = Array.isArray(invoice.shipping_items)
-    ? invoice.shipping_items.map(transformOrderShippingItem)
+    ? invoice.shipping_items.map(transformCheckoutShippingItem)
     : [];
 
   return {
@@ -1007,63 +1054,45 @@ export function transformOrderResponse<T = TransformObject>(response: TransformV
       customerProfit: toNumber(invoice.customer_profit),
       customerProfitPercentage: toNumber(invoice.customer_profit_percentage),
       discountUsages: Array.isArray(invoice.discount_usages)
-        ? invoice.discount_usages.map(transformOrderDiscountUsage)
+        ? invoice.discount_usages.map(transformCheckoutDiscountUsage)
         : undefined
     }
   } as T;
 }
 
-function transformOrderInvoiceItem(item: TransformValue): TransformObject {
+function transformCheckoutInvoiceItem(item: TransformValue): TransformObject {
   if (!isPlainObject(item)) return {};
 
   const variant = isPlainObject(item.product_variant) ? item.product_variant : {};
   const product = isPlainObject(variant.product) ? variant.product : {};
-  const productVariantId = toNumber(item.product_variant_id);
-  const variantAttributes = Array.isArray(item.variant_attributes)
-    ? item.variant_attributes.map(transformOrderVariantAttribute)
-    : [];
-  const singleItemPrice = toNumber(item.single_item_price);
-  const noOfItems = toNumber(item.no_of_items);
-  const totalItemsPrice = toNumber(item.total_items_price);
-  const customerProfit = toNumber(item.customer_profit) ?? 0;
-  const commercialFiles = Array.isArray(variant.commercial_files)
-    ? variant.commercial_files.map(transformOrderCommercialFile)
-    : undefined;
-  const productType = toOptionalString(product.product_type);
 
   return {
-    // Stable InvoiceItem fields retained for existing SDK consumers.
-    id: toIdentifier(item.id) ?? toIdentifier(item.product_variant_id),
-    productVariantId,
+    productVariantId: toIdentifier(item.product_variant_id),
     name: toOptionalString(item.name),
     image: isPlainObject(item.image)
       ? { url: toOptionalString(item.image.url) }
       : undefined,
-    attributes: variantAttributes,
-    quantity: noOfItems,
-    unitPrice: singleItemPrice,
-    lineTotal: totalItemsPrice,
-    rawPrice: singleItemPrice,
-    customerProfit,
-    commercialFiles,
-    productType,
+    variantAttributes: Array.isArray(item.variant_attributes)
+      ? item.variant_attributes.map(transformCheckoutVariantAttribute)
+      : undefined,
+    singleItemPrice: toNumber(item.single_item_price),
+    noOfItems: toNumber(item.no_of_items),
+    totalItemsPrice: toNumber(item.total_items_price),
+    customerProfit: toNumber(item.customer_profit),
     formAttributes: item.form_attributes,
     bookingAttributes: item.booking_attributes,
-    // Direct camelCase mirrors of the process-step response.
-    variantAttributes,
-    singleItemPrice,
-    noOfItems,
-    totalItemsPrice,
     productVariant: {
-      commercialFiles,
+      commercialFiles: Array.isArray(variant.commercial_files)
+        ? variant.commercial_files.map(transformCheckoutCommercialFile)
+        : undefined,
       product: {
-        productType
+        productType: toOptionalString(product.product_type)
       }
     }
   };
 }
 
-function transformOrderShippingItem(item: TransformValue): TransformObject {
+function transformCheckoutShippingItem(item: TransformValue): TransformObject {
   if (!isPlainObject(item) || !isPlainObject(item.rate)) return {};
 
   return {
@@ -1084,7 +1113,7 @@ function transformOrderShippingItem(item: TransformValue): TransformObject {
   };
 }
 
-function transformOrderVariantAttribute(attribute: TransformValue): TransformObject {
+function transformCheckoutVariantAttribute(attribute: TransformValue): TransformObject {
   if (!isPlainObject(attribute)) return {};
   return {
     name: toOptionalString(attribute.name),
@@ -1092,12 +1121,12 @@ function transformOrderVariantAttribute(attribute: TransformValue): TransformObj
   };
 }
 
-function transformOrderCommercialFile(file: TransformValue): TransformObject {
+function transformCheckoutCommercialFile(file: TransformValue): TransformObject {
   if (!isPlainObject(file)) return {};
   return { id: toIdentifier(file.id) };
 }
 
-function transformOrderDiscountUsage(usage: TransformValue): TransformObject {
+function transformCheckoutDiscountUsage(usage: TransformValue): TransformObject {
   if (!isPlainObject(usage) || !isPlainObject(usage.discount_code)) return {};
   return {
     discountCode: {
@@ -1112,31 +1141,6 @@ function unwrapRawResult(response: TransformValue | ApiResponseEnvelope | object
     return response.data.result;
   }
   return isPlainObject(response.result) ? response.result : response;
-}
-
-/** Normalize order collections and their pagination metadata. */
-export function transformOrdersListResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T {
-  const result = unwrapRawResult(response);
-  if (!isPlainObject(result)) {
-    return {} as T;
-  }
-
-  const orders = Array.isArray(result.orders)
-    ? result.orders.map((order) => transformOrderResponse<TransformObject>(order))
-    : [];
-  const pageNumber = toNumber(result.page_number);
-  const pageSize = toNumber(result.page_size);
-  const totalCount = toNumber(result.total_count) ?? orders.length;
-
-  return {
-    orders,
-    totalCount,
-    totalCountRaw: toNumber(result.total_count_raw) ?? 0,
-    totalNotSeen: toNumber(result.total_not_seen) ?? 0,
-    totalSeen: toNumber(result.total_seen) ?? 0,
-    ...(pageNumber !== undefined ? { pageNumber } : {}),
-    ...(pageSize !== undefined ? { pageSize } : {})
-  } as T;
 }
 
 /** Normalize wallet transaction collections and their pagination metadata. */

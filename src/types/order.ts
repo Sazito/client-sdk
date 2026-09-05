@@ -2,30 +2,13 @@
  * Order-related types
  */
 
-import { JsonValue } from './common';
+import { JsonObject, JsonValue } from './common';
 import type { InvoiceItem } from './invoice';
 
 export type OrderPublicId = number | string;
 
-/**
- * Keeps the established InvoiceItem contract for patch-level compatibility,
- * while exposing direct camelCase checkout fields when the endpoint provides them.
- */
-export interface OrderInvoiceItem extends InvoiceItem {
-  variantAttributes?: Array<{
-    name: string;
-    value: string;
-  }>;
-  singleItemPrice?: number;
-  noOfItems?: number;
-  totalItemsPrice?: number;
-  productVariant?: {
-    commercialFiles?: Array<{ id: OrderPublicId }>;
-    product: {
-      productType: string;
-    };
-  };
-}
+/** Account order item; retained as an alias for existing imports. */
+export type OrderInvoiceItem = InvoiceItem;
 
 export interface OrderShippingItem {
   id: OrderPublicId;
@@ -41,10 +24,10 @@ export interface OrderShippingItem {
 }
 
 export interface OrderInvoice {
-  invoiceItems: OrderInvoiceItem[];
-  shippingItems: OrderShippingItem[];
-  netTotal: number;
-  finalTotal: number;
+  invoiceItems: InvoiceItem[];
+  shippingItems: JsonObject[];
+  netTotal?: number;
+  finalTotal?: number;
   shippingTotal?: number;
   discountTotal?: number;
   creditTotal?: number;
@@ -60,8 +43,8 @@ export interface OrderInvoice {
 }
 
 export interface Order {
-  id: OrderPublicId;
-  orderNumber: OrderPublicId;
+  id: number;
+  orderNumber: string;
   orderIdentifier: string;
   invoice: OrderInvoice;
 }

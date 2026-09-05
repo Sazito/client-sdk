@@ -11,6 +11,10 @@ description: Authenticated order listing and detail retrieval.
 - For guest checkout completion, immediate order data comes from `payments.initialize()` when `action === 'show_order'` or `action === 'pending'`.
 - After user login, use `orders.list`/`orders.get` for long-term order retrieval.
 
+These methods return the account `Order` contract. Payment completion returns a
+separate [`CheckoutOrder`](/docs/api-reference/payments#checkoutorder). Account
+items remain `InvoiceItem[]`; existing account fixtures do not need checkout totals.
+
 ## Methods
 
 ### List
@@ -58,13 +62,13 @@ if (firstOrderId) {
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `number \| string` | Required | Order ID. Its response type is preserved. |
-| `orderNumber` | `number \| string` | Required | Human-readable order number. Its response type is preserved. |
+| `id` | `number` | Required | Account order ID. |
+| `orderNumber` | `string` | Required | Human-readable account order number. |
 | `orderIdentifier` | `string` | Required | Stable order identifier token. |
-| `invoice.netTotal` | `number` | Required | Invoice total before final adjustments. |
-| `invoice.finalTotal` | `number` | Required | Final charged total. |
-| `invoice.invoiceItems` | `OrderInvoiceItem[]` | Required | Purchased items transformed from the documented checkout response fields. |
-| `invoice.shippingItems` | `OrderShippingItem[]` | Required | Shipping assignments, including invoice item IDs and the selected rate. |
+| `invoice.netTotal` | `number` | Optional | Invoice total when provided. |
+| `invoice.finalTotal` | `number` | Optional | Final total when provided. |
+| `invoice.invoiceItems` | `InvoiceItem[]` | Required | Account items with `id`, `attributes`, `quantity`, `unitPrice`, `lineTotal`, and `rawPrice`. |
+| `invoice.shippingItems` | `JsonObject[]` | Required | Account shipping assignments. |
 
 ## Known errors
 
@@ -282,8 +286,8 @@ Source: `src/types/order.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `id` | `OrderPublicId` | Required |
-| `orderNumber` | `OrderPublicId` | Required |
+| `id` | `number` | Required |
+| `orderNumber` | `string` | Required |
 | `orderIdentifier` | `string` | Required |
 | `invoice` | `OrderInvoice` | Required |
 
@@ -293,10 +297,10 @@ Source: `src/types/order.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `invoiceItems` | `OrderInvoiceItem[]` | Required |
-| `shippingItems` | `OrderShippingItem[]` | Required |
-| `netTotal` | `number` | Required |
-| `finalTotal` | `number` | Required |
+| `invoiceItems` | `InvoiceItem[]` | Required |
+| `shippingItems` | `JsonObject[]` | Required |
+| `netTotal` | `number` | Optional |
+| `finalTotal` | `number` | Optional |
 | `shippingTotal` | `number` | Optional |
 | `discountTotal` | `number` | Optional |
 | `creditTotal` | `number` | Optional |
@@ -310,9 +314,9 @@ Source: `src/types/order.ts`
 | `discountUsages.[].discountCode` | `{ code?: string }` | Optional |
 | `discountUsages.[].discountCode.code` | `string` | Optional |
 
-#### OrderInvoiceItem
+#### InvoiceItem
 
-Source: `src/types/order.ts`
+Source: `src/types/invoice.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
@@ -336,33 +340,6 @@ Source: `src/types/order.ts`
 | `formAttributes` | `Record<string, FormAttributeValue> \| InvoiceItemFormAttributes` | Optional |
 | `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
 | `formFields` | `JsonObject` | Optional |
-| `variantAttributes` | `Array<{     name: string;     value: string;   }>` | Optional |
-| `variantAttributes.[].name` | `string` | Required |
-| `variantAttributes.[].value` | `string` | Required |
-| `singleItemPrice` | `number` | Optional |
-| `noOfItems` | `number` | Optional |
-| `totalItemsPrice` | `number` | Optional |
-| `productVariant` | `{     commercialFiles?: Array<{ id: OrderPublicId }>;     product: {       productType: string;     };   }` | Optional |
-| `productVariant.commercialFiles` | `Array<{ id: OrderPublicId }>` | Optional |
-| `productVariant.commercialFiles[].id` | `OrderPublicId` | Required |
-| `productVariant.product` | `{       productType: string;     }` | Required |
-| `productVariant.product.productType` | `string` | Required |
-
-#### OrderShippingItem
-
-Source: `src/types/order.ts`
-
-| Field | Type | Required |
-| --- | --- | --- |
-| `id` | `OrderPublicId` | Required |
-| `invoiceItemIds` | `OrderPublicId[]` | Required |
-| `rate` | `{     id?: OrderPublicId;     name: string;     price: number;     type?: string;     icon?: string;     color?: string;   }` | Required |
-| `rate.id` | `OrderPublicId` | Optional |
-| `rate.name` | `string` | Required |
-| `rate.price` | `number` | Required |
-| `rate.type` | `string` | Optional |
-| `rate.icon` | `string` | Optional |
-| `rate.color` | `string` | Optional |
 
 #### ShippingAddress
 

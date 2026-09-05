@@ -7,7 +7,7 @@ import {
   type CheckoutResult,
   type CheckoutResultStatus,
   type CheckoutTheme,
-  type Order
+  type CheckoutOrder
 } from '../core';
 import { Button, ErrorBanner, Spinner } from './primitives';
 import { Stepper, CartIcon, TruckIcon, CardIcon, ClipboardIcon } from './Stepper';
@@ -44,7 +44,7 @@ export interface RenderResultProps {
   /** Normalized result status. Falls back to `pending` while resolving. */
   status: CheckoutResultStatus;
   /** Finalized order returned by Sazito on a successful payment. */
-  order?: Order;
+  order?: CheckoutOrder;
   /** Configured destination for the continue-shopping action. */
   continueShoppingUrl?: string;
   /** Return to the payment step after a failed or stock-violated result. */

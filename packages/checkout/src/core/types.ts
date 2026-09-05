@@ -22,6 +22,10 @@ import type {
   PaymentAction,
   PaymentGateway,
   Order,
+  CheckoutOrder,
+  CheckoutInvoice,
+  CheckoutInvoiceItem,
+  CheckoutShippingItem,
   OrderInvoice,
   OrderInvoiceItem,
   OrderShippingItem,
@@ -46,6 +50,10 @@ export type {
   PaymentAction,
   PaymentGateway,
   Order,
+  CheckoutOrder,
+  CheckoutInvoice,
+  CheckoutInvoiceItem,
+  CheckoutShippingItem,
   OrderInvoice,
   OrderInvoiceItem,
   OrderShippingItem,
@@ -209,7 +217,7 @@ export interface ShippingGroup {
 
 export interface CheckoutResult {
   status: CheckoutResultStatus;
-  order?: Order;
+  order?: CheckoutOrder;
   message?: string;
 }
 

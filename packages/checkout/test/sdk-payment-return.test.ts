@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSazitoClient } from '../../../src/index';
-import type { InvoiceItem, OrderInvoiceItem } from '../../../src/index';
+import type { InvoiceItem, Order, OrderInvoiceItem } from '../../../src/index';
 
 describe('PaymentsAPI gateway return', () => {
   it('keeps order invoice items compatible with the established InvoiceItem type', () => {
@@ -16,8 +16,18 @@ describe('PaymentsAPI gateway return', () => {
       customerProfit: 0
     };
     const invoiceItems: InvoiceItem[] = [orderItem];
+    const legacyOrder: Order = {
+      id: 123,
+      orderNumber: '10001',
+      orderIdentifier: 'order-token',
+      invoice: {
+        invoiceItems: [orderItem],
+        shippingItems: []
+      }
+    };
 
     expect(invoiceItems[0].id).toBe(91);
+    expect(legacyOrder.invoice.invoiceItems).toEqual(invoiceItems);
   });
 
   it('verifies from callback credentials when storage is empty', async () => {
@@ -57,12 +67,15 @@ describe('PaymentsAPI gateway return', () => {
     });
   });
 
-  it('normalizes a text/plain success response and its nested order', async () => {
+  it.each([
+    ['show_order', 'text/plain'],
+    ['pending', 'application/json']
+  ])('normalizes %s with its own checkout order contract (%s)', async (action, contentType) => {
     const fetchApi = vi.fn(async () =>
       new Response(
         JSON.stringify({
           result: {
-            action: 'show_order',
+            action,
             order: {
               id: '123',
               order_number: 10001,
@@ -119,7 +132,7 @@ describe('PaymentsAPI gateway return', () => {
           error_code: 0,
           status: 200
         }),
-        { status: 200, headers: { 'Content-Type': 'text/plain' } }
+        { status: 200, headers: { 'Content-Type': contentType } }
       )
     ) as typeof fetch;
     const client = createSazitoClient({
@@ -133,7 +146,7 @@ describe('PaymentsAPI gateway return', () => {
     });
 
     expect(response.data).toMatchObject({
-      action: 'show_order',
+      action,
       order: {
         id: '123',
         orderNumber: 10001,
@@ -141,15 +154,9 @@ describe('PaymentsAPI gateway return', () => {
         invoice: {
           invoiceItems: [
             {
-              id: '15',
-              productVariantId: 15,
+              productVariantId: '15',
               name: 'Red shoes',
               image: { url: 'https://cdn.example.com/red-shoes.jpg' },
-              attributes: [{ name: 'Color', value: 'Red' }],
-              quantity: 1,
-              unitPrice: 240000,
-              lineTotal: 240000,
-              rawPrice: 240000,
               variantAttributes: [{ name: 'Color', value: 'Red' }],
               noOfItems: 1,
               singleItemPrice: 240000,
@@ -192,6 +199,27 @@ describe('PaymentsAPI gateway return', () => {
         }
       }
     });
+    if (response.data?.action === 'show_order' || response.data?.action === 'pending') {
+      const item = response.data.order.invoice.invoiceItems[0];
+      expect(item).not.toHaveProperty('id');
+      expect(item).not.toHaveProperty('rawPrice');
+      expect(item).not.toHaveProperty('quantity');
+    }
+  });
+
+  it.each(['show_order', 'pending'])('rejects missing checkout totals for %s', async (action) => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async () => new Response(JSON.stringify({ result: {
+        action,
+        order: {
+          id: 123, order_number: '10001', order_identifier: 'order-token',
+          invoice: { invoice_items: [], shipping_items: [] }
+        }
+      } }), { headers: { 'Content-Type': 'application/json' } })
+    });
+    const response = await client.payments.verify({ id: 304, paymentIdentifier: 'payment-token' });
+    expect(response.error?.message).toBe('Invalid payment step result');
   });
 
   it('keeps pending action case and transforms the same required order shape', async () => {

@@ -475,7 +475,7 @@ ID, shipping assignments, purchased invoice items, and invoice totals.
 |---|---|---|
 | `result` | `CheckoutResult \| null` | Complete engine result. Includes the backend `message` and finalized `order` when available. It can be `null` during the initial resolving render. |
 | `status` | `'success' \| 'failed' \| 'pending' \| 'stock_violated'` | Normalized status. Defaults to `pending` until a result is resolved. |
-| `order` | `Order \| undefined` | Convenience reference to `result.order`. Available for valid `show_order` and `pending` responses. |
+| `order` | `CheckoutOrder \| undefined` | Convenience reference to `result.order`. Available for valid `show_order` and `pending` responses. |
 | `continueShoppingUrl` | `string \| undefined` | Value configured through `config.continueShoppingUrl`. The custom renderer decides whether and how to navigate to it. |
 | `onRetry` | `() => void` | Clears the result view and returns to the payment step. Use for `failed` and `stock_violated` states. |
 

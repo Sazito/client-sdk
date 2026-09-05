@@ -209,7 +209,7 @@ polling remain managed by the checkout engine.
 |---|---|---|
 | `result` | `CheckoutResult \| null` | Full result, backend message, and optional order |
 | `status` | `success \| failed \| pending \| stock_violated` | Normalized result status |
-| `order` | `Order \| undefined` | Finalized order convenience reference |
+| `order` | `CheckoutOrder \| undefined` | Finalized order convenience reference |
 | `continueShoppingUrl` | `string \| undefined` | Configured storefront destination |
 | `onRetry` | `() => void` | Return to the payment step |
 

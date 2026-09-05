@@ -36,7 +36,6 @@ export class OrdersAPI {
 
     const response = await this.http.get<OrdersListResponse>(ORDERS_API, {
       ...options,
-      skipTransform: true,
       params
     });
 
@@ -52,10 +51,7 @@ export class OrdersAPI {
     orderId: OrderPublicId,
     options?: RequestOptions
   ): Promise<SazitoResponse<Order>> {
-    const response = await this.http.get<Order>(`${ORDERS_API}/${orderId}`, {
-      ...options,
-      skipTransform: true
-    });
+    const response = await this.http.get<Order>(`${ORDERS_API}/${orderId}`, options);
     return response.data
       ? { data: transformOrderResponse<Order>(response.data) }
       : response;

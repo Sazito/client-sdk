@@ -9,6 +9,7 @@ export * from './invoice';
 export * from './shipping';
 export * from './payment';
 export * from './order';
+export * from './checkout-order';
 export * from './search';
 export * from './entity-route';
 export * from './menu';

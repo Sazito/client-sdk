@@ -2,7 +2,7 @@
  * Payment-related types
  */
 
-import type { Order } from './order';
+import type { CheckoutOrder } from './checkout-order';
 import type { JsonObject } from './common';
 
 export type PaymentGateway =
@@ -78,8 +78,8 @@ export type PaymentAction = PaymentActionBase & (
   | { action: 'REDIRECT'; address: string }
   | { action: 'UPLOAD'; time?: number }
   | { action: 'show_otp_modal'; time?: number }
-  | { action: 'show_order'; order: Order }
-  | { action: 'pending'; order: Order }
+  | { action: 'show_order'; order: CheckoutOrder }
+  | { action: 'pending'; order: CheckoutOrder }
   | { action: 'payment_fail_error' | 'show_error' | 'FAIL' }
   | { action: 'StockViolated' }
 );

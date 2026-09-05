@@ -9,7 +9,7 @@ import {
   PaymentMethod,
   Payment,
   PaymentAction,
-  Order,
+  CheckoutOrder,
   PaymentStepInput,
   PaymentStepFormFields,
   RequestOptions,
@@ -18,7 +18,7 @@ import {
 } from '../types';
 import { PAYMENTS_API, PINCH_API } from '../constants/endpoints';
 import {
-  transformOrderResponse,
+  transformCheckoutOrderResponse,
   transformPaymentMethodsResponse
 } from '../utils/transformers';
 
@@ -445,7 +445,7 @@ export class PaymentsAPI {
       case 'show_order':
       case 'pending': {
         if (!action.order || typeof action.order !== 'object' || Array.isArray(action.order)) return null;
-        const order = transformOrderResponse<Order>(action.order);
+        const order = transformCheckoutOrderResponse<CheckoutOrder>(action.order);
         if (!this.isCheckoutOrder(order)) return null;
         return actionName === 'show_order'
           ? { action: 'show_order', order, message }
@@ -473,7 +473,7 @@ export class PaymentsAPI {
       Object.values(value).every((entry) => typeof entry === 'string' || typeof entry === 'number');
   }
 
-  private isCheckoutOrder(order: Order): boolean {
+  private isCheckoutOrder(order: CheckoutOrder): boolean {
     const isPublicId = (value: unknown) =>
       (typeof value === 'number' && Number.isFinite(value)) ||
       (typeof value === 'string' && value.length > 0);
@@ -488,17 +488,15 @@ export class PaymentsAPI {
       typeof invoice.netTotal === 'number' && Number.isFinite(invoice.netTotal) &&
       typeof invoice.finalTotal === 'number' && Number.isFinite(invoice.finalTotal) &&
       invoice.invoiceItems.every((item) =>
-        isPublicId(item.id) &&
-        typeof item.productVariantId === 'number' && Number.isFinite(item.productVariantId) &&
+        isPublicId(item.productVariantId) &&
         typeof item.name === 'string' &&
-        Array.isArray(item.attributes) &&
-        item.attributes.every((attribute) =>
-          typeof attribute.name === 'string' &&
-          (typeof attribute.value === 'string' || typeof attribute.value === 'object')
+        Array.isArray(item.variantAttributes) &&
+        item.variantAttributes.every((attribute) =>
+          typeof attribute.name === 'string' && typeof attribute.value === 'string'
         ) &&
-        typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) &&
-        typeof item.quantity === 'number' && Number.isFinite(item.quantity) &&
-        typeof item.lineTotal === 'number' && Number.isFinite(item.lineTotal) &&
+        typeof item.singleItemPrice === 'number' && Number.isFinite(item.singleItemPrice) &&
+        typeof item.noOfItems === 'number' && Number.isFinite(item.noOfItems) &&
+        typeof item.totalItemsPrice === 'number' && Number.isFinite(item.totalItemsPrice) &&
         typeof item.productVariant?.product?.productType === 'string'
       ) &&
       invoice.shippingItems.every((item) =>

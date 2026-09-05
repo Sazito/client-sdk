@@ -11,6 +11,7 @@ const SOURCE_FILES = [
   'src/types/product.ts',
   'src/types/cart.ts',
   'src/types/order.ts',
+  'src/types/checkout-order.ts',
   'src/types/invoice.ts',
   'src/types/shipping.ts',
   'src/types/payment.ts',
@@ -57,8 +58,7 @@ const PAGE_TYPE_MAP = {
     'src/types/order.ts:OrderFilters',
     'src/types/order.ts:Order',
     'src/types/order.ts:OrderInvoice',
-    'src/types/order.ts:OrderInvoiceItem',
-    'src/types/order.ts:OrderShippingItem',
+    'src/types/invoice.ts:InvoiceItem',
     'src/types/invoice.ts:ShippingAddress',
     'src/types/payment.ts:PaymentMethod',
   ],
@@ -73,6 +73,10 @@ const PAGE_TYPE_MAP = {
     'src/types/payment.ts:Payment',
     'src/types/payment.ts:PaymentAction',
     'src/types/payment.ts:PaymentStepInput',
+    'src/types/checkout-order.ts:CheckoutOrder',
+    'src/types/checkout-order.ts:CheckoutInvoice',
+    'src/types/checkout-order.ts:CheckoutInvoiceItem',
+    'src/types/checkout-order.ts:CheckoutShippingItem',
   ],
   'docs/content/docs/api-reference/invoices.mdx': [
     'src/types/shipping.ts:ShippingAssignment',
@@ -437,7 +441,7 @@ function upsertBlock(filePath, block) {
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
     const before = original.slice(0, startIdx).trimEnd();
     const after = original.slice(endIdx + AUTO_END.length).trimStart();
-    next = `${before}\n\n${block}${after ? `\n${after}` : '\n'}`;
+    next = `${before}\n\n${block}${after ? `\n${after}` : ''}`;
   } else {
     next = `${original.trimEnd()}\n\n${block}`;
   }
@@ -445,8 +449,14 @@ function upsertBlock(filePath, block) {
   fs.writeFileSync(absPath, next);
 }
 
+// Optional page paths allow updating one contract without touching other docs.
+const selectedPages = new Set(process.argv.slice(2));
+for (const page of selectedPages) {
+  if (!(page in PAGE_TYPE_MAP)) throw new Error(`Unknown API docs page: ${page}`);
+}
 let updatedCount = 0;
 for (const [pagePath, typeKeys] of Object.entries(PAGE_TYPE_MAP)) {
+  if (selectedPages.size > 0 && !selectedPages.has(pagePath)) continue;
   const missing = typeKeys.filter((key) => !typeIndex.has(key));
   if (missing.length > 0) {
     throw new Error(`Missing type keys for ${pagePath}:\n${missing.join('\n')}`);
