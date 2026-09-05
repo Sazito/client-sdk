@@ -275,7 +275,10 @@ function addRowsFromNode(typeNode, prefix, rows, sourceFile) {
 }
 
 function resolveTypeReferenceKey(typeName, sourceFile) {
-  const symbol = checker.getSymbolAtLocation(typeName);
+  const referencedSymbol = checker.getSymbolAtLocation(typeName);
+  const symbol = referencedSymbol && (referencedSymbol.flags & ts.SymbolFlags.Alias)
+    ? checker.getAliasedSymbol(referencedSymbol)
+    : referencedSymbol;
   if (!symbol) return null;
   const declarations = symbol.getDeclarations() || [];
   const decl = declarations.find((d) => ts.isInterfaceDeclaration(d) || ts.isTypeAliasDeclaration(d));

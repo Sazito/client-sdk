@@ -1018,28 +1018,46 @@ function transformOrderInvoiceItem(item: TransformValue): TransformObject {
 
   const variant = isPlainObject(item.product_variant) ? item.product_variant : {};
   const product = isPlainObject(variant.product) ? variant.product : {};
+  const productVariantId = toNumber(item.product_variant_id);
+  const variantAttributes = Array.isArray(item.variant_attributes)
+    ? item.variant_attributes.map(transformOrderVariantAttribute)
+    : [];
+  const singleItemPrice = toNumber(item.single_item_price);
+  const noOfItems = toNumber(item.no_of_items);
+  const totalItemsPrice = toNumber(item.total_items_price);
+  const customerProfit = toNumber(item.customer_profit) ?? 0;
+  const commercialFiles = Array.isArray(variant.commercial_files)
+    ? variant.commercial_files.map(transformOrderCommercialFile)
+    : undefined;
+  const productType = toOptionalString(product.product_type);
 
   return {
-    productVariantId: toIdentifier(item.product_variant_id),
+    // Stable InvoiceItem fields retained for existing SDK consumers.
+    id: toIdentifier(item.id) ?? toIdentifier(item.product_variant_id),
+    productVariantId,
     name: toOptionalString(item.name),
     image: isPlainObject(item.image)
       ? { url: toOptionalString(item.image.url) }
       : undefined,
-    variantAttributes: Array.isArray(item.variant_attributes)
-      ? item.variant_attributes.map(transformOrderVariantAttribute)
-      : [],
-    singleItemPrice: toNumber(item.single_item_price),
-    noOfItems: toNumber(item.no_of_items),
-    totalItemsPrice: toNumber(item.total_items_price),
-    customerProfit: toNumber(item.customer_profit),
+    attributes: variantAttributes,
+    quantity: noOfItems,
+    unitPrice: singleItemPrice,
+    lineTotal: totalItemsPrice,
+    rawPrice: singleItemPrice,
+    customerProfit,
+    commercialFiles,
+    productType,
     formAttributes: item.form_attributes,
     bookingAttributes: item.booking_attributes,
+    // Direct camelCase mirrors of the process-step response.
+    variantAttributes,
+    singleItemPrice,
+    noOfItems,
+    totalItemsPrice,
     productVariant: {
-      commercialFiles: Array.isArray(variant.commercial_files)
-        ? variant.commercial_files.map(transformOrderCommercialFile)
-        : undefined,
+      commercialFiles,
       product: {
-        productType: toOptionalString(product.product_type)
+        productType
       }
     }
   };

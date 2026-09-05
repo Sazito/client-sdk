@@ -1,7 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSazitoClient } from '../../../src/index';
+import type { InvoiceItem, OrderInvoiceItem } from '../../../src/index';
 
 describe('PaymentsAPI gateway return', () => {
+  it('keeps order invoice items compatible with the established InvoiceItem type', () => {
+    const orderItem: OrderInvoiceItem = {
+      id: 91,
+      productVariantId: 15,
+      name: 'Red shoes',
+      attributes: [],
+      quantity: 1,
+      unitPrice: 240000,
+      lineTotal: 240000,
+      rawPrice: 240000,
+      customerProfit: 0
+    };
+    const invoiceItems: InvoiceItem[] = [orderItem];
+
+    expect(invoiceItems[0].id).toBe(91);
+  });
+
   it('verifies from callback credentials when storage is empty', async () => {
     const requests: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
     const fetchApi = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -123,9 +141,15 @@ describe('PaymentsAPI gateway return', () => {
         invoice: {
           invoiceItems: [
             {
-              productVariantId: '15',
+              id: '15',
+              productVariantId: 15,
               name: 'Red shoes',
               image: { url: 'https://cdn.example.com/red-shoes.jpg' },
+              attributes: [{ name: 'Color', value: 'Red' }],
+              quantity: 1,
+              unitPrice: 240000,
+              lineTotal: 240000,
+              rawPrice: 240000,
               variantAttributes: [{ name: 'Color', value: 'Red' }],
               noOfItems: 1,
               singleItemPrice: 240000,

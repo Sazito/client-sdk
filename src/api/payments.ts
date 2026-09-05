@@ -488,15 +488,17 @@ export class PaymentsAPI {
       typeof invoice.netTotal === 'number' && Number.isFinite(invoice.netTotal) &&
       typeof invoice.finalTotal === 'number' && Number.isFinite(invoice.finalTotal) &&
       invoice.invoiceItems.every((item) =>
-        isPublicId(item.productVariantId) &&
+        isPublicId(item.id) &&
+        typeof item.productVariantId === 'number' && Number.isFinite(item.productVariantId) &&
         typeof item.name === 'string' &&
-        Array.isArray(item.variantAttributes) &&
-        item.variantAttributes.every((attribute) =>
-          typeof attribute.name === 'string' && typeof attribute.value === 'string'
+        Array.isArray(item.attributes) &&
+        item.attributes.every((attribute) =>
+          typeof attribute.name === 'string' &&
+          (typeof attribute.value === 'string' || typeof attribute.value === 'object')
         ) &&
-        typeof item.singleItemPrice === 'number' && Number.isFinite(item.singleItemPrice) &&
-        typeof item.noOfItems === 'number' && Number.isFinite(item.noOfItems) &&
-        typeof item.totalItemsPrice === 'number' && Number.isFinite(item.totalItemsPrice) &&
+        typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) &&
+        typeof item.quantity === 'number' && Number.isFinite(item.quantity) &&
+        typeof item.lineTotal === 'number' && Number.isFinite(item.lineTotal) &&
         typeof item.productVariant?.product?.productType === 'string'
       ) &&
       invoice.shippingItems.every((item) =>

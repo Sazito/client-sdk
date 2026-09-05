@@ -116,18 +116,18 @@ export function ResultStep({ continueShoppingUrl }: { continueShoppingUrl?: stri
                       )}
                       <span>
                         <strong>{item.name}</strong>
-                        {item.variantAttributes.length ? (
-                          <small>{item.variantAttributes.map(formatAttribute).join(' · ')}</small>
+                        {item.attributes.length ? (
+                          <small>{item.attributes.map(formatAttribute).join(' · ')}</small>
                         ) : null}
                       </span>
                     </span>
                     <span className="szc-result-item__quantity">
                       <span className="szc-result-item__mobile-label">{t.quantity}</span>
-                      {formatNumber(item.noOfItems, state.locale)}
+                      {formatNumber(item.quantity, state.locale)}
                     </span>
                     <span className="szc-result-item__total">
                       <span className="szc-result-item__mobile-label">{t.lineTotal}</span>
-                      {money(item.totalItemsPrice)}
+                      {money(item.lineTotal)}
                     </span>
                   </li>
                 ))}
@@ -165,8 +165,9 @@ function formatPublicId(value: number | string, locale: 'fa' | 'en'): string {
   return locale === 'fa' ? toPersianDigits(text) : text;
 }
 
-function formatAttribute(attribute: OrderInvoiceItem['variantAttributes'][number]): string {
-  return `${attribute.name}: ${attribute.value}`;
+function formatAttribute(attribute: OrderInvoiceItem['attributes'][number]): string {
+  const value = typeof attribute.value === 'object' ? attribute.value.value : attribute.value;
+  return `${attribute.name}: ${value}`;
 }
 
 function SummaryRow({

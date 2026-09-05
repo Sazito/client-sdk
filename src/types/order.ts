@@ -3,24 +3,23 @@
  */
 
 import { JsonValue } from './common';
+import type { InvoiceItem } from './invoice';
 
 export type OrderPublicId = number | string;
 
-export interface OrderInvoiceItem {
-  productVariantId: OrderPublicId;
-  name: string;
-  image?: { url?: string };
-  variantAttributes: Array<{
+/**
+ * Keeps the established InvoiceItem contract for patch-level compatibility,
+ * while exposing direct camelCase checkout fields when the endpoint provides them.
+ */
+export interface OrderInvoiceItem extends InvoiceItem {
+  variantAttributes?: Array<{
     name: string;
     value: string;
   }>;
-  singleItemPrice: number;
-  noOfItems: number;
-  totalItemsPrice: number;
-  customerProfit?: number;
-  formAttributes?: unknown;
-  bookingAttributes?: unknown;
-  productVariant: {
+  singleItemPrice?: number;
+  noOfItems?: number;
+  totalItemsPrice?: number;
+  productVariant?: {
     commercialFiles?: Array<{ id: OrderPublicId }>;
     product: {
       productType: string;

@@ -316,20 +316,33 @@ Source: `src/types/order.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `productVariantId` | `OrderPublicId` | Required |
+| `id` | `number \| string` | Required |
+| `productVariantId` | `number` | Required |
+| `productId` | `number` | Optional |
 | `name` | `string` | Required |
-| `image` | `{ url?: string }` | Optional |
-| `image.url` | `string` | Optional |
-| `variantAttributes` | `Array<{     name: string;     value: string;   }>` | Required |
+| `url` | `string` | Optional |
+| `attributes` | `ProductAttribute[]` | Required |
+| `productType` | `string` | Optional |
+| `hasMaxOrder` | `boolean` | Optional |
+| `maxOrderQuantity` | `number` | Optional |
+| `minOrderQuantity` | `number` | Optional |
+| `image` | `Image` | Optional |
+| `quantity` | `number` | Required |
+| `unitPrice` | `number` | Required |
+| `lineTotal` | `number` | Required |
+| `rawPrice` | `number` | Required |
+| `customerProfit` | `number` | Required |
+| `commercialFiles` | `JsonValue` | Optional |
+| `formAttributes` | `Record<string, FormAttributeValue> \| InvoiceItemFormAttributes` | Optional |
+| `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
+| `formFields` | `JsonObject` | Optional |
+| `variantAttributes` | `Array<{     name: string;     value: string;   }>` | Optional |
 | `variantAttributes.[].name` | `string` | Required |
 | `variantAttributes.[].value` | `string` | Required |
-| `singleItemPrice` | `number` | Required |
-| `noOfItems` | `number` | Required |
-| `totalItemsPrice` | `number` | Required |
-| `customerProfit` | `number` | Optional |
-| `formAttributes` | `unknown` | Optional |
-| `bookingAttributes` | `unknown` | Optional |
-| `productVariant` | `{     commercialFiles?: Array<{ id: OrderPublicId }>;     product: {       productType: string;     };   }` | Required |
+| `singleItemPrice` | `number` | Optional |
+| `noOfItems` | `number` | Optional |
+| `totalItemsPrice` | `number` | Optional |
+| `productVariant` | `{     commercialFiles?: Array<{ id: OrderPublicId }>;     product: {       productType: string;     };   }` | Optional |
 | `productVariant.commercialFiles` | `Array<{ id: OrderPublicId }>` | Optional |
 | `productVariant.commercialFiles[].id` | `OrderPublicId` | Required |
 | `productVariant.product` | `{       productType: string;     }` | Required |
