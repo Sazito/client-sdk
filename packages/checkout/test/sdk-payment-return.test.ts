@@ -555,8 +555,13 @@ describe('PaymentsAPI gateway return', () => {
         }
       }
     });
-    if (response.data?.action === 'show_order' || response.data?.action === 'pending') {
-      const item = response.data.order.invoice.invoiceItems[0];
+    const firstOrder = response.data?.action === 'pending'
+      ? response.data.order
+      : response.data?.action === 'show_order'
+        ? response.data.order
+        : undefined;
+    if (firstOrder) {
+      const item = firstOrder.invoice.invoiceItems[0];
       expect(item.id).toBe(91);
       expect(item).not.toHaveProperty('rawPrice');
       expect(item).not.toHaveProperty('quantity');
@@ -584,9 +589,14 @@ describe('PaymentsAPI gateway return', () => {
         invoice: { invoiceItems: [], shippingItems: [] }
       }
     });
-    if (response.data?.action === 'show_order' || response.data?.action === 'pending') {
-      expect(response.data.order.invoice.netTotal).toBeUndefined();
-      expect(response.data.order.invoice.finalTotal).toBeUndefined();
+    const returnedOrder = response.data?.action === 'pending'
+      ? response.data.order
+      : response.data?.action === 'show_order'
+        ? response.data.order
+        : undefined;
+    if (returnedOrder) {
+      expect(returnedOrder.invoice.netTotal).toBeUndefined();
+      expect(returnedOrder.invoice.finalTotal).toBeUndefined();
     }
   });
 
@@ -937,7 +947,7 @@ describe('PaymentsAPI gateway return', () => {
     ]);
   });
 
-  it('rejects malformed success results that omit required order identifiers', async () => {
+  it('keeps successful payments successful when the order details are incomplete', async () => {
     const client = createSazitoClient({
       domain: 'shop.example.com',
       customFetchApi: async () => new Response(JSON.stringify({ result: {
@@ -951,7 +961,28 @@ describe('PaymentsAPI gateway return', () => {
       paymentIdentifier: 'payment-token'
     });
 
-    expect(response.error?.message).toBe('Invalid payment step result');
+    expect(response.error).toBeUndefined();
+    expect(response.data?.action).toBe('show_order');
+    expect(response.data && 'order' in response.data ? response.data.order : undefined).toBeUndefined();
+  });
+
+  it('accepts a terminal success response without an order object', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async () => new Response(JSON.stringify({ result: {
+        action: 'show_order',
+        message: 'Order created'
+      } }), { headers: { 'Content-Type': 'application/json' } })
+    });
+
+    const response = await client.payments.verify({
+      id: 305,
+      paymentIdentifier: 'payment-token'
+    });
+
+    expect(response.error).toBeUndefined();
+    expect(response.data?.action).toBe('show_order');
+    expect(client.getCredentialsManager().getPaymentCredentials()).toBeNull();
   });
 
   it('keeps pending action case and transforms the same required order shape', async () => {

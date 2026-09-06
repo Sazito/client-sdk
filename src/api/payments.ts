@@ -769,7 +769,7 @@ export class PaymentsAPI {
       this.credentials.clearAll();
       this.logVerification(traceId, 'checkout_credentials_cleared', {
         paymentId,
-        orderId: normalizedAction.order.id
+        orderId: normalizedAction.order?.id
       });
     }
     this.logVerification(traceId, 'finished', {
@@ -800,14 +800,23 @@ export class PaymentsAPI {
         return { action: 'UPLOAD', time: this.optionalNumber(action.time), message, raw: action };
       case 'show_otp_modal':
         return { action: 'show_otp_modal', time: this.optionalNumber(action.time), message, raw: action };
-      case 'show_order':
+      case 'show_order': {
+        // A payment-in-place response can acknowledge the order before its
+        // details are serialized. Do not turn that terminal success into an
+        // SDK error; checkout can render a compact success state instead.
+        if (!action.order || typeof action.order !== 'object' || Array.isArray(action.order)) {
+          return { action: 'show_order', message, raw: action };
+        }
+        const order = transformCheckoutOrderResponse<CheckoutOrder>(action.order);
+        return this.isCheckoutOrder(order)
+          ? { action: 'show_order', order, message, raw: action }
+          : { action: 'show_order', message, raw: action };
+      }
       case 'pending': {
         if (!action.order || typeof action.order !== 'object' || Array.isArray(action.order)) return null;
         const order = transformCheckoutOrderResponse<CheckoutOrder>(action.order);
         if (!this.isCheckoutOrder(order)) return null;
-        return normalizedActionName === 'show_order'
-          ? { action: 'show_order', order, message, raw: action }
-          : { action: 'pending', order, message, raw: action };
+        return { action: 'pending', order, message, raw: action };
       }
       case 'payment_fail_error':
         return { action: 'payment_fail_error', message, raw: action };

@@ -357,7 +357,7 @@ You can also change **Payment result** in the demo toolbar:
 | `success-full` | Sanitized real v2 payment-in-place `show_order` response with product, shipping, totals, receipt, and nullable backend fields. |
 | `pending-success` | Pending callback followed by a successful JSON status poll. |
 | `failure` | Gateway-declared payment failure. |
-| `malformed` | Intentionally invalid `show_order` payload; this should display `Invalid payment step result`. |
+| `malformed` | Incomplete `show_order` payload; this should remain a compact success instead of displaying a false failure. |
 | `live` | Normal checkout using the configured domain and cart identifier. |
 
 Mock mode intercepts only the payment verification and post-success pinch calls.
@@ -481,9 +481,9 @@ function StorefrontResult({
 />
 ```
 
-`onRetry` returns the checkout to the payment step. `order` is populated for
-both `show_order` and `pending` responses and contains the order code, public
-ID, shipping assignments, purchased invoice items, and invoice totals.
+`onRetry` returns the checkout to the payment step. `order` is populated when
+the payment response includes valid order details; a terminal `show_order`
+success may omit it while the order is still being finalized server-side.
 
 ### `RenderResultProps`
 

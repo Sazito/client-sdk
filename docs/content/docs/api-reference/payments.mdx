@@ -216,7 +216,7 @@ client.payments.clearPayment();
 | `action` | `'POST' \| 'REDIRECT' \| 'UPLOAD' \| 'show_otp_modal' \| 'show_order' \| 'pending' \| 'payment_fail_error' \| 'show_error' \| 'FAIL' \| 'StockViolated'` | Required | Exact, case-sensitive next action type returned by the API. |
 | `address` | `string` | Optional | Redirect/post URL. |
 | `payload` | `Record<string, string \| number>` | Optional | Hidden form fields for `POST`. |
-| `order` | `CheckoutOrder` | Optional | Required by both `show_order` and `pending`. Response keys inside the order are camel-cased once by the SDK. |
+| `order` | `CheckoutOrder` | Optional | Required for `pending`; terminal `show_order` success may omit details on deployments that finalize the order before serializing it. Response keys inside the order are camel-cased once by the SDK. |
 | `time` | `number` | Optional | Upload or OTP window in minutes. |
 | `message` | `string` | Optional | Error/action message. |
 | `raw` | `JsonObject` | Optional | Complete unnormalized backend result for forward compatibility. |
@@ -527,7 +527,7 @@ Source: `src/types/payment.ts`
 
 Source: `src/types/payment.ts`
 
-Type: `PaymentActionBase & (   \| { action: 'POST'; address: string; payload: Record<string, string \| number> }   \| { action: 'REDIRECT'; address: string }   \| { action: 'UPLOAD'; time?: number }   \| { action: 'show_otp_modal'; time?: number }   \| { action: 'show_order'; order: CheckoutOrder }   \| { action: 'pending'; order: CheckoutOrder }   \| { action: 'payment_fail_error' \| 'show_error' \| 'FAIL' }   \| { action: 'StockViolated' } )`
+Type: `PaymentActionBase & (   \| { action: 'POST'; address: string; payload: Record<string, string \| number> }   \| { action: 'REDIRECT'; address: string }   \| { action: 'UPLOAD'; time?: number }   \| { action: 'show_otp_modal'; time?: number }   \| { action: 'show_order'; order?: CheckoutOrder }   \| { action: 'pending'; order: CheckoutOrder }   \| { action: 'payment_fail_error' \| 'show_error' \| 'FAIL' }   \| { action: 'StockViolated' } )`
 
 #### PaymentStepInput
 

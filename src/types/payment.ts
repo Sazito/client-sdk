@@ -81,7 +81,8 @@ export type PaymentAction = PaymentActionBase & (
   | { action: 'REDIRECT'; address: string }
   | { action: 'UPLOAD'; time?: number }
   | { action: 'show_otp_modal'; time?: number }
-  | { action: 'show_order'; order: CheckoutOrder }
+  /** Successful payment; some deployments omit order details in the terminal response. */
+  | { action: 'show_order'; order?: CheckoutOrder }
   | { action: 'pending'; order: CheckoutOrder }
   | { action: 'payment_fail_error' | 'show_error' | 'FAIL' }
   | { action: 'StockViolated' }
