@@ -732,6 +732,49 @@ describe('checkout engine — happy path', () => {
     expect(engine.getState().status).toBe('redirecting');
   });
 
+  it('keeps an initialization failure on payment so another gateway can be selected', async () => {
+    const { engine, client, effects } = setup();
+    client.payments.getMethods.mockResolvedValueOnce(ok([
+      { id: 3, code: 'zibalpayment', title: 'Zibal', isDefault: true },
+      { id: 4, code: 'zarinpalpayment', title: 'Zarinpal', isDefault: false }
+    ]) as never);
+    client.payments.initialize.mockResolvedValueOnce({
+      data: { action: 'FAIL', message: undefined }
+    } as never);
+
+    await engine.actions.start();
+    await engine.actions.retryPayment();
+    engine.actions.selectPaymentMethod(3);
+    await engine.actions.placeOrder();
+
+    expect(engine.getState()).toMatchObject({
+      step: 'payment',
+      status: 'error',
+      result: null,
+      selectedPaymentMethodId: 3,
+      paymentMethods: [
+        { id: 3, code: 'zibalpayment' },
+        { id: 4, code: 'zarinpalpayment' }
+      ],
+      error: {
+        code: 'payment_failed',
+        step: 'payment',
+        message: 'اتصال به درگاه پرداخت ناموفق بود. لطفاً درگاه دیگری انتخاب کنید.'
+      },
+      flags: { placingOrder: false }
+    });
+    expect(effects.some((effect) => effect.type === 'redirect' || effect.type === 'post-form')).toBe(false);
+
+    engine.actions.selectPaymentMethod(4);
+
+    expect(engine.getState()).toMatchObject({
+      step: 'payment',
+      status: 'idle',
+      selectedPaymentMethodId: 4,
+      error: null
+    });
+  });
+
   it('resolves a pending payment return to success', async () => {
     const { engine, client } = setup();
     client.payments.verify.mockResolvedValueOnce({ data: { action: 'pending' } } as never);

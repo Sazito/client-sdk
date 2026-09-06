@@ -169,7 +169,7 @@ const sazito = createSazitoClient({
 |---|---|---|---|
 | `domain` | `string` | Yes | Store domain without protocol |
 | `timeout` | `number` | No | Global request timeout in ms (default `30000`) |
-| `retry` | object | No | Retry policy for 5xx responses |
+| `retry` | object | No | Retry policy for 5xx responses on idempotent requests |
 | `cache` | object | No | Per-module cache strategy |
 | `customFetchApi` | `typeof fetch` | No | Override fetch implementation |
 | `debug` | `boolean` | No | Enables SDK debug logging |
@@ -195,6 +195,10 @@ Supported request options:
 - `cache`
 - `headers`
 - `signal`
+
+Automatic retries do not replay `POST` requests. Setting a per-request `retries`
+value on a `POST` is an explicit opt-in and should only be used for an endpoint
+with an idempotency guarantee.
 
 ## Authentication
 

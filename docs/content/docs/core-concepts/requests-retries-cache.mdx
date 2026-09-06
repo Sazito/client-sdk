@@ -12,7 +12,10 @@ description: Transport behavior, retry policy, and cache invalidation mechanics.
 
 ## Retry behavior
 
-Retries happen for `5xx` responses. Count and delay are configurable globally and per request.
+Automatic retries happen for `5xx` responses on idempotent requests (`GET`, `HEAD`,
+`PUT`, and `DELETE`). State-changing `POST` requests are not replayed by default,
+because a proxy can return `502` after the upstream API has already processed the
+operation. Count and delay are configurable globally and per request.
 
 ```ts
 const res = await client.orders.list(undefined, {
@@ -20,6 +23,9 @@ const res = await client.orders.list(undefined, {
   timeout: 8000,
 });
 ```
+
+Setting `retries` explicitly on an individual `POST` opts that request into replay.
+Only do this when the endpoint provides its own idempotency guarantee.
 
 ## Cache behavior
 

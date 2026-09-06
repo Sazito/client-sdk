@@ -39,7 +39,8 @@ export interface PaginatedResponse<T> {
  * Request options that can be passed to an API call
  */
 export interface RequestOptions {
-  retries?: number;      // Override retry count (0-3)
+  /** Override retry count (0-3); explicitly opts non-idempotent requests into retries. */
+  retries?: number;
   timeout?: number;      // Override timeout in ms
   cache?: boolean;       // Override cache behavior
   headers?: Record<string, string>;

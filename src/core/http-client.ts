@@ -172,8 +172,13 @@ export class HttpClient {
 
       clearTimeout(timeoutId);
 
-      // Check if we should retry
-      const maxRetries = options?.retries !== undefined ? options.retries : this.config.retry.retries;
+      // A transient proxy error must not automatically replay a state-changing
+      // POST. V2 payment initialization, invoice creation, and cart mutations
+      // can succeed upstream even when the proxy ultimately returns 502.
+      // Callers may still opt a specific request into retries explicitly.
+      const maxRetries = this.config.retry.enabled
+        ? options?.retries ?? (this.isIdempotentMethod(method) ? this.config.retry.retries : 0)
+        : 0;
       if (!response.ok && this.shouldRetry(response.status) && retryCount < maxRetries) {
         if (this.config.debug) {
           console.log(`[Sazito SDK] Retrying request (${retryCount + 1}/${maxRetries}):`, url);
@@ -388,6 +393,11 @@ export class HttpClient {
   private shouldRetry(status: number): boolean {
     // Retry on 5xx server errors
     return status >= 500 && status < 600;
+  }
+
+  /** HTTP methods that are safe to replay after a transport/proxy failure. */
+  private isIdempotentMethod(method: string): boolean {
+    return method === 'GET' || method === 'HEAD' || method === 'PUT' || method === 'DELETE';
   }
 
   /**

@@ -157,6 +157,78 @@ describe('PaymentsAPI gateway return', () => {
     debug.mockRestore();
   });
 
+  it('does not automatically replay v2 payment initialization after a proxy 502', async () => {
+    let attempts = 0;
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      retry: { enabled: true, retries: 3, retryDelay: 0 },
+      customFetchApi: async () => {
+        attempts += 1;
+        return attempts === 1
+          ? new Response(JSON.stringify({ error: 'bad gateway' }), {
+              status: 502,
+              headers: { 'Content-Type': 'application/json' }
+            })
+          : new Response(JSON.stringify({
+              result: { action: 'redirect', address: 'https://gateway.example/replayed' }
+            }), { headers: { 'Content-Type': 'application/json' } });
+      }
+    });
+    client.getCredentialsManager().setPaymentCredentials({
+      id: 0,
+      identifier: 'v2-payment-token'
+    });
+
+    const response = await client.payments.initialize();
+
+    expect(attempts).toBe(1);
+    expect(response.error).toMatchObject({ status: 502, message: 'bad gateway' });
+  });
+
+  it('continues retrying idempotent v2 reads after a proxy 502', async () => {
+    let attempts = 0;
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      retry: { enabled: true, retries: 2, retryDelay: 0 },
+      customFetchApi: async () => {
+        attempts += 1;
+        return attempts === 1
+          ? new Response(JSON.stringify({ error: 'bad gateway' }), {
+              status: 502,
+              headers: { 'Content-Type': 'application/json' }
+            })
+          : new Response(JSON.stringify({ result: { general: { store_id: 1 } } }), {
+              headers: { 'Content-Type': 'application/json' }
+            });
+      }
+    });
+
+    const response = await client.general.getInfo({ cache: false });
+
+    expect(attempts).toBe(2);
+    expect(response.error).toBeUndefined();
+  });
+
+  it('honors a disabled global retry policy for v2 reads', async () => {
+    let attempts = 0;
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      retry: { enabled: false, retries: 3, retryDelay: 0 },
+      customFetchApi: async () => {
+        attempts += 1;
+        return new Response(JSON.stringify({ error: 'bad gateway' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    });
+
+    const response = await client.general.getInfo({ cache: false });
+
+    expect(attempts).toBe(1);
+    expect(response.error).toMatchObject({ status: 502, message: 'bad gateway' });
+  });
+
   it.each([null, undefined])('accepts a confirmed simple-product order with attributes %s', async (attributes) => {
     const client = createSazitoClient({
       domain: 'shop.example.com',

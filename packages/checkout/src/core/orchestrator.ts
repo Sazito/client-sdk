@@ -280,13 +280,44 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     emit('payment_failed', { step: 'result' });
   }
 
-  function handlePaymentAction(action: PaymentAction, traceId?: string): void {
+  function failPaymentInitialization(message?: string, err?: CheckoutError): void {
+    const locale = get().locale;
+    const reason = message?.trim() || err?.message?.trim();
+    const fallback = locale === 'fa'
+      ? 'اتصال به درگاه پرداخت ناموفق بود. لطفاً درگاه دیگری انتخاب کنید.'
+      : 'Could not connect to the payment gateway. Please select another gateway.';
+    const instruction = locale === 'fa'
+      ? 'لطفاً درگاه دیگری انتخاب کنید.'
+      : 'Please select another gateway.';
+
+    // A failed temporary payment must not prevent a fresh payment from being
+    // created when the customer selects another gateway.
+    binding.credentials.clearPaymentCredentials();
+    set({
+      step: 'payment',
+      status: 'error',
+      result: null,
+      error: {
+        ...(err ?? makeError('payment_failed', locale, 'payment')),
+        message: reason ? `${reason} ${instruction}` : fallback,
+        step: 'payment'
+      }
+    });
+    emit('payment_failed', { step: 'payment', metadata: { phase: 'initialize' } });
+  }
+
+  function handlePaymentAction(
+    action: PaymentAction,
+    traceId?: string,
+    phase: 'initialize' | 'verification' = 'verification'
+  ): void {
     logPaymentVerification(traceId, 'action_received', summarizePaymentAction(action));
     switch (action.action) {
       case 'REDIRECT':
         if (!action.address) {
           console.error('[Sazito Checkout] REDIRECT action has no address:', action);
-          failResult(makeError('payment_failed', get().locale, 'result').message);
+          if (phase === 'initialize') failPaymentInitialization(action.message);
+          else failResult(makeError('payment_failed', get().locale, 'result').message);
           return;
         }
         set({ status: 'redirecting' });
@@ -295,7 +326,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       case 'POST':
         if (!action.address) {
           console.error('[Sazito Checkout] POST action has no address:', action);
-          failResult(makeError('payment_failed', get().locale, 'result').message);
+          if (phase === 'initialize') failPaymentInitialization(action.message);
+          else failResult(makeError('payment_failed', get().locale, 'result').message);
           return;
         }
         set({ status: 'redirecting' });
@@ -318,6 +350,10 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       case 'FAIL':
       case 'payment_fail_error':
       case 'show_error':
+        if (phase === 'initialize') {
+          failPaymentInitialization(action.message);
+          return;
+        }
         set({
           step: 'result',
           status: 'idle',
@@ -360,7 +396,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         });
         return;
       case 'unknown':
-        failResult(action.message ?? makeError('payment_failed', get().locale, 'result').message);
+        if (phase === 'initialize') failPaymentInitialization(action.message);
+        else failResult(action.message ?? makeError('payment_failed', get().locale, 'result').message);
         return;
     }
   }
@@ -724,7 +761,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     },
 
     selectPaymentMethod(id) {
-      set({ selectedPaymentMethodId: id });
+      set({ selectedPaymentMethodId: id, error: null, status: 'idle' });
       emit('payment_method_selected', { step: 'payment', metadata: { id } });
     },
 
@@ -948,8 +985,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       const created = await binding.client.payments.create(selectedPaymentMethodId);
       if (created.error || !created.data) {
         console.error('[Sazito Checkout] payments.create failed:', created.error);
-        const err = fromSdkError(created.error ?? { message: '', type: 'api' }, locale, 'result');
-        failResult(err.message, err);
+        const err = fromSdkError(created.error ?? { message: '', type: 'api' }, locale, 'payment');
+        failPaymentInitialization(undefined, err);
         return;
       }
 
@@ -957,16 +994,16 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       const action = await binding.client.payments.initialize();
       if (action.error || !action.data) {
         console.error('[Sazito Checkout] payments.initialize failed:', action.error);
-        const err = fromSdkError(action.error ?? { message: '', type: 'api' }, locale, 'result');
-        failResult(err.message, err);
+        const err = fromSdkError(action.error ?? { message: '', type: 'api' }, locale, 'payment');
+        failPaymentInitialization(undefined, err);
         return;
       }
-      handlePaymentAction(action.data);
+      handlePaymentAction(action.data, undefined, 'initialize');
     } catch (e) {
       // Network/unexpected throw — never leave the button spinning silently.
       console.error('[Sazito Checkout] place order threw:', e);
-      const err = fromSdkError({ message: (e as Error)?.message || '', type: 'network' }, locale, 'result');
-      failResult(err.message, err);
+      const err = fromSdkError({ message: (e as Error)?.message || '', type: 'network' }, locale, 'payment');
+      failPaymentInitialization(undefined, err);
     } finally {
       setFlag('placingOrder', false);
     }
