@@ -114,8 +114,10 @@ describe('PaymentsAPI gateway return', () => {
 
   it('normalizes the lowercase v2 redirect action used by hosted gateways', async () => {
     let requestBody: string | undefined;
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
     const client = createSazitoClient({
       domain: 'shop.example.com',
+      debug: true,
       customFetchApi: async (_input, init) => {
         requestBody = String(init?.body);
         return new Response(JSON.stringify({
@@ -148,6 +150,11 @@ describe('PaymentsAPI gateway return', () => {
       payment_identifier: 'v2-zibal-payment-token',
       payload: {}
     });
+    expect(debug.mock.calls.map(([message]) => String(message))).toEqual(expect.arrayContaining([
+      expect.stringContaining('[initialize-'),
+      expect.stringContaining('response_received {"data":')
+    ]));
+    debug.mockRestore();
   });
 
   it.each([null, undefined])('accepts a confirmed simple-product order with attributes %s', async (attributes) => {
@@ -725,6 +732,10 @@ describe('PaymentsAPI gateway return', () => {
       expect.stringContaining('action_normalized'),
       expect.stringContaining('pinch_skipped'),
       expect.stringContaining('finished')
+    ]));
+    expect(stages).toEqual(expect.arrayContaining([
+      expect.stringContaining('response_received {"data":'),
+      expect.stringContaining('"action":"payment_fail_error"')
     ]));
     expect(JSON.stringify(debug.mock.calls)).not.toContain('sensitive-payment-id');
     debug.mockRestore();

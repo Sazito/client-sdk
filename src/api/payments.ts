@@ -181,7 +181,7 @@ export class PaymentsAPI {
     // Keep initialization distinct from a later status poll. The v2 contract's
     // initialize request includes an explicit payload object, even when a
     // gateway (such as Zibal) does not require provider-specific fields.
-    return this.submitJsonPaymentStep({ payload: {} }, options);
+    return this.submitJsonPaymentStep({ payload: {} }, options, 'initialize');
   }
 
   /**
@@ -298,9 +298,10 @@ export class PaymentsAPI {
    */
   private async submitJsonPaymentStep(
     input: PaymentStepInput | undefined,
-    options?: RequestOptions
+    options?: RequestOptions,
+    operation: 'initialize' | 'status' = 'status'
   ): Promise<SazitoResponse<PaymentAction>> {
-    const traceId = this.nextVerificationTraceId('status');
+    const traceId = this.nextVerificationTraceId(operation);
     const credentials = this.resolvePaymentCredentials(input?.id, input?.paymentIdentifier);
     if ('error' in credentials) {
       this.logVerification(traceId, 'validation_failed', credentials);
@@ -906,7 +907,9 @@ export class PaymentsAPI {
     this.logVerification(traceId, 'pinch_succeeded', pinchResponse);
   }
 
-  private nextVerificationTraceId(operation: 'callback' | 'poll' | 'status' | 'create'): string {
+  private nextVerificationTraceId(
+    operation: 'callback' | 'poll' | 'initialize' | 'status' | 'create'
+  ): string {
     this.verificationTraceSequence += 1;
     return `${operation}-${Date.now()}-${this.verificationTraceSequence}`;
   }
@@ -917,9 +920,17 @@ export class PaymentsAPI {
     details: unknown
   ): void {
     if (!this.http.isDebugEnabled()) return;
+    const redactedDetails = this.redactVerificationLogValue(details);
+    let serializedDetails: string;
+    try {
+      serializedDetails = JSON.stringify(redactedDetails);
+    } catch {
+      serializedDetails = '"[unserializable payment response]"';
+    }
+    // Emit one string so browser log collectors preserve the response instead
+    // of reducing the second console argument to an uninspectable `Object`.
     console.debug(
-      `[Sazito SDK][Payment Verification][${traceId ?? 'untracked'}] ${stage}`,
-      this.redactVerificationLogValue(details)
+      `[Sazito SDK][Payment Verification][${traceId ?? 'untracked'}] ${stage} ${serializedDetails}`
     );
   }
 
