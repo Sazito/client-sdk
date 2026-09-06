@@ -178,7 +178,10 @@ export class PaymentsAPI {
    * POST for hosted gateways, or show_order for zero-amount/instant payments).
    */
   async initialize(options?: RequestOptions): Promise<SazitoResponse<PaymentAction>> {
-    return this.submitJsonPaymentStep(undefined, options);
+    // Keep initialization distinct from a later status poll. The v2 contract's
+    // initialize request includes an explicit payload object, even when a
+    // gateway (such as Zibal) does not require provider-specific fields.
+    return this.submitJsonPaymentStep({ payload: {} }, options);
   }
 
   /**

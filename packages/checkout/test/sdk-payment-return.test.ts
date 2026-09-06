@@ -107,25 +107,30 @@ describe('PaymentsAPI gateway return', () => {
       'http://api.sazito.com:8080/api/v2/payments/0/process_payment_step'
     ]);
     expect(JSON.parse(String(requests[1]?.init?.body))).toEqual({
-      payment_identifier: 'v2-payment-token'
+      payment_identifier: 'v2-payment-token',
+      payload: {}
     });
   });
 
   it('normalizes the lowercase v2 redirect action used by hosted gateways', async () => {
+    let requestBody: string | undefined;
     const client = createSazitoClient({
       domain: 'shop.example.com',
-      customFetchApi: async () => new Response(JSON.stringify({
-        result: {
-          action: 'redirect',
-          address: 'https://gateway.zibal.ir/start/test-track-id',
-          format: 'GET',
-          payload: {},
-          time: 0
-        },
-        error: '',
-        error_code: 0,
-        status: 0
-      }), { headers: { 'Content-Type': 'application/json' } })
+      customFetchApi: async (_input, init) => {
+        requestBody = String(init?.body);
+        return new Response(JSON.stringify({
+          result: {
+            action: 'redirect',
+            address: 'https://gateway.zibal.ir/start/test-track-id',
+            format: 'GET',
+            payload: {},
+            time: 0
+          },
+          error: '',
+          error_code: 0,
+          status: 0
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
     });
     client.getCredentialsManager().setPaymentCredentials({
       id: 0,
@@ -138,6 +143,10 @@ describe('PaymentsAPI gateway return', () => {
     expect(response.data).toMatchObject({
       action: 'REDIRECT',
       address: 'https://gateway.zibal.ir/start/test-track-id'
+    });
+    expect(JSON.parse(requestBody ?? '{}')).toEqual({
+      payment_identifier: 'v2-zibal-payment-token',
+      payload: {}
     });
   });
 
