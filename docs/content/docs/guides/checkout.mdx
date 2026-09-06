@@ -26,13 +26,15 @@ pnpm add @sazito/client-sdk @sazito/checkout react@18 react-dom@18
 ```
 
 The checkout package requires Node.js 18 or newer. It ships ESM and CommonJS
-builds, bundled TypeScript declarations, and four public entry points:
+builds, bundled TypeScript declarations, and server-safe entry points:
 
 | Entry point | Use case |
 |---|---|
 | `@sazito/checkout/core` | Framework-independent engine, state, actions, selectors, events, and formatters. |
 | `@sazito/checkout/react` | `CheckoutProvider`, `SazitoProvider`, and checkout hooks. |
 | `@sazito/checkout/next` | Drop-in checkout page, rendered UI, hooks, and customizable primitives. |
+| `@sazito/checkout/next/server` | Next.js-compatible GET/POST gateway callback handlers. |
+| `@sazito/checkout/server` | Framework-neutral Web `Request`/`Response` callback handlers. |
 | `@sazito/checkout/styles.css` | Self-contained RTL/LTR styles and theme variables. |
 
 Import the stylesheet once — typically in your root layout:
@@ -41,9 +43,16 @@ Import the stylesheet once — typically in your root layout:
 import '@sazito/checkout/styles.css';
 ```
 
-## Setup
+## Next.js setup
 
-Create the Sazito SDK once and wrap your app (or checkout route) with `SazitoProvider`. Every `SazitoCheckoutPage` inside reads that same SDK client from context.
+### 1. Add environment variables
+
+```bash
+NEXT_PUBLIC_SAZITO_DOMAIN=shop.example.com
+SAZITO_STORE_DOMAIN=shop.example.com
+```
+
+### 2. Add the SDK provider
 
 ```tsx
 // app/providers.tsx
@@ -52,22 +61,35 @@ Create the Sazito SDK once and wrap your app (or checkout route) with `SazitoPro
 import { createSazitoClient } from '@sazito/client-sdk';
 import { SazitoProvider } from '@sazito/checkout/next';
 
-const sazito = createSazitoClient({ domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN! });
+const client = createSazitoClient({
+  domain: process.env.NEXT_PUBLIC_SAZITO_DOMAIN!,
+});
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  return <SazitoProvider client={client}>{children}</SazitoProvider>;
+}
+```
+
+Import the styles and provider once:
+
+```tsx
+// app/layout.tsx
+import '@sazito/checkout/styles.css';
+import { Providers } from './providers';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SazitoProvider client={sazito}>
-      {children}
-    </SazitoProvider>
+    <html lang="fa" dir="rtl">
+      <body><Providers>{children}</Providers></body>
+    </html>
   );
 }
 ```
 
-## Basic usage
-
-With `SazitoProvider` in place, the checkout page only needs credentials and config:
+### 3. Add the checkout page
 
 ```tsx
+// app/checkout/page.tsx
 'use client';
 
 import { SazitoCheckoutPage } from '@sazito/checkout/next';
@@ -76,15 +98,36 @@ export default function CheckoutPage() {
   return (
     <SazitoCheckoutPage
       credentials={{ cart: { identifier: '<cart-identifier>' } }}
-      config={{
-        locale: 'fa',
-        continueShoppingUrl: '/',
-        theme: { accent: '#4f46e5', radius: 16 },
-      }}
+      config={{ locale: 'fa', continueShoppingUrl: '/' }}
     />
   );
 }
 ```
+
+Replace `<cart-identifier>` with the identifier created through `client.cart`.
+
+### 4. Add the payment callback route
+
+```ts
+// app/checkout/[...callback]/route.ts
+import { SazitoCheckout } from '@sazito/checkout/next/server';
+
+export const { GET, POST } = SazitoCheckout({
+  domain: process.env.SAZITO_STORE_DOMAIN!,
+  checkoutPath: '/checkout',
+}).handlers;
+```
+
+That is all the host needs for gateway returns. Keep both `GET` and `POST`:
+different gateways use different callback methods. The SDK validates the
+callback, verifies the payment on the server, redirects back to `/checkout`,
+and shows the final result. Use a Route Handler here, not a Server Action.
+
+### 5. Test the flow
+
+- Open `/checkout` and complete a test payment.
+- Confirm the gateway return reaches the catch-all route.
+- Confirm the browser returns to `/checkout` and displays the payment result.
 
 ## Props reference
 
@@ -105,8 +148,8 @@ client from a domain.
 |---|---|---|
 | `credentials` | `CheckoutCredentials` | Cart (and optionally invoice) identifiers to attach to. |
 | `config` | `CheckoutConfig` | Locale, theme, URLs, event hook, behaviour flags. |
-| `paymentReturn` | `CheckoutPaymentReturn` | Parsed nested gateway callback returned by `parsePaymentReturn`. Triggers result-resolution mode and restores payment credentials. |
-| `paymentReturnParams` | `Record<string, string>` | Legacy query-only callback parameters. Prefer `paymentReturn` for nested Sazito callback URLs. |
+| `paymentReturn` | `CheckoutPaymentReturn` | Optional callback data for custom integrations. The server handler setup does not require this prop. |
+| `paymentReturnParams` | `Record<string, string>` | Legacy query-only callback parameters. The server handler setup does not require this prop. |
 | `className` | `string` | Extra class on the root element. |
 | `renderNextButton` | `(props: RenderButtonProps) => ReactNode` | Replace the continue / next button across all steps. |
 | `renderBackButton` | `(props: RenderButtonProps) => ReactNode` | Replace the back button across all steps. |
@@ -125,8 +168,8 @@ interface CheckoutCredentials {
 ```
 
 Typically only `cart.identifier` is needed. Supply `invoice` to re-attach to an
-already-created invoice. `parsePaymentReturn` supplies `payment` automatically
-for nested gateway callbacks.
+already-created invoice. Payment credentials are restored automatically after
+the server callback handler redirects to checkout.
 
 ### `CheckoutConfig`
 
@@ -267,95 +310,30 @@ accepts a number in pixels.
 
 ## Payment gateway return
 
-When a gateway redirects back, render `SazitoCheckoutPage` with
-`paymentReturn`. The checkout restores the payment credentials, resolves the
-outcome, and shows the result screen.
-
-Some Sazito payment methods return to a nested legacy URL instead of using
-query parameters. For example:
+Gateway callbacks use a nested URL such as:
 
 ```text
 /checkout/paymentinplaceresult/payment/304/identifier/6f8a717eb211f0839e522a5358932968
 ```
 
-A regular `app/checkout/page.tsx` route does not match this URL, so Next.js
-returns a 404 before the checkout component can resolve the payment. The
-recommended App Router setup is an [optional catch-all route](https://nextjs.org/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments).
+The catch-all Route Handler from the setup section receives this URL. It parses
+the GET or POST fields, verifies the payment, and sends a `303` redirect to the
+configured `checkoutPath`. The checkout page then reads payment status and
+shows the result. If the status is pending, polling starts automatically.
 
-Replace `app/checkout/page.tsx` with
-`app/checkout/[[...callback]]/page.tsx`. The optional catch-all continues to
-serve `/checkout` and also accepts nested payment-result URLs:
+Optional server settings:
 
-```tsx
-// app/checkout/[[...callback]]/page.tsx
-import { SazitoCheckoutPage } from '@sazito/checkout/next';
-import { parsePaymentReturn } from '@sazito/checkout/next/payment-return';
-import { notFound } from 'next/navigation';
+| Field | Default | Description |
+|---|---:|---|
+| `checkoutPath` | `/checkout` | Checkout result page. Locale-prefixed paths such as `/fa/checkout` are supported. |
+| `maxCallbackBodyBytes` | `65536` | Maximum accepted callback body size. |
+| `gatewayResultMarkers` | Built-in Sazito list | Override the accepted callback route names for a custom gateway. |
+| `debug` | `false` | Log server-side callback errors without exposing them to the browser. |
 
-type SearchParams = Record<string, string | string[] | undefined>;
-
-interface CheckoutPageProps {
-  params: Promise<{ callback?: string[] }>;
-  searchParams: Promise<SearchParams>;
-}
-
-export default async function CheckoutPage({
-  params,
-  searchParams,
-}: CheckoutPageProps) {
-  const [{ callback }, query] = await Promise.all([params, searchParams]);
-  const paymentReturn = parsePaymentReturn(callback, query);
-
-  if (callback && !paymentReturn) notFound();
-
-  return (
-    <SazitoCheckoutPage
-      credentials={{ cart: { identifier: '<cart-identifier>' } }}
-      config={{ locale: 'fa', continueShoppingUrl: '/' }}
-      paymentReturn={paymentReturn}
-    />
-  );
-}
-```
-
-`parsePaymentReturn` validates the callback shape against Sazito's known gateway
-result markers, maps the payment ID and
-identifier, and forwards any gateway query parameters. The callback credentials
-are restored before verification, so the return flow does not depend solely on
-an existing `localStorage` entry.
-
-The verification request is URL encoded according to Sazito's server contract;
-pending status checks remain JSON requests. To support a custom gateway marker,
-pass `{ gatewayResultMarkers: ['custompaymentresult'] }` as the parser's third
-argument.
-
-If the catch-all route renders `SazitoCheckoutPage` without forwarding
-`paymentReturn`, the component also recognizes the callback suffix directly
-from the browser URL. Explicit server parsing is still recommended so malformed
-catch-all paths can be rejected with `notFound()` before rendering.
-
-This fallback also runs in `CheckoutProvider`, covering custom React layouts
-that compose the provider and `SazitoCheckout` directly.
-
-If a gateway already returns to a dedicated query-string URL, a separate route
-can still pass its search parameters directly:
-
-```tsx
-// app/checkout/return/page.tsx
-import { SazitoCheckoutPage } from '@sazito/checkout/next';
-
-export default async function ReturnPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string>>;
-}) {
-  return (
-    <SazitoCheckoutPage paymentReturnParams={await searchParams} />
-  );
-}
-```
-
-If the gateway returns `status: 'pending'`, the checkout polls every `pollIntervalMs` until it resolves.
+The response uses `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
+Malformed callbacks are rejected before the payment API is called. After the
+return is recognized, checkout removes the temporary payment parameters from
+the browser URL.
 
 ### Test the return flow with mock data
 

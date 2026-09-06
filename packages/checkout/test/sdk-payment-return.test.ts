@@ -379,8 +379,8 @@ describe('PaymentsAPI gateway return', () => {
     );
     const form = new URLSearchParams(String(request?.init?.body));
     expect(Object.fromEntries(form)).toEqual({
-      'payload[image_url]': 'https://cdn.example.com/receipt.jpg',
-      'payload[code]': 'cancelled',
+      image_url: 'https://cdn.example.com/receipt.jpg',
+      code: 'cancelled',
       payment_identifier: 'callback-payment'
     });
   });
@@ -411,11 +411,11 @@ describe('PaymentsAPI gateway return', () => {
       message: undefined
     });
     const form = new URLSearchParams(String(request?.init?.body));
-    expect(form.get('payload[RefId]')).toBe('query+value&more');
-    expect(form.get('payload[ResCode]')).toBe('0');
-    expect(form.get('payload[unicode]')).toBe('پرداخت');
+    expect(form.get('RefId')).toBe('query+value&more');
+    expect(form.get('ResCode')).toBe('0');
+    expect(form.get('unicode')).toBe('پرداخت');
     expect(form.get('payment_identifier')).toBe('pi_abc');
-    expect(form.get('payload[payment_identifier]')).toBe('untrusted');
+    expect([...form.keys()].some((key) => key.startsWith('payload['))).toBe(false);
   });
 
   it.each([

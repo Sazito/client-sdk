@@ -13,7 +13,9 @@ const input = {
   'core/index': 'src/core/index.ts',
   'react/index': 'src/react/index.ts',
   'next/index': 'src/next/index.ts',
-  'next/payment-return': 'src/next/payment-return.ts'
+  'next/payment-return': 'src/next/payment-return.ts',
+  'next/server': 'src/next/server.ts',
+  'server/index': 'src/server/index.ts'
 };
 
 const clientBanner = (chunk) =>

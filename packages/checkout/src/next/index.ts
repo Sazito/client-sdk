@@ -31,5 +31,6 @@ export {
 } from '../react';
 export type {
   CheckoutPaymentReturn,
+  PaymentReturnResolution,
   PaymentReturnSearchParams
 } from '../core';

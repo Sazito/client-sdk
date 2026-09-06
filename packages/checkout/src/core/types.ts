@@ -161,7 +161,15 @@ export interface CheckoutCredentials {
 export interface CheckoutPaymentReturn {
   payment: { id: number; identifier: string };
   params: Record<string, string>;
+  /**
+   * `callback` forwards gateway fields for verification. `status` is emitted
+   * by the SDK server handler after it has already verified the gateway POST,
+   * so the browser performs only an authoritative status read.
+   */
+  resolution?: PaymentReturnResolution;
 }
+
+export type PaymentReturnResolution = 'callback' | 'status';
 
 /** Search-param shape exposed by current Next.js App Router pages. */
 export type PaymentReturnSearchParams = Record<
@@ -363,8 +371,11 @@ export interface CheckoutActions {
   placeOrder(): Promise<void>;
   /** Rehydrate a failed gateway return and reopen a usable payment step. */
   retryPayment(): Promise<void>;
-  /** Resolve a return from the payment gateway (query params from the URL). */
-  resolvePaymentReturn(params: Record<string, string>): Promise<void>;
+  /** Resolve a gateway callback or a server-verified payment status return. */
+  resolvePaymentReturn(
+    params: Record<string, string>,
+    resolution?: PaymentReturnResolution
+  ): Promise<void>;
 
   reset(): void;
 }

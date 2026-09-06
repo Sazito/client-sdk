@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   parsePaymentReturn,
-  parsePaymentReturnUrl
+  parsePaymentReturnUrl,
+  stripPaymentStatusReturn
 } from '../src/core/payment-return';
 
 describe('parsePaymentReturn', () => {
@@ -59,6 +60,28 @@ describe('parsePaymentReturn', () => {
 
   it('rejects an ordinary complete checkout URL', () => {
     expect(parsePaymentReturnUrl('/checkout')).toBeUndefined();
+  });
+
+  it('parses a server-verified status return without gateway callback fields', () => {
+    expect(parsePaymentReturnUrl(
+      'https://shop.example.com/checkout?sazito_payment_return=status&sazito_payment_id=308&sazito_payment_identifier=callback-token'
+    )).toEqual({
+      payment: { id: 308, identifier: 'callback-token' },
+      params: { id: '308', paymentIdentifier: 'callback-token' },
+      resolution: 'status'
+    });
+  });
+
+  it('rejects malformed server status returns', () => {
+    expect(parsePaymentReturnUrl(
+      'https://shop.example.com/checkout?sazito_payment_return=status&sazito_payment_id=0&sazito_payment_identifier=token'
+    )).toBeUndefined();
+  });
+
+  it('removes server-return credentials while preserving other URL state', () => {
+    expect(stripPaymentStatusReturn(
+      'https://shop.example.com/checkout?lang=fa&sazito_payment_return=status&sazito_payment_id=308&sazito_payment_identifier=token#result'
+    )).toBe('/checkout?lang=fa#result');
   });
 
   it('allows a host-configured result marker', () => {

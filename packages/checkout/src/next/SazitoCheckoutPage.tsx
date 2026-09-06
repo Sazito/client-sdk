@@ -10,11 +10,12 @@ import {
   type RenderEmptyCartProps,
   type RenderResultProps,
 } from '../ui';
-import { parsePaymentReturnUrl } from '../core';
+import { parsePaymentReturnUrl, stripPaymentStatusReturn } from '../core';
 import type {
   CheckoutConfig,
   CheckoutCredentials,
-  CheckoutPaymentReturn
+  CheckoutPaymentReturn,
+  PaymentReturnResolution
 } from '../core';
 
 export interface SazitoCheckoutPageProps {
@@ -56,6 +57,7 @@ export function SazitoCheckoutPage({
       : undefined;
   const resolvedPaymentReturn = paymentReturn ?? detectedPaymentReturn;
   const returnParams = resolvedPaymentReturn?.params ?? paymentReturnParams;
+  const returnResolution = resolvedPaymentReturn?.resolution ?? 'callback';
   const isReturn = returnParams != null;
   const checkoutCredentials = resolvedPaymentReturn
     ? { ...credentials, payment: resolvedPaymentReturn.payment }
@@ -69,7 +71,9 @@ export function SazitoCheckoutPage({
       config={config}
       autoStart={!isReturn}
     >
-      {returnParams ? <ResolveReturn params={returnParams} /> : null}
+      {returnParams ? (
+        <ResolveReturn params={returnParams} resolution={returnResolution} />
+      ) : null}
       <SazitoCheckout
         theme={config?.theme}
         continueShoppingUrl={config?.continueShoppingUrl}
@@ -84,7 +88,13 @@ export function SazitoCheckoutPage({
   );
 }
 
-function ResolveReturn({ params }: { params: Record<string, string> }) {
+function ResolveReturn({
+  params,
+  resolution
+}: {
+  params: Record<string, string>;
+  resolution: PaymentReturnResolution;
+}) {
   const { actions } = useCheckout();
   const resolvedKey = useRef<string | null>(null);
   const paramsKey = JSON.stringify(
@@ -94,7 +104,11 @@ function ResolveReturn({ params }: { params: Record<string, string> }) {
   useEffect(() => {
     if (resolvedKey.current === paramsKey) return;
     resolvedKey.current = paramsKey;
-    void actions.resolvePaymentReturn(params);
-  }, [actions, params, paramsKey]);
+    void actions.resolvePaymentReturn(params, resolution);
+    if (resolution === 'status' && typeof window !== 'undefined') {
+      const cleanUrl = stripPaymentStatusReturn(window.location.href);
+      if (cleanUrl) window.history.replaceState(window.history.state, '', cleanUrl);
+    }
+  }, [actions, params, paramsKey, resolution]);
   return null;
 }

@@ -5,6 +5,7 @@ import {
   createCheckoutEngine,
   createBrowserEffectExecutor,
   parsePaymentReturnUrl,
+  stripPaymentStatusReturn,
   type CheckoutConfig,
   type CheckoutCredentials,
   type CheckoutEngine
@@ -42,9 +43,9 @@ export function CheckoutProvider({
     ? { ...credentials, payment: detectedPaymentReturn.payment }
     : credentials;
   const paymentReturnKey = detectedPaymentReturn
-    ? JSON.stringify(
+    ? `${detectedPaymentReturn.resolution ?? 'callback'}:${JSON.stringify(
         Object.entries(detectedPaymentReturn.params).sort(([a], [b]) => a.localeCompare(b))
-      )
+      )}`
     : null;
 
   const cartIdentifier = effectiveCredentials?.cart?.identifier;
@@ -67,7 +68,14 @@ export function CheckoutProvider({
   useEffect(() => {
     if (autoStart) {
       if (detectedPaymentReturn) {
-        void engine.actions.resolvePaymentReturn(detectedPaymentReturn.params);
+        void engine.actions.resolvePaymentReturn(
+          detectedPaymentReturn.params,
+          detectedPaymentReturn.resolution
+        );
+        if (detectedPaymentReturn.resolution === 'status') {
+          const cleanUrl = stripPaymentStatusReturn(window.location.href);
+          if (cleanUrl) window.history.replaceState(window.history.state, '', cleanUrl);
+        }
       } else {
         void engine.actions.start();
       }

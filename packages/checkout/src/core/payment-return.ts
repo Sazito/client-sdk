@@ -4,6 +4,33 @@ import type {
   PaymentReturnSearchParams
 } from './types';
 
+export const SAZITO_PAYMENT_STATUS_QUERY = {
+  resolution: 'sazito_payment_return',
+  paymentId: 'sazito_payment_id',
+  paymentIdentifier: 'sazito_payment_identifier'
+} as const;
+
+/** Remove server-return credentials from the visible URL after they are read. */
+export function stripPaymentStatusReturn(url: string | URL): string | undefined {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = typeof url === 'string'
+      ? new URL(url, 'https://checkout.sazito.invalid')
+      : new URL(url.toString());
+  } catch {
+    return undefined;
+  }
+
+  if (parsedUrl.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.resolution) !== 'status') {
+    return undefined;
+  }
+
+  parsedUrl.searchParams.delete(SAZITO_PAYMENT_STATUS_QUERY.resolution);
+  parsedUrl.searchParams.delete(SAZITO_PAYMENT_STATUS_QUERY.paymentId);
+  parsedUrl.searchParams.delete(SAZITO_PAYMENT_STATUS_QUERY.paymentIdentifier);
+  return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+}
+
 export const SAZITO_PAYMENT_RESULT_MARKERS = [
   'mellatpaymentresult', 'pecpaymentresult', 'uppaymentresult',
   'seppaymentresult', 'vandarpaymentresult', 'yourgatepaymentresult',
@@ -79,6 +106,9 @@ export function parsePaymentReturnUrl(
     return undefined;
   }
 
+  const statusReturn = parsePaymentStatusReturn(parsedUrl);
+  if (statusReturn) return statusReturn;
+
   const segments = parsedUrl.pathname
     .split('/')
     .filter(Boolean)
@@ -97,6 +127,31 @@ export function parsePaymentReturnUrl(
   }
 
   return parsePaymentReturn(segments.slice(-5), searchParams, options);
+}
+
+function parsePaymentStatusReturn(url: URL): CheckoutPaymentReturn | undefined {
+  if (url.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.resolution) !== 'status') {
+    return undefined;
+  }
+
+  const rawPaymentId = url.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.paymentId);
+  const identifier = url.searchParams
+    .get(SAZITO_PAYMENT_STATUS_QUERY.paymentIdentifier)
+    ?.trim();
+  const paymentId = Number(rawPaymentId);
+
+  if (!Number.isSafeInteger(paymentId) || paymentId <= 0 || !identifier) {
+    return undefined;
+  }
+
+  return {
+    payment: { id: paymentId, identifier },
+    params: {
+      id: String(paymentId),
+      paymentIdentifier: identifier
+    },
+    resolution: 'status'
+  };
 }
 
 function decodePathSegment(segment: string): string {

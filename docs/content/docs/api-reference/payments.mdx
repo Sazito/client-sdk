@@ -113,10 +113,8 @@ This produces the exact endpoint body:
 Use: `payments.verify(input?, options?)`.
 
 Verifies a returning gateway payment with Sazito's URL-encoded form contract.
-Gateway values are sent under `payload[...]` with their original names and
-casing; only `payment_identifier` is sent as a top-level field. This is the
-same callback shape used by Sazito's server-side verifier for PEC, Zibal, and
-the other gateways.
+Gateway values are sent as direct fields with their original names and casing;
+`payment_identifier` is sent as the top-level credential.
 When both callback credential fields are provided, the SDK restores them before making
 the request, so verification also works when no payment credentials remain in
 browser storage:
@@ -133,8 +131,7 @@ earlier on the same SDK client and performs one JSON status request.
 
 For server adapters that receive GET and POST callback data separately, use
 `verifyPaymentCallback`. Body fields are copied first and query fields second,
-so query values win when a field appears in both places. For example, a
-`RefId` callback field is sent as `payload[RefId]`:
+so query values win when a field appears in both places:
 
 ```ts
 const result = await client.payments.verifyPaymentCallback({

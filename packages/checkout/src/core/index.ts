@@ -9,6 +9,8 @@ export { createBrowserEffectExecutor, noopEffectExecutor } from './effects';
 export {
   parsePaymentReturn,
   parsePaymentReturnUrl,
+  stripPaymentStatusReturn,
+  SAZITO_PAYMENT_STATUS_QUERY,
   SAZITO_PAYMENT_RESULT_MARKERS
 } from './payment-return';
 export { makeEvent } from './events';

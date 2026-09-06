@@ -180,13 +180,28 @@ export function CheckoutClient({ cartIdentifier }: { cartIdentifier: string }) {
 
 Render `CheckoutClient` from the route after reading the cart identifier from
 your application state, cookie, or URL. Import `@sazito/checkout/styles.css`
-once from the root layout, and see the
-[Checkout guide](/docs/guides/checkout) for provider setup, theming, payment
-returns, and custom button rendering.
+once from the root layout.
+
+Add one catch-all Route Handler for payment gateway returns:
+
+```ts
+// app/checkout/[...callback]/route.ts
+import { SazitoCheckout } from '@sazito/checkout/next/server';
+
+export const { GET, POST } = SazitoCheckout({
+  domain: process.env.SAZITO_STORE_DOMAIN!,
+  checkoutPath: '/checkout',
+}).handlers;
+```
+
+The SDK handler parses the callback, verifies the payment on the server, and
+redirects to the checkout result. See the
+[Checkout guide](/docs/guides/checkout) for the complete setup and theming.
 
 ## 7. Checklist
 
 - Keep `NEXT_PUBLIC_SAZITO_DOMAIN` for browser code and `SAZITO_STORE_DOMAIN` for server code.
+- Export both `GET` and `POST` from the payment callback Route Handler.
 - Use Server Components for initial page payload and SEO-critical data.
 - Use Server Actions for authenticated writes and sensitive flows.
 - Always branch on `res.error` before using `res.data`.

@@ -67,6 +67,28 @@
       },
       "default": "./dist/next/payment-return.js"
     },
+    "./next/server": {
+      "import": {
+        "types": "./dist/next/server.d.ts",
+        "default": "./dist/next/server.js"
+      },
+      "require": {
+        "types": "./dist/next/server.d.cts",
+        "default": "./dist/next/server.cjs"
+      },
+      "default": "./dist/next/server.js"
+    },
+    "./server": {
+      "import": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server/index.js"
+      },
+      "require": {
+        "types": "./dist/server/index.d.cts",
+        "default": "./dist/server/index.cjs"
+      },
+      "default": "./dist/server/index.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "typesVersions": {
@@ -82,6 +104,12 @@
       ],
       "next/payment-return": [
         "dist/next/payment-return.d.ts"
+      ],
+      "next/server": [
+        "dist/next/server.d.ts"
+      ],
+      "server": [
+        "dist/server/index.d.ts"
       ]
     }
   },
@@ -99,7 +127,7 @@
     "prepublishOnly": "pnpm run release:check"
   },
   "peerDependencies": {
-    "@sazito/client-sdk": "^1.2.3",
+    "@sazito/client-sdk": "^1.2.28",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
   },

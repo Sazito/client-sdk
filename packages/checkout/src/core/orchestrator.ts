@@ -31,6 +31,7 @@ import type {
   CheckoutEngineOptions,
   CheckoutError,
   CheckoutFlags,
+  PaymentReturnResolution,
   CheckoutRegion,
   CheckoutState,
   CheckoutStep,
@@ -805,8 +806,8 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       }
     },
 
-    async resolvePaymentReturn(params) {
-      const resolutionKey = serializePaymentReturnParams(params);
+    async resolvePaymentReturn(params, resolution: PaymentReturnResolution = 'callback') {
+      const resolutionKey = `${resolution}:${serializePaymentReturnParams(params)}`;
       if (get().result?.status === 'success') {
         logPaymentVerification(undefined, 'callback_after_success_skipped', {
           callbackParameterNames: Object.keys(params),
@@ -838,6 +839,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         }
         const traceId = nextPaymentVerificationTraceId('callback');
         logPaymentVerification(traceId, 'started', {
+          resolution,
           callbackParameterNames: Object.keys(params),
           paymentId: params.id,
           paymentIdentifier: params.paymentIdentifier
@@ -865,9 +867,12 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           });
         }
         logPaymentVerification(traceId, 'sdk_verify_started', {
+          resolution,
           hasInput: Boolean(input)
         });
-        const action = await binding.client.payments.verify(input);
+        const action = resolution === 'status'
+          ? await binding.client.payments.getPaymentStep()
+          : await binding.client.payments.verify(input);
         logPaymentVerification(traceId, 'sdk_verify_finished', action);
         if (action.error || !action.data) {
           const err = fromSdkError(action.error ?? { message: '', type: 'api' }, get().locale, 'result');
@@ -1174,7 +1179,7 @@ function toAddressInput(form: AddressFormValues): ShippingAddressInput {
 }
 
 // Preserve every gateway-return field and its original casing. The payments
-// API wraps these values as payload[...] for the v2 callback contract.
+// API sends these values as direct form fields for the callback contract.
 function paymentReturnInput(params: Record<string, string>): PaymentStepInput | undefined {
   if (!params || Object.keys(params).length === 0) {
     return undefined;

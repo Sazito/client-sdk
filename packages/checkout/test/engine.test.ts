@@ -121,6 +121,7 @@ function makeMockClient() {
       create: vi.fn(async () => ok({ id: 8, identifier: 'p1', paymentType: { code: 'zarinpalpayment' }, amount: 1200 })),
       initialize: vi.fn(async () => ok({ action: 'REDIRECT', address: 'https://gateway/pay' })),
       verify: vi.fn(async () => ok({ action: 'show_order', order: { id: 1, orderNumber: 'ORD-1', orderIdentifier: 'oi', invoice: { shippingItems: [], invoiceItems: [], netTotal: 0, finalTotal: 0 } } })),
+      getPaymentStep: vi.fn(async () => ok({ action: 'show_order', order: { id: 1, orderNumber: 'ORD-1', orderIdentifier: 'oi', invoice: { shippingItems: [], invoiceItems: [], netTotal: 0, finalTotal: 0 } } })),
       pollUntilSettled: vi.fn(async () => ok({ action: 'show_order', order: { id: 1, orderNumber: 'ORD-1', orderIdentifier: 'oi', invoice: { shippingItems: [], invoiceItems: [], netTotal: 0, finalTotal: 0 } } }))
     }
   };
@@ -955,6 +956,19 @@ describe('checkout engine — happy path', () => {
     ]);
 
     expect(client.payments.verify).toHaveBeenCalledTimes(1);
+    expect(engine.getState().result?.status).toBe('success');
+  });
+
+  it('reads status without replaying a callback already verified by the server handler', async () => {
+    const { engine, client } = setup();
+
+    await engine.actions.resolvePaymentReturn({
+      id: '3727',
+      paymentIdentifier: 'payment-token'
+    }, 'status');
+
+    expect(client.payments.getPaymentStep).toHaveBeenCalledOnce();
+    expect(client.payments.verify).not.toHaveBeenCalled();
     expect(engine.getState().result?.status).toBe('success');
   });
 
