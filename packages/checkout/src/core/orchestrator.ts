@@ -1173,8 +1173,8 @@ function toAddressInput(form: AddressFormValues): ShippingAddressInput {
   };
 }
 
-// Preserve every gateway-return field and its original casing. The SDK sends
-// these values as direct fields in the form-encoded verification call.
+// Preserve every gateway-return field and its original casing. The payments
+// API wraps these values as payload[...] for the v2 callback contract.
 function paymentReturnInput(params: Record<string, string>): PaymentStepInput | undefined {
   if (!params || Object.keys(params).length === 0) {
     return undefined;

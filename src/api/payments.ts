@@ -212,9 +212,10 @@ export class PaymentsAPI {
   }
 
   /**
-   * Verify a gateway callback using Sazito's form contract. Body fields are
-   * written first and query fields second. Gateway field names and casing are
-   * preserved, and the validated payment identifier is always written last.
+   * Verify a gateway callback using Sazito's SSR form contract. Body fields
+   * are written first, query fields second, and every gateway field is
+   * wrapped as `payload[name]`. The validated payment identifier is always
+   * written as the sole top-level credential.
    */
   async verifyPaymentCallback(
     input: VerifyPaymentCallbackInput,
@@ -247,7 +248,11 @@ export class PaymentsAPI {
     const form = new URLSearchParams();
     const fields = { ...(input.body ?? {}), ...(input.query ?? {}) };
     for (const [name, value] of Object.entries(fields)) {
-      this.appendCallbackValue(form, name, value);
+      // The v2 endpoint parses gateway values from the nested `payload`
+      // object. Sending these fields flat makes verification appear to
+      // succeed at the gateway while the payment service cannot finalize the
+      // invoice (notably PEC/Parsian callbacks).
+      this.appendCallbackValue(form, `payload[${name}]`, value);
     }
     form.set('payment_identifier', paymentIdentifier);
 
