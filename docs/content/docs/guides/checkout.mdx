@@ -376,7 +376,7 @@ You can also change **Payment result** in the demo toolbar:
 | Scenario | Expected result |
 |---|---|
 | `success-minimal` | Success with only the required order identifiers. This protects against the former `Invalid payment step result` failure when totals are absent. |
-| `success-full` | Success with order totals. |
+| `success-full` | Sanitized real v2 payment-in-place `show_order` response with product, shipping, totals, receipt, and nullable backend fields. |
 | `pending-success` | Pending callback followed by a successful JSON status poll. |
 | `failure` | Gateway-declared payment failure. |
 | `malformed` | Intentionally invalid `show_order` payload; this should display `Invalid payment step result`. |

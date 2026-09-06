@@ -5,6 +5,8 @@
 import type { OrderPublicId } from './order';
 
 export interface CheckoutInvoiceItem {
+  /** Invoice-line identifier used to associate this item with a shipment. */
+  id?: OrderPublicId;
   productVariantId: OrderPublicId;
   name: string;
   image?: { url?: string };
@@ -32,6 +34,7 @@ export interface CheckoutShippingItem {
   rate: {
     id?: OrderPublicId;
     name: string;
+    description?: string;
     price: number;
     type?: string;
     icon?: string;

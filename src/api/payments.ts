@@ -757,6 +757,16 @@ export class PaymentsAPI {
     }
     this.logVerification(traceId, 'action_normalized', normalizedAction);
     await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentId, options, traceId);
+    if (normalizedAction.action === 'show_order') {
+      // A confirmed order consumes the guest checkout resources. Keeping any
+      // of these identifiers would make the storefront reopen the completed
+      // cart or reuse its invoice/payment on the next visit.
+      this.credentials.clearAll();
+      this.logVerification(traceId, 'checkout_credentials_cleared', {
+        paymentId,
+        orderId: normalizedAction.order.id
+      });
+    }
     this.logVerification(traceId, 'finished', {
       paymentId,
       action: normalizedAction.action
@@ -765,18 +775,23 @@ export class PaymentsAPI {
   }
 
   private normalizeAction(action: JsonObject): PaymentAction | null {
-    const actionName = typeof action.action === 'string' ? action.action : '';
+    const actionName = typeof action.action === 'string' ? action.action.trim() : '';
+    // The v2 payment-step contract currently documents GET-style gateway
+    // responses as `redirect`, while older deployments return `REDIRECT`.
+    // Normalize known action names here so checkout always receives the
+    // canonical PaymentAction discriminants it handles.
+    const normalizedActionName = actionName.toLowerCase();
     const message = typeof action.message === 'string' ? action.message : undefined;
 
-    switch (actionName) {
-      case 'POST':
+    switch (normalizedActionName) {
+      case 'post':
         if (typeof action.address !== 'string' || !this.isPostPayload(action.payload)) return null;
         return { action: 'POST', address: action.address, payload: action.payload, message, raw: action };
-      case 'REDIRECT':
+      case 'redirect':
         return typeof action.address === 'string'
           ? { action: 'REDIRECT', address: action.address, message, raw: action }
           : null;
-      case 'UPLOAD':
+      case 'upload':
         return { action: 'UPLOAD', time: this.optionalNumber(action.time), message, raw: action };
       case 'show_otp_modal':
         return { action: 'show_otp_modal', time: this.optionalNumber(action.time), message, raw: action };
@@ -785,7 +800,7 @@ export class PaymentsAPI {
         if (!action.order || typeof action.order !== 'object' || Array.isArray(action.order)) return null;
         const order = transformCheckoutOrderResponse<CheckoutOrder>(action.order);
         if (!this.isCheckoutOrder(order)) return null;
-        return actionName === 'show_order'
+        return normalizedActionName === 'show_order'
           ? { action: 'show_order', order, message, raw: action }
           : { action: 'pending', order, message, raw: action };
       }
@@ -793,9 +808,9 @@ export class PaymentsAPI {
         return { action: 'payment_fail_error', message, raw: action };
       case 'show_error':
         return { action: 'show_error', message, raw: action };
-      case 'FAIL':
+      case 'fail':
         return { action: 'FAIL', message, raw: action };
-      case 'StockViolated':
+      case 'stockviolated':
         return { action: 'StockViolated', message, raw: action };
       default:
         return actionName
@@ -830,6 +845,7 @@ export class PaymentsAPI {
       (invoice.finalTotal === undefined ||
         (typeof invoice.finalTotal === 'number' && Number.isFinite(invoice.finalTotal))) &&
       invoice.invoiceItems.every((item) =>
+        (item.id === undefined || isPublicId(item.id)) &&
         isPublicId(item.productVariantId) &&
         typeof item.name === 'string' &&
         Array.isArray(item.variantAttributes) &&
@@ -845,6 +861,7 @@ export class PaymentsAPI {
         isPublicId(item.id) &&
         Array.isArray(item.invoiceItemIds) &&
         typeof item.rate?.name === 'string' &&
+        (item.rate.description === undefined || typeof item.rate.description === 'string') &&
         typeof item.rate?.price === 'number' && Number.isFinite(item.rate.price)
       );
   }

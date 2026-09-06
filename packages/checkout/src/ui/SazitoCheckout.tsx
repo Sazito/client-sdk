@@ -322,7 +322,7 @@ export function SazitoCheckout({
               status: resultStatus,
               order: state.result?.order,
               continueShoppingUrl,
-              onRetry: () => actions.goToStep('payment')
+              onRetry: () => void actions.retryPayment()
             })
           ) : (
             <ResultStep continueShoppingUrl={continueShoppingUrl} />

@@ -493,8 +493,10 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
                 }
               : {})
           });
-          emit('checkout_viewed', { step: 'cart' });
-          emit('step_viewed', { step: 'cart' });
+          if (get().step === 'cart') {
+            emit('checkout_viewed', { step: 'cart' });
+            emit('step_viewed', { step: 'cart' });
+          }
         }));
       }
 
@@ -730,6 +732,42 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       await withLock(placeOrderInternal);
     },
 
+    async retryPayment() {
+      // Payment-return pages verify immediately and intentionally skip the
+      // normal cart bootstrap. Rehydrate that state before reopening payment,
+      // otherwise the step has no invoice summary or payment methods.
+      set((prev) => ({
+        step: 'payment',
+        status: 'working',
+        result: null,
+        error: null,
+        flags: { ...prev.flags, loadingPayments: true }
+      }));
+      emit('step_viewed', { step: 'payment' });
+      try {
+        // A failed gateway attempt must not remain the active payment when the
+        // customer starts a new one for the same invoice.
+        binding.credentials.clearPaymentCredentials();
+        await actions.start();
+        if (get().error) return;
+
+        await withLock(async () => {
+          if (get().paymentMethods.length === 0) {
+            await loadPaymentMethods();
+          }
+          if (get().error) return;
+          if (get().paymentMethods.length === 0) {
+            setError(makeError('payment_failed', get().locale, 'payment'));
+            return;
+          }
+
+          set({ status: 'idle' });
+        });
+      } finally {
+        setFlag('loadingPayments', false);
+      }
+    },
+
     async resolvePaymentReturn(params) {
       const resolutionKey = serializePaymentReturnParams(params);
       if (get().result?.status === 'success') {
@@ -923,7 +961,6 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
         failResult(err.message, err);
         return;
       }
-      console.debug('[Sazito Checkout] payment init action:', action.data);
       handlePaymentAction(action.data);
     } catch (e) {
       // Network/unexpected throw — never leave the button spinning silently.

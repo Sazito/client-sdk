@@ -23,6 +23,7 @@ export interface Strings {
   finishPurchase: string;
   back: string;
   continueShopping: string;
+  backToShop: string;
   orderSummary: string;
   subtotal: string;
   shipping: string;
@@ -118,6 +119,7 @@ const fa: Strings = {
   finishPurchase: 'پایان خرید',
   back: 'بازگشت',
   continueShopping: 'ادامه خرید',
+  backToShop: 'بازگشت به فروشگاه',
   orderSummary: 'خلاصه سفارش',
   subtotal: 'جمع کل',
   shipping: 'هزینه ارسال',
@@ -206,6 +208,7 @@ const en: Strings = {
   finishPurchase: 'Finish purchase',
   back: 'Back',
   continueShopping: 'Continue shopping',
+  backToShop: 'Back to shop',
   orderSummary: 'Order Summary',
   subtotal: 'Subtotal',
   shipping: 'Shipping',

@@ -111,6 +111,36 @@ describe('PaymentsAPI gateway return', () => {
     });
   });
 
+  it('normalizes the lowercase v2 redirect action used by hosted gateways', async () => {
+    const client = createSazitoClient({
+      domain: 'shop.example.com',
+      customFetchApi: async () => new Response(JSON.stringify({
+        result: {
+          action: 'redirect',
+          address: 'https://gateway.zibal.ir/start/test-track-id',
+          format: 'GET',
+          payload: {},
+          time: 0
+        },
+        error: '',
+        error_code: 0,
+        status: 0
+      }), { headers: { 'Content-Type': 'application/json' } })
+    });
+    client.getCredentialsManager().setPaymentCredentials({
+      id: 0,
+      identifier: 'v2-zibal-payment-token'
+    });
+
+    const response = await client.payments.initialize();
+
+    expect(response.error).toBeUndefined();
+    expect(response.data).toMatchObject({
+      action: 'REDIRECT',
+      address: 'https://gateway.zibal.ir/start/test-track-id'
+    });
+  });
+
   it.each([null, undefined])('accepts a confirmed simple-product order with attributes %s', async (attributes) => {
     const client = createSazitoClient({
       domain: 'shop.example.com',
@@ -316,6 +346,7 @@ describe('PaymentsAPI gateway return', () => {
               invoice: {
                 invoice_items: [
                   {
+                    id: 91,
                     name: 'Red shoes',
                     image: { url: 'https://cdn.example.com/red-shoes.jpg' },
                     variant_attributes: [{ name: 'Color', value: 'Red' }],
@@ -340,6 +371,7 @@ describe('PaymentsAPI gateway return', () => {
                     rate: {
                       id: 'rate-12',
                       name: 'Post',
+                      description: 'Delivered in 2–3 business days',
                       price: 25000,
                       type: 'post',
                       color: '#0ea5e9',
@@ -388,6 +420,7 @@ describe('PaymentsAPI gateway return', () => {
         invoice: {
           invoiceItems: [
             {
+              id: 91,
               productVariantId: '15',
               name: 'Red shoes',
               image: { url: 'https://cdn.example.com/red-shoes.jpg' },
@@ -411,6 +444,7 @@ describe('PaymentsAPI gateway return', () => {
               rate: {
                 id: 'rate-12',
                 name: 'Post',
+                description: 'Delivered in 2–3 business days',
                 price: 25000,
                 type: 'post',
                 color: '#0ea5e9',
@@ -435,7 +469,7 @@ describe('PaymentsAPI gateway return', () => {
     });
     if (response.data?.action === 'show_order' || response.data?.action === 'pending') {
       const item = response.data.order.invoice.invoiceItems[0];
-      expect(item).not.toHaveProperty('id');
+      expect(item.id).toBe(91);
       expect(item).not.toHaveProperty('rawPrice');
       expect(item).not.toHaveProperty('quantity');
     }
@@ -553,6 +587,12 @@ describe('PaymentsAPI gateway return', () => {
         }), { headers: { 'Content-Type': 'application/json' } });
       }
     });
+    const credentials = client.getCredentialsManager();
+    credentials.setCartCredentials({ identifier: 'completed-cart' });
+    credentials.setInvoiceCredentials({ id: 0, identifier: 'completed-invoice' });
+    credentials.setShippingCredentials({ id: 0, identifier: 'completed-address' });
+    credentials.setPaymentCredentials({ id: 0, identifier: 'temporary-payment' });
+    credentials.setDiscountCode('COMPLETED');
 
     const response = await client.payments.verify({
       id: 3727,
@@ -574,6 +614,11 @@ describe('PaymentsAPI gateway return', () => {
         }
       }
     });
+    expect(credentials.getCartCredentials()).toBeNull();
+    expect(credentials.getInvoiceCredentials()).toBeNull();
+    expect(credentials.getShippingCredentials()).toBeNull();
+    expect(credentials.getPaymentCredentials()).toBeNull();
+    expect(credentials.getDiscountCode()).toBeNull();
   });
 
   it('accepts the final payment failure response with a null order', async () => {
@@ -593,6 +638,8 @@ describe('PaymentsAPI gateway return', () => {
         status: 0
       }), { headers: { 'Content-Type': 'application/json' } })
     });
+    const credentials = client.getCredentialsManager();
+    credentials.setCartCredentials({ identifier: 'retryable-cart' });
 
     const response = await client.payments.verify({
       id: 3728,
@@ -601,6 +648,11 @@ describe('PaymentsAPI gateway return', () => {
 
     expect(response.error).toBeUndefined();
     expect(response.data).toMatchObject({ action: 'payment_fail_error' });
+    expect(credentials.getCartCredentials()).toEqual({ identifier: 'retryable-cart' });
+    expect(credentials.getPaymentCredentials()).toEqual({
+      id: 3728,
+      identifier: 'failed-payment'
+    });
   });
 
   it('unwraps a storefront proxy response log before reading the payment action', async () => {

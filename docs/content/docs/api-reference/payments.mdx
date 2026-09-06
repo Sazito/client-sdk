@@ -62,7 +62,8 @@ Initializes current payment and returns next action.
 Returns: `SazitoResponse<PaymentAction>`.
 
 When payment verification succeeds (`action === 'show_order'`), the SDK automatically
-calls `POST /api/v1/pinch/order` as part of checkout completion.
+calls `POST /api/v1/pinch/order` and clears the completed cart, invoice,
+shipping-address, payment, and discount credentials from browser storage.
 
 ```ts
 const actionRes = await client.payments.initialize();

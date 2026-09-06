@@ -800,6 +800,57 @@ describe('checkout engine — happy path', () => {
     });
   });
 
+  it('rehydrates payment methods before retrying a failed gateway return', async () => {
+    const { engine, client } = setup();
+    client.payments.verify.mockResolvedValueOnce({
+      error: { message: 'Verification response was invalid', type: 'api' }
+    } as never);
+
+    await engine.actions.resolvePaymentReturn({
+      id: '304',
+      paymentIdentifier: 'callback-payment'
+    });
+    expect(engine.getState().paymentMethods).toEqual([]);
+
+    const retry = engine.actions.retryPayment();
+
+    expect(engine.getState()).toMatchObject({
+      step: 'payment',
+      result: null,
+      flags: { loadingPayments: true }
+    });
+
+    await retry;
+
+    expect(client.cart.get).toHaveBeenCalledTimes(1);
+    expect(client.invoices.create).toHaveBeenCalledTimes(1);
+    expect(client.payments.getMethods).toHaveBeenCalledTimes(1);
+    expect(engine.getState()).toMatchObject({
+      step: 'payment',
+      result: null,
+      selectedPaymentMethodId: 3,
+      paymentMethods: [{ id: 3, code: 'zarinpalpayment', isDefault: true }]
+    });
+  });
+
+  it('surfaces recovery failure instead of leaving an empty payment step', async () => {
+    const { engine, client } = setup();
+    client.payments.verify.mockResolvedValueOnce({ data: { action: 'payment_fail_error' } } as never);
+    client.payments.getMethods.mockResolvedValueOnce({ data: [] });
+
+    await engine.actions.resolvePaymentReturn({
+      id: '304',
+      paymentIdentifier: 'callback-payment'
+    });
+    await engine.actions.retryPayment();
+
+    expect(engine.getState()).toMatchObject({
+      step: 'payment',
+      paymentMethods: [],
+      error: { code: 'payment_failed', step: 'payment' }
+    });
+  });
+
   it('shows success for the final payment-in-place API response', async () => {
     const client = createSazitoClient({
       domain: 'shop.example.com',

@@ -361,6 +361,8 @@ export interface CheckoutActions {
   selectPaymentMethod(id: number): void;
 
   placeOrder(): Promise<void>;
+  /** Rehydrate a failed gateway return and reopen a usable payment step. */
+  retryPayment(): Promise<void>;
   /** Resolve a return from the payment gateway (query params from the URL). */
   resolvePaymentReturn(params: Record<string, string>): Promise<void>;
 

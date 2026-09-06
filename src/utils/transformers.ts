@@ -1065,8 +1065,10 @@ function transformCheckoutInvoiceItem(item: TransformValue): TransformObject {
 
   const variant = isPlainObject(item.product_variant) ? item.product_variant : {};
   const product = isPlainObject(variant.product) ? variant.product : {};
+  const id = toIdentifier(item.id);
 
   return {
+    ...(id !== undefined ? { id } : {}),
     // The payment completion response serializes the full product variant and
     // omits InvoiceItem.ProductVariantID (`json:"-"`) on the backend. Keep
     // accepting the flat field for compatibility, but derive the public ID
@@ -1111,6 +1113,7 @@ function transformCheckoutShippingItem(item: TransformValue): TransformObject {
     rate: {
       id: toIdentifier(item.rate.id),
       name: toOptionalString(item.rate.name),
+      description: toOptionalString(item.rate.description),
       price: toNumber(item.rate.price),
       type: toOptionalString(item.rate.type),
       icon: toOptionalString(item.rate.icon),

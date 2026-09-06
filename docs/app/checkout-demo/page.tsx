@@ -27,6 +27,161 @@ const MOCK_ORDER_BASE = {
   },
 };
 
+// Sanitized from a real payment-in-place `show_order` response captured from
+// the v2 API. Keep backend key names and nullable/empty fields intact so the
+// demo exercises the production response transformer rather than a UI-shaped
+// fixture.
+const MOCK_CAPTURED_SUCCESS_ORDER = {
+  id: 270,
+  order_number: 'MOCK-OR0000000270',
+  order_identifier: 'mock-captured-order-identifier',
+  status: 'started',
+  status_title: 'در انتظار',
+  invoice: {
+    id: 343,
+    invoice_identifier: 'mock-captured-invoice-identifier',
+    invoice_items: [
+      {
+        id: 766,
+        name: 'Zishop - زی‌شاپ',
+        no_of_items: 1,
+        product_variant: {
+          id: 1051,
+          sku: 'IN1753001109',
+          price: 840000,
+          raw_price: 1000000,
+          product_attributes: null,
+          commercial_files: null,
+          product: {
+            id: 499,
+            name: 'Zishop - زی‌شاپ',
+            product_type: 'simple',
+          },
+        },
+        form_attributes: {},
+        booking_attributes: null,
+        customer_profit: 160000,
+        customer_profit_percentage: 16,
+        single_item_price: 840000,
+        total_items_price: 840000,
+        variant_attributes: [],
+      },
+    ],
+    discount_total: 0,
+    discount_usages: null,
+    final_total: 840000,
+    items_discount: 160000,
+    items_total_raw_price: 1000000,
+    net_total: 840000,
+    shipping_method_needed: false,
+    shipping_total: 0,
+    shipping_items: [
+      {
+        id: '',
+        shipping_number: 'SH-MOCK-0001',
+        invoice_item_ids: [766],
+        rate: {
+          id: 5,
+          name: 'رایگان',
+          description: '',
+          icon: 'free-delivery',
+          color: '',
+          price: 0,
+          type: 'free',
+        },
+        status: 'started',
+        status_title: 'در انتظار',
+      },
+    ],
+    receipts: null,
+    vat: 0,
+    vat_percent: 0,
+  },
+  receipt: {
+    id: 132,
+    receipt_ref: '',
+    image_url: '',
+    receipt_amount: 840000,
+    payment: {
+      id: MOCK_PAYMENT_ID,
+      payment_status: 'waiting_for_approval',
+      payment_status_fa: 'در انتظار تایید',
+      payment_amount: 840000,
+      payment_identifier: MOCK_PAYMENT_IDENTIFIER,
+      payment_type: {
+        id: 3,
+        title: 'paymentinplace',
+        title_fa: 'پرداخت در محل',
+        reference_code: 'paymentinplace',
+        payment_sub_type: 102,
+      },
+    },
+  },
+};
+
+const MOCK_RETRY_ITEM = {
+  id: 766,
+  productVariantId: 1051,
+  name: 'Zishop - زی‌شاپ',
+  attributes: [],
+  quantity: 1,
+  unitPrice: 840000,
+  lineTotal: 840000,
+  rawPrice: 1000000,
+  customerProfit: 160000,
+  product: {
+    name: 'Zishop - زی‌شاپ',
+    variantId: 1051,
+    productType: 'simple',
+  },
+};
+
+const MOCK_RETRY_CART = {
+  id: 1,
+  identifier: '019f1879-bcbe-7bdf-b50a-fec3ca7f0b9d',
+  items: [MOCK_RETRY_ITEM],
+  netTotal: 840000,
+  grossTotal: 1000000,
+  needsShipping: false,
+  minBasketLimitViolated: false,
+};
+
+const MOCK_RETRY_INVOICE = {
+  id: 343,
+  identifier: 'mock-retry-invoice-identifier',
+  items: [MOCK_RETRY_ITEM],
+  shippingItems: [],
+  needsShipping: false,
+  netTotal: 840000,
+  finalTotal: 840000,
+  vat: 0,
+  vatPercent: 0,
+  itemsDiscount: 160000,
+  discountTotal: 0,
+  customerProfit: 160000,
+  customerProfitPercentage: 16,
+  itemsTotalRawPrice: 1000000,
+  couponTotal: 0,
+  shippingTotal: 0,
+  creditTotal: 0,
+  discountUsages: [],
+};
+
+const MOCK_RETRY_PAYMENT_METHODS = {
+  payment_types: [
+    {
+      id: 3,
+      reference_code: 'zarinpalpayment',
+      title: 'Online payment',
+      title_fa: 'پرداخت آنلاین',
+      description: 'پرداخت امن از طریق درگاه بانکی',
+      payment_sub_type: null,
+      order: 1,
+      is_default: true,
+    },
+  ],
+};
+
 function createDemoFetch(mockPayment: MockPaymentScenario): typeof fetch {
   return async (input, init) => {
     const url = typeof input === 'string'
@@ -56,12 +211,36 @@ function createDemoFetch(mockPayment: MockPaymentScenario): typeof fetch {
         }
       }
 
-      return jsonResponse({ result: mockPaymentResult(mockPayment, isStatusPoll) });
+      return paymentStepResponse({
+        result: mockPaymentResult(mockPayment, isStatusPoll),
+        error: '',
+        error_code: 0,
+        status: 0,
+      });
     }
 
     // Successful verification invokes the existing idempotent pinch hook.
     if (mockPayment !== 'live' && url.includes('/api/v1/pinch/order')) {
       return jsonResponse({ result: true });
+    }
+
+    // Mock returns can be opened directly without a previously bootstrapped
+    // browser session. Keep retry deterministic instead of depending on a
+    // stale demo cart or the live shop API.
+    if (mockPayment !== 'live' && url.includes('/api/v2/carts/0')) {
+      return jsonResponse({ result: MOCK_RETRY_CART });
+    }
+    if (mockPayment !== 'live' && url.endsWith('/api/v2/invoices')) {
+      return jsonResponse({ result: MOCK_RETRY_INVOICE });
+    }
+    if (mockPayment !== 'live' && url.includes('/api/v2/payments/list')) {
+      return jsonResponse({ result: MOCK_RETRY_PAYMENT_METHODS });
+    }
+    if (mockPayment !== 'live' && url.includes('/api/v2/regions')) {
+      return jsonResponse({ result: { regions: [] } });
+    }
+    if (mockPayment !== 'live' && url.includes('/api/v2/general/info')) {
+      return jsonResponse({ result: {} });
     }
 
     if (!url.startsWith(SAZITO_API_ORIGIN)) {
@@ -90,16 +269,16 @@ function mockPaymentResult(scenario: MockPaymentScenario, isStatusPoll: boolean)
     case 'success-full':
       return {
         action: 'show_order',
-        order: {
-          ...MOCK_ORDER_BASE,
-          invoice: {
-            ...MOCK_ORDER_BASE.invoice,
-            net_total: 1250000,
-            final_total: 1290000,
-            shipping_total: 40000,
-            vat: 0,
-          },
-        },
+        order: MOCK_CAPTURED_SUCCESS_ORDER,
+        address: '',
+        format: '',
+        payload: {},
+        time: 0,
+        callback: '',
+        token: '',
+        RedeemToken: '',
+        IsInitialize: false,
+        message: null,
       };
     case 'pending-success':
       return isStatusPoll
@@ -121,6 +300,13 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function paymentStepResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
   });
 }
 
@@ -311,9 +497,7 @@ export default function CheckoutDemoPage() {
       <SazitoProvider client={sazito}>
         <SazitoCheckoutPage
           key={`${settings.domain}:${settings.cartIdentifier}:${settings.mockPayment}`}
-          credentials={settings.mockPayment === 'live'
-            ? { cart: { identifier: settings.cartIdentifier } }
-            : undefined}
+          credentials={{ cart: { identifier: settings.cartIdentifier } }}
           paymentReturn={settings.mockPayment === 'live' ? undefined : {
             payment: { id: MOCK_PAYMENT_ID, identifier: MOCK_PAYMENT_IDENTIFIER },
             params: {
@@ -325,7 +509,7 @@ export default function CheckoutDemoPage() {
           }}
           config={{
             locale: 'fa',
-            continueShoppingUrl: '/',
+            continueShoppingUrl: `https://${settings.domain}/`,
             pollIntervalMs: settings.mockPayment === 'pending-success' ? 250 : 15000,
             theme: { accent: '#4f46e5', radius: 16, fontFamily: 'var(--font-vazirmatn), sans-serif' },
           }}
