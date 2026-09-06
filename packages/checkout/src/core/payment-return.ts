@@ -10,7 +10,7 @@ export const SAZITO_PAYMENT_STATUS_QUERY = {
   paymentIdentifier: 'sazito_payment_identifier'
 } as const;
 
-/** Remove server-return credentials from the visible URL after they are read. */
+/** Remove internal payment-return credentials from the visible URL after they are read. */
 export function stripPaymentStatusReturn(url: string | URL): string | undefined {
   let parsedUrl: URL;
   try {
@@ -21,7 +21,8 @@ export function stripPaymentStatusReturn(url: string | URL): string | undefined 
     return undefined;
   }
 
-  if (parsedUrl.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.resolution) !== 'status') {
+  const resolution = parsedUrl.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.resolution);
+  if (resolution !== 'status' && resolution !== 'callback') {
     return undefined;
   }
 
@@ -130,7 +131,8 @@ export function parsePaymentReturnUrl(
 }
 
 function parsePaymentStatusReturn(url: URL): CheckoutPaymentReturn | undefined {
-  if (url.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.resolution) !== 'status') {
+  const resolution = url.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.resolution);
+  if (resolution !== 'status' && resolution !== 'callback') {
     return undefined;
   }
 
@@ -150,7 +152,7 @@ function parsePaymentStatusReturn(url: URL): CheckoutPaymentReturn | undefined {
       id: String(paymentId),
       paymentIdentifier: identifier
     },
-    resolution: 'status'
+    resolution
   };
 }
 

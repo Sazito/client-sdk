@@ -1179,7 +1179,7 @@ function toAddressInput(form: AddressFormValues): ShippingAddressInput {
 }
 
 // Preserve every gateway-return field and its original casing. The payments
-// API sends these values as direct form fields for the callback contract.
+// API wraps these values as payload[...] for the SSR callback contract.
 function paymentReturnInput(params: Record<string, string>): PaymentStepInput | undefined {
   if (!params || Object.keys(params).length === 0) {
     return undefined;

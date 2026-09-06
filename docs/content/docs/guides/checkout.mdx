@@ -363,7 +363,7 @@ You can also change **Payment result** in the demo toolbar:
 Mock mode intercepts only the payment verification and post-success pinch calls.
 It also asserts that the initial callback is sent as
 `application/x-www-form-urlencoded` with `payment_identifier` and
-`RefId`; the pending poll must remain JSON. No real payment, cart, or
+`payload[RefId]`; the pending poll must remain JSON. No real payment, cart, or
 gateway redirect is performed.
 
 ## Analytics

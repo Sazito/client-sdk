@@ -84,6 +84,9 @@ On return, the handler validates the callback, reads its query/form/JSON body,
 calls `payments.verifyPaymentCallback()`, and responds with `303 See Other` to
 `/checkout`. `SazitoCheckoutPage` recognizes that server-verified return and
 performs a status read instead of replaying the gateway payload in the browser.
+The empty payment-in-place POST is redirected for a single browser-side
+verification because that method completes the order on its first payment-step
+call.
 
 Use a Route Handler, not a Server Action: payment gateways send normal HTTP
 requests and do not use Next.js's private Server Action protocol.

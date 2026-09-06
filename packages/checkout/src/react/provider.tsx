@@ -72,10 +72,8 @@ export function CheckoutProvider({
           detectedPaymentReturn.params,
           detectedPaymentReturn.resolution
         );
-        if (detectedPaymentReturn.resolution === 'status') {
-          const cleanUrl = stripPaymentStatusReturn(window.location.href);
-          if (cleanUrl) window.history.replaceState(window.history.state, '', cleanUrl);
-        }
+        const cleanUrl = stripPaymentStatusReturn(window.location.href);
+        if (cleanUrl) window.history.replaceState(window.history.state, '', cleanUrl);
       } else {
         void engine.actions.start();
       }

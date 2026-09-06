@@ -18,6 +18,7 @@ import type { PaymentReturnParserOptions } from '../core/types';
 
 const DEFAULT_CHECKOUT_PATH = '/checkout';
 const DEFAULT_MAX_BODY_BYTES = 64 * 1024;
+const BROWSER_FINALIZED_RESULT_MARKERS = new Set(['paymentinplaceresult']);
 
 export type SazitoPaymentRouteHandler = (request: Request) => Promise<Response>;
 
@@ -70,6 +71,22 @@ export function SazitoCheckout(config: SazitoCheckoutServerConfig): SazitoChecko
           ? await readCallbackBody(request, maxCallbackBodyBytes)
           : undefined;
         const query = fieldsFromSearchParams(requestUrl.searchParams);
+
+        // Payment-in-place uses an empty POST only to return control to the
+        // storefront. Processing it on the server and then performing a status
+        // read in the browser calls process_payment_step twice; some deployments
+        // report the second call as failed even though the first one created the
+        // order. Redirect the empty first-party callback to the browser so the
+        // order is finalized exactly once and the returned order can be rendered.
+        if (shouldFinalizeInBrowser(requestUrl, body, query)) {
+          return redirectResponse(createPaymentReturnRedirectUrl(
+            requestUrl,
+            checkoutPath,
+            callback.payment,
+            'callback'
+          ));
+        }
+
         const client = createSazitoClient(sdkConfig);
         const verification = await client.payments.verifyPaymentCallback({
           paymentId: callback.payment.id,
@@ -88,19 +105,13 @@ export function SazitoCheckout(config: SazitoCheckoutServerConfig): SazitoChecko
           return errorResponse(502, 'payment_verification_failed');
         }
 
-        const redirectUrl = createStatusRedirectUrl(
+        const redirectUrl = createPaymentReturnRedirectUrl(
           requestUrl,
           checkoutPath,
-          callback.payment
+          callback.payment,
+          'status'
         );
-        return new Response(null, {
-          status: 303,
-          headers: {
-            Location: redirectUrl.toString(),
-            'Cache-Control': 'no-store',
-            'Referrer-Policy': 'no-referrer'
-          }
-        });
+        return redirectResponse(redirectUrl);
       } catch (error) {
         if (config.debug) {
           console.error('[Sazito Checkout] Invalid payment callback request:', error);
@@ -212,19 +223,49 @@ function appendField(
   }
 }
 
-function createStatusRedirectUrl(
+function shouldFinalizeInBrowser(
+  requestUrl: URL,
+  body: PaymentCallbackFields | undefined,
+  query: PaymentCallbackFields
+): boolean {
+  const pathSegments = requestUrl.pathname
+    .split('/')
+    .filter(Boolean);
+  const resultMarker = pathSegments[pathSegments.length - 5]?.toLowerCase();
+
+  return Boolean(
+    resultMarker &&
+    BROWSER_FINALIZED_RESULT_MARKERS.has(resultMarker) &&
+    Object.keys(body ?? {}).length === 0 &&
+    Object.keys(query).length === 0
+  );
+}
+
+function createPaymentReturnRedirectUrl(
   requestUrl: URL,
   checkoutPath: string,
-  payment: { id: number; identifier: string }
+  payment: { id: number; identifier: string },
+  resolution: 'callback' | 'status'
 ): URL {
   const redirectUrl = new URL(checkoutPath, requestUrl.origin);
-  redirectUrl.searchParams.set(SAZITO_PAYMENT_STATUS_QUERY.resolution, 'status');
+  redirectUrl.searchParams.set(SAZITO_PAYMENT_STATUS_QUERY.resolution, resolution);
   redirectUrl.searchParams.set(SAZITO_PAYMENT_STATUS_QUERY.paymentId, String(payment.id));
   redirectUrl.searchParams.set(
     SAZITO_PAYMENT_STATUS_QUERY.paymentIdentifier,
     payment.identifier
   );
   return redirectUrl;
+}
+
+function redirectResponse(url: URL): Response {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: url.toString(),
+      'Cache-Control': 'no-store',
+      'Referrer-Policy': 'no-referrer'
+    }
+  });
 }
 
 function errorResponse(

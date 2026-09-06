@@ -105,7 +105,7 @@ function ResolveReturn({
     if (resolvedKey.current === paramsKey) return;
     resolvedKey.current = paramsKey;
     void actions.resolvePaymentReturn(params, resolution);
-    if (resolution === 'status' && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
       const cleanUrl = stripPaymentStatusReturn(window.location.href);
       if (cleanUrl) window.history.replaceState(window.history.state, '', cleanUrl);
     }
