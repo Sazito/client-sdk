@@ -712,11 +712,11 @@ describe('PaymentsAPI gateway return', () => {
         }
       }
     });
-    expect(credentials.getCartCredentials()).toBeNull();
-    expect(credentials.getInvoiceCredentials()).toBeNull();
-    expect(credentials.getShippingCredentials()).toBeNull();
+    expect(credentials.getCartCredentials()).toEqual({ identifier: 'completed-cart' });
+    expect(credentials.getInvoiceCredentials()).toEqual({ id: 0, identifier: 'completed-invoice' });
+    expect(credentials.getShippingCredentials()).toEqual({ id: 0, identifier: 'completed-address' });
     expect(credentials.getPaymentCredentials()).toBeNull();
-    expect(credentials.getDiscountCode()).toBeNull();
+    expect(credentials.getDiscountCode()).toBe('COMPLETED');
   });
 
   it('accepts the final payment failure response with a null order', async () => {

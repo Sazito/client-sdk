@@ -763,10 +763,11 @@ export class PaymentsAPI {
     this.logVerification(traceId, 'action_normalized', normalizedAction);
     await this.callPinchAfterSuccessfulPayment(normalizedAction, paymentId, options, traceId);
     if (normalizedAction.action === 'show_order') {
-      // A confirmed order consumes the guest checkout resources. Keeping any
-      // of these identifiers would make the storefront reopen the completed
-      // cart or reuse its invoice/payment on the next visit.
-      this.credentials.clearAll();
+      // Keep cart/invoice/shipping state alive while checkout renders the
+      // terminal result. Sazito core only invalidates the payment token here;
+      // clearing every guest credential synchronously makes hosts that derive
+      // their checkout visibility from cart credentials unmount the result.
+      this.credentials.clearPaymentCredentials();
       this.logVerification(traceId, 'checkout_credentials_cleared', {
         paymentId,
         orderId: normalizedAction.order?.id
