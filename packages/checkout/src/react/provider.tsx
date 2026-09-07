@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   createCheckoutEngine,
   createBrowserEffectExecutor,
@@ -35,10 +35,15 @@ export function CheckoutProvider({
   // Catch callback URLs at the provider boundary as well as in the Next.js
   // drop-in page. Some storefronts compose CheckoutProvider + SazitoCheckout
   // directly, and would otherwise bootstrap the cart when a gateway returns.
-  const detectedPaymentReturn =
-    autoStart && typeof window !== 'undefined'
+  // Capture the entry URL for this mounted checkout. replaceState below
+  // removes its credentials; rereading that cleaned URL on a host/cart render
+  // would recreate the engine and replace the result with an empty cart.
+  const [entryPaymentReturn] = useState(() =>
+    typeof window !== 'undefined'
       ? parsePaymentReturnUrl(window.location.href)
-      : undefined;
+      : undefined
+  );
+  const detectedPaymentReturn = autoStart ? entryPaymentReturn : undefined;
   const effectiveCredentials = detectedPaymentReturn
     ? { ...credentials, payment: detectedPaymentReturn.payment }
     : credentials;

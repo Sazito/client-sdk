@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import type React from 'react';
 import { CheckoutProvider, useCheckout, useSazitoClient } from '../react';
 import {
@@ -49,13 +49,14 @@ export function SazitoCheckoutPage({
   // detect Sazito's well-known nested callback in the browser. This prevents a
   // caught callback route from silently booting a fresh checkout when the host
   // forgot to forward its catch-all params.
-  const detectedPaymentReturn =
-    paymentReturn == null &&
-    paymentReturnParams == null &&
+  // Retain the entry callback after ResolveReturn cleans the visible URL.
+  // Host rerenders must not change autoStart or discard payment credentials.
+  const [detectedPaymentReturn] = useState(() =>
     typeof window !== 'undefined'
       ? parsePaymentReturnUrl(window.location.href)
-      : undefined;
-  const resolvedPaymentReturn = paymentReturn ?? detectedPaymentReturn;
+      : undefined
+  );
+  const resolvedPaymentReturn = paymentReturn ?? (paymentReturnParams == null ? detectedPaymentReturn : undefined);
   const returnParams = resolvedPaymentReturn?.params ?? paymentReturnParams;
   const returnResolution = resolvedPaymentReturn?.resolution ?? 'callback';
   const isReturn = returnParams != null;
@@ -96,14 +97,13 @@ function ResolveReturn({
   resolution: PaymentReturnResolution;
 }) {
   const { actions } = useCheckout();
-  const resolvedKey = useRef<string | null>(null);
   const paramsKey = JSON.stringify(
     Object.entries(params).sort(([a], [b]) => a.localeCompare(b))
   );
 
   useEffect(() => {
-    if (resolvedKey.current === paramsKey) return;
-    resolvedKey.current = paramsKey;
+    // Deduplication belongs to the engine so replacing the SDK/session still
+    // resolves this callback, while Strict Mode replays share one request.
     void actions.resolvePaymentReturn(params, resolution);
     if (typeof window !== 'undefined') {
       const cleanUrl = stripPaymentStatusReturn(window.location.href);

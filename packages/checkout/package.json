@@ -137,6 +137,7 @@
     "@sazito/client-sdk": "workspace:*",
     "@types/react": "^18.2.42",
     "@types/react-dom": "^18.2.17",
+    "jsdom": "^26.1.0",
     "rollup": "^4.6.1",
     "rollup-plugin-dts": "^6.1.0",
     "tslib": "^2.6.2",
