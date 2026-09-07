@@ -9,6 +9,7 @@ import { SazitoProvider } from '../src/react/client-context';
 import { useCheckout } from '../src/react/use-checkout';
 import { SazitoCheckoutPage } from '../src/next/SazitoCheckoutPage';
 import { SazitoCheckout as createCheckoutHandlers } from '../src/server';
+import { verifiedPaymentResultKey } from '../src/core/verified-payment-result';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -42,6 +43,42 @@ it('does not infer success from a result URL without a server-provided confirmat
   })));
   expect(container.textContent).not.toContain('success');
   expect(customFetchApi).not.toHaveBeenCalled();
+});
+
+it('opens order details in a new tab after a confirmed payment', async () => {
+  const payment = { id: 304, identifier: 'test-payment' };
+  const order = {
+    id: 290,
+    orderNumber: 'OR290',
+    orderIdentifier: '71d2c3ab895b75688d4ff344d7b545f5',
+    invoice: { invoiceItems: [], shippingItems: [] }
+  };
+  sessionStorage.setItem(verifiedPaymentResultKey(payment), JSON.stringify({
+    payment,
+    action: {
+      action: 'show_order',
+      order: {
+        ...order,
+        invoice: { invoiceItems: [], shippingItems: [] }
+      }
+    },
+    expiresAt: Date.now() + 60000
+  }));
+  window.history.replaceState({}, '', '/checkout?sazito_payment_return=result&sazito_payment_id=304&sazito_payment_identifier=test-payment');
+  const client = createSazitoClient({
+    domain: 'shop.example.com',
+    customFetchApi: vi.fn(async () => Response.json({ result: true }))
+  });
+
+  await act(async () => root.render(createElement(SazitoProvider, {
+    client,
+    children: createElement(SazitoCheckoutPage, { config: { locale: 'fa' } })
+  })));
+
+  const link = container.querySelector<HTMLAnchorElement>('a[href*="/orderinfo/290/"]');
+  expect(link?.textContent).toBe('جزئیات سفارش');
+  expect(link?.target).toBe('_blank');
+  expect(link?.rel).toBe('noopener noreferrer');
 });
 
 it.each(['cardtocardpaymentresult', 'zibalpaymentresult', 'paymentinplaceresult'])(

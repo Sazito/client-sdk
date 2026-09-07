@@ -154,7 +154,9 @@ export function ResultStep({ continueShoppingUrl }: { continueShoppingUrl?: stri
           ) : null}
           {orderDetailsUrl ? (
             <Button asChild>
-              <a href={orderDetailsUrl}>{t.orderDetails}</a>
+              <a href={orderDetailsUrl} target="_blank" rel="noopener noreferrer">
+                {t.orderDetails}
+              </a>
             </Button>
           ) : null}
           {continueShoppingUrl ? (

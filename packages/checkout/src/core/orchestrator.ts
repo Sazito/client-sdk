@@ -10,6 +10,7 @@ import { fromSdkError, makeError } from './errors';
 import { makeEvent } from './events';
 import { noopEffectExecutor } from './effects';
 import { consumeVerifiedPaymentResult } from './verified-payment-result';
+import { sortPaymentMethods } from './payment-methods';
 import {
   addressFormFromInvoice,
   addressFormFromSavedAddress,
@@ -258,7 +259,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
       setError(fromSdkError(res.error ?? { message: '', type: 'api' }, get().locale, 'payment'));
       return;
     }
-    const methods = res.data;
+    const methods = sortPaymentMethods(res.data);
     const current = get().selectedPaymentMethodId;
     const preferred =
       current ?? methods.find((m) => m.isDefault)?.id ?? methods[0]?.id ?? null;

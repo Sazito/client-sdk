@@ -14,6 +14,7 @@ export {
   SAZITO_PAYMENT_RESULT_MARKERS
 } from './payment-return';
 export { makeEvent } from './events';
+export { sortPaymentMethods } from './payment-methods';
 export { fromSdkError, makeError, messageForCode } from './errors';
 export {
   formatMoney,

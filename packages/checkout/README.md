@@ -213,11 +213,14 @@ available on `SazitoCheckout` when composing `CheckoutProvider` manually.
 - **Cart** — editable line items (quantity ±, remove).
 - **Shipping** — guest contact + address form; per-package **shipping-method
   switching** for physical items; digital items skip shipping.
-- **Payment** — payment-method selection + discount code; the **Finish purchase**
-  (پایان خرید) CTA places the order directly (redirect / POST / pending-poll).
+- **Payment** — payment-method selection + discount code; the **Pay now**
+  (انجام پرداخت) CTA places the order directly (redirect / POST / pending-poll).
+  The backend default appears first, online methods follow in backend order,
+  and non-default pay-on-delivery/card-to-card methods appear last.
 - **Result** — success / failed / pending, with the order code, public ID,
   shipping methods, purchased items, quantities, line totals, and invoice totals
   whenever the payment response includes an order.
+  The built-in order-details action opens in a new browser tab.
 
 Deferred (post-v1): card-to-card upload, invoice dynamic forms, wallet credit
 UI (engine keeps `toggleCredit`), multi-rate item reallocation, the legacy

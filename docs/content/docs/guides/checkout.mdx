@@ -17,7 +17,7 @@ description: Drop-in multi-step checkout UI for Next.js apps built on the Sazito
 
 Steps run in order: **cart → shipping → payment → result**
 
-The payment step is the last interactive step: its CTA (**پایان خرید** / "Finish purchase") finalizes the order directly — there is no separate review step.
+The payment step is the last interactive step: its CTA (**انجام پرداخت** / "Pay now") finalizes the order directly — there is no separate review step. Payment methods show the backend default first, online methods next, and non-default pay-on-delivery/card-to-card choices last. The order-details action on a successful result opens in a new tab.
 
 ## Installation
 
@@ -541,7 +541,7 @@ import type { RenderButtonProps } from '@sazito/checkout/next';
 | `onClick` | `() => void` | Triggers the checkout action for this step |
 | `children` | `ReactNode` | Localised label for the current step |
 
-The `children` label changes per step: **ادامه**, **ذخیره اطلاعات ارسال**, **ادامه به پرداخت**, **نهایی کردن سفارش** (Persian) or the equivalent English strings.
+The `children` label changes per step: **ثبت سفارش**, **ثبت اطلاعات ارسال**, **ادامه به پرداخت**, **انجام پرداخت** (Persian) or the equivalent English strings.
 
 ## Replacing primitives with `asChild`
 
