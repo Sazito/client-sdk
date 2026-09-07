@@ -50,8 +50,12 @@ describe('SazitoCheckout server handlers', () => {
       }
     ));
 
-    expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toContain('sazito_payment_return=status');
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/html');
+    const html = await response.text();
+    expect(html).toContain('sazito_payment_return=result');
+    expect(html).toContain('show_order');
+    expect(html).toContain('OR1');
     expect(customFetchApi).toHaveBeenCalledTimes(2);
     expect(customFetchApi).toHaveBeenNthCalledWith(
       1,
@@ -63,6 +67,30 @@ describe('SazitoCheckout server handlers', () => {
       'http://api.sazito.com:8080/api/v1/pinch/order',
       expect.anything()
     );
+  });
+
+  it('escapes backend text in the success bridge and keeps success visible when storage is blocked', async () => {
+    const message = '</script><script>alert("injected")</script>\u2028';
+    const { handlers } = SazitoCheckout({
+      domain: 'shop.example.com',
+      customFetchApi: async () => Response.json({ result: { action: 'show_order', message } })
+    });
+    const response = await handlers.GET(new Request(
+      'https://shop.example.com/checkout/cardtocardpaymentresult/payment/304/identifier/payment-token'
+    ));
+    const html = await response.text();
+    expect(html.match(/<script/g)).toHaveLength(1);
+    expect(html).not.toContain('</script><script>');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const nonce = html.match(/<script nonce="([^"]+)">/)?.[1];
+    expect(response.headers.get('content-security-policy')).toContain(`script-src 'nonce-${nonce}'`);
+    const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)?.[1];
+    const replace = vi.fn();
+    new Function('sessionStorage', 'location', script!)(
+      { setItem: () => { throw new Error('storage disabled'); } }, { replace }
+    );
+    expect(replace).not.toHaveBeenCalled();
+    expect(html).toContain('سفارش شما با موفقیت ثبت شد');
   });
 
   it('verifies a gateway POST and redirects to the checkout status return', async () => {

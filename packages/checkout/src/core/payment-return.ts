@@ -22,7 +22,7 @@ export function stripPaymentStatusReturn(url: string | URL): string | undefined 
   }
 
   const resolution = parsedUrl.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.resolution);
-  if (resolution !== 'status' && resolution !== 'callback') {
+  if (resolution !== 'status' && resolution !== 'callback' && resolution !== 'result') {
     return undefined;
   }
 
@@ -132,7 +132,7 @@ export function parsePaymentReturnUrl(
 
 function parsePaymentStatusReturn(url: URL): CheckoutPaymentReturn | undefined {
   const resolution = url.searchParams.get(SAZITO_PAYMENT_STATUS_QUERY.resolution);
-  if (resolution !== 'status' && resolution !== 'callback') {
+  if (resolution !== 'status' && resolution !== 'callback' && resolution !== 'result') {
     return undefined;
   }
 

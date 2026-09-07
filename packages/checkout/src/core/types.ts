@@ -164,12 +164,14 @@ export interface CheckoutPaymentReturn {
   /**
    * `callback` forwards gateway fields for verification. `status` is emitted
    * by the SDK server handler after it has already verified the gateway POST,
-   * so the browser performs only an authoritative status read.
+   * so the browser performs a status read for an unsettled response. `result`
+   * consumes a confirmed show_order handed off by the server without another
+   * payment request.
    */
   resolution?: PaymentReturnResolution;
 }
 
-export type PaymentReturnResolution = 'callback' | 'status';
+export type PaymentReturnResolution = 'callback' | 'status' | 'result';
 
 /** Search-param shape exposed by current Next.js App Router pages. */
 export type PaymentReturnSearchParams = Record<

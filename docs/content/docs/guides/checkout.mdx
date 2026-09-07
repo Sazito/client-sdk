@@ -317,9 +317,12 @@ Gateway callbacks use a nested URL such as:
 ```
 
 The catch-all Route Handler from the setup section receives this URL. It parses
-the GET or POST fields, verifies the payment, and sends a `303` redirect to the
-configured `checkoutPath`. The checkout page then reads payment status and
-shows the result. If the status is pending, polling starts automatically.
+the GET or POST fields and verifies the payment. When the API returns
+`show_order`, it carries that confirmed result to `checkoutPath` using a small
+HTML response and tab-scoped storage. Checkout displays the original success
+without calling `process_payment_step` again. If storage is unavailable, the
+HTML response itself displays order confirmation. Other responses use a `303`
+redirect and a status read; pending results start polling automatically.
 
 Optional server settings:
 

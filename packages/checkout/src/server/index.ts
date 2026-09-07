@@ -14,7 +14,12 @@ import {
   parsePaymentReturnUrl,
   SAZITO_PAYMENT_STATUS_QUERY
 } from '../core/payment-return';
-import type { PaymentReturnParserOptions } from '../core/types';
+import type { PaymentReturnParserOptions, PaymentReturnResolution } from '../core/types';
+import {
+  verifiedPaymentResultKey,
+  VERIFIED_PAYMENT_RESULT_TTL,
+  type VerifiedPaymentSuccess
+} from '../core/verified-payment-result';
 
 const DEFAULT_CHECKOUT_PATH = '/checkout';
 const DEFAULT_MAX_BODY_BYTES = 64 * 1024;
@@ -62,7 +67,7 @@ export function SazitoCheckout(config: SazitoCheckoutServerConfig): SazitoChecko
 
       try {
         const callback = parsePaymentReturnUrl(request.url, parserOptions);
-        if (!callback || callback.resolution === 'status') {
+        if (!callback || callback.resolution) {
           return errorResponse(400, 'invalid_payment_callback');
         }
 
@@ -109,8 +114,11 @@ export function SazitoCheckout(config: SazitoCheckoutServerConfig): SazitoChecko
           requestUrl,
           checkoutPath,
           callback.payment,
-          'status'
+          verification.data.action === 'show_order' ? 'result' : 'status'
         );
+        if (verification.data.action === 'show_order') {
+          return verifiedResultResponse(redirectUrl, callback.payment, verification.data);
+        }
         return redirectResponse(redirectUrl);
       } catch (error) {
         if (config.debug) {
@@ -245,7 +253,7 @@ function createPaymentReturnRedirectUrl(
   requestUrl: URL,
   checkoutPath: string,
   payment: { id: number; identifier: string },
-  resolution: 'callback' | 'status'
+  resolution: PaymentReturnResolution
 ): URL {
   const redirectUrl = new URL(checkoutPath, requestUrl.origin);
   redirectUrl.searchParams.set(SAZITO_PAYMENT_STATUS_QUERY.resolution, resolution);
@@ -255,6 +263,44 @@ function createPaymentReturnRedirectUrl(
     payment.identifier
   );
   return redirectUrl;
+}
+
+/** Preserve the authoritative result across the full-page gateway return.
+ * A 303 followed by process_payment_step can finalize the same payment twice.
+ * This same-origin bridge carries the original result in tab-scoped storage;
+ * the checkout consumes it without sending another verification request.
+ */
+function verifiedResultResponse(
+  destination: URL,
+  payment: { id: number; identifier: string },
+  result: VerifiedPaymentSuccess
+): Response {
+  // Omit raw backend data; the normalized order is all the result UI needs.
+  const value = JSON.stringify({
+    payment,
+    action: { action: 'show_order', order: result.order, message: result.message },
+    expiresAt: Date.now() + VERIFIED_PAYMENT_RESULT_TTL
+  });
+  const nonce = crypto.randomUUID().replace(/-/g, '');
+  const script = `try { sessionStorage.setItem(${scriptJson(verifiedPaymentResultKey(payment))}, ${scriptJson(value)}); location.replace(${scriptJson(destination.toString())}); } catch { /* Keep the confirmed success visible if browser storage is unavailable. */ }`;
+  const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>سفارش ثبت شد</title></head><body><h1>سفارش شما با موفقیت ثبت شد</h1><p>Order confirmed.</p><script nonce="${nonce}">${script}</script></body></html>`;
+  return new Response(html, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': `default-src 'none'; script-src 'nonce-${nonce}'; base-uri 'none'; frame-ancestors 'none'`
+    }
+  });
+}
+
+function scriptJson(value: string): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }
 
 function redirectResponse(url: URL): Response {

@@ -81,9 +81,12 @@ export const { GET, POST } = SazitoCheckout({
 ```
 
 On return, the handler validates the callback, reads its query/form/JSON body,
-calls `payments.verifyPaymentCallback()`, and responds with `303 See Other` to
-`/checkout`. `SazitoCheckoutPage` recognizes that server-verified return and
-performs a status read instead of replaying the gateway payload in the browser.
+calls `payments.verifyPaymentCallback()`, and preserves a confirmed `show_order`
+result. A small HTML response carries that result through tab-scoped storage to
+`/checkout`, where checkout displays success without a second payment request.
+If storage is unavailable, the response itself displays order confirmation.
+Other responses continue through a `303` redirect and a status read; pending
+payments are polled until settled. No host component or route changes are needed.
 The empty payment-in-place POST is redirected for a single browser-side
 verification because that method completes the order on its first payment-step
 call.

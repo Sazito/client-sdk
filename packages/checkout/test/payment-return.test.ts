@@ -82,6 +82,16 @@ describe('parsePaymentReturn', () => {
     });
   });
 
+  it('parses and cleans a server-confirmed result return', () => {
+    const url = 'https://shop.example.com/checkout?sazito_payment_return=result&sazito_payment_id=308&sazito_payment_identifier=callback-token';
+    expect(parsePaymentReturnUrl(url)).toEqual({
+      payment: { id: 308, identifier: 'callback-token' },
+      params: { id: '308', paymentIdentifier: 'callback-token' },
+      resolution: 'result'
+    });
+    expect(stripPaymentStatusReturn(url)).toBe('/checkout');
+  });
+
   it('rejects malformed server status returns', () => {
     expect(parsePaymentReturnUrl(
       'https://shop.example.com/checkout?sazito_payment_return=status&sazito_payment_id=0&sazito_payment_identifier=token'

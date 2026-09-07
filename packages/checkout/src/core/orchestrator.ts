@@ -9,6 +9,7 @@ import { createSdkBinding, type CheckoutSdkBinding } from './sdk-binding';
 import { fromSdkError, makeError } from './errors';
 import { makeEvent } from './events';
 import { noopEffectExecutor } from './effects';
+import { consumeVerifiedPaymentResult } from './verified-payment-result';
 import {
   addressFormFromInvoice,
   addressFormFromSavedAddress,
@@ -282,6 +283,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
   }
 
   function failPaymentInitialization(message?: string, err?: CheckoutError): void {
+    if (get().result?.status === 'success') return;
     const locale = get().locale;
     const reason = message?.trim() || err?.message?.trim();
     const fallback = locale === 'fa'
@@ -312,6 +314,7 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
     traceId?: string,
     phase: 'initialize' | 'verification' = 'verification'
   ): void {
+    if (get().result?.status === 'success') return;
     logPaymentVerification(traceId, 'action_received', summarizePaymentAction(action));
     switch (action.action) {
       case 'REDIRECT':
@@ -851,6 +854,20 @@ export function createCheckoutEngine(options: CheckoutEngineOptions): CheckoutEn
           paymentIdentifier: input?.paymentIdentifier,
           payloadFieldNames: input?.payload ? Object.keys(input.payload) : []
         });
+        if (resolution === 'result') {
+          const verified = input?.id && input.paymentIdentifier
+            ? consumeVerifiedPaymentResult({ id: input.id, identifier: input.paymentIdentifier })
+            : undefined;
+          if (!verified) {
+            // Never infer success from a URL flag or replay a finalized payment
+            // when its server-provided handoff is missing.
+            failResult(makeError('payment_failed', get().locale, 'result').message);
+            return;
+          }
+          binding.credentials.clearPaymentCredentials();
+          handlePaymentAction(verified, traceId);
+          return;
+        }
         if (
           input?.id != null &&
           Number.isInteger(input.id) &&

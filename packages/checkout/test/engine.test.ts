@@ -992,6 +992,23 @@ describe('checkout engine — happy path', () => {
     expect(engine.getState().result?.status).toBe('success');
   });
 
+  it('does not let a late pending poll overwrite show_order with failure', async () => {
+    const { engine, client } = setup();
+    let finishPoll!: (value: never) => void;
+    client.payments.verify.mockResolvedValueOnce({ data: { action: 'pending' } } as never);
+    client.payments.pollUntilSettled.mockImplementationOnce(() => new Promise((resolve) => {
+      finishPoll = resolve;
+    }));
+    await engine.actions.resolvePaymentReturn({ id: '304', paymentIdentifier: 'token' });
+    await engine.actions.resolvePaymentReturn({ id: '304', paymentIdentifier: 'token' }, 'status');
+    expect(engine.getState().result?.status).toBe('success');
+
+    finishPoll({ data: { action: 'payment_fail_error' } } as never);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(engine.getState().result?.status).toBe('success');
+  });
+
   it('normalizes nullable result collections from older SDK versions', async () => {
     const { engine, client } = setup();
     client.payments.verify.mockResolvedValueOnce({
