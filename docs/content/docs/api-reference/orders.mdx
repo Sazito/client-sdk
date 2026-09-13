@@ -1,15 +1,15 @@
 ---
 title: Orders
-description: Authenticated order listing and detail retrieval.
+description: Authenticated order listing and public detail retrieval with an ID and identifier.
 ---
 
 ## Module role in sales flow
 
-`orders` is for post-checkout access in authenticated sessions.
+`orders` provides authenticated order history and public order detail access using an ID and identifier.
 
 - Use this module for order history and order detail pages after checkout.
 - For guest checkout completion, immediate order data comes from `payments.initialize()` when `action === 'show_order'` or `action === 'pending'`.
-- After user login, use `orders.list`/`orders.get` for long-term order retrieval.
+- After user login, use `orders.list` for order history. Use `orders.get` with the order's ID and `orderIdentifier` for detail retrieval; login is not required for this public lookup.
 
 These methods return the account `Order` contract. Payment completion returns a
 separate [`CheckoutOrder`](/docs/api-reference/payments#checkoutorder). Account
@@ -20,6 +20,8 @@ items remain `InvoiceItem[]`; existing account fixtures do not need checkout tot
 ### List
 
 Use: `orders.list(filters?, options?)`.
+
+Requires authentication.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -40,23 +42,32 @@ const ordersRes = await client.orders.list({
 
 ### Get
 
-Use: `orders.get(orderId, options?)`.
+Use: `orders.get(orderId, orderIdentifier, options?)`.
+
+Both credentials are required, including for signed-in users. The request is
+`GET /api/v1/orders/{orderId}?identifier={orderIdentifier}`. Treat the identifier
+as a secret: the backend must reject missing or mismatched identifiers to prevent
+access through guessed IDs. SDK validation alone cannot enforce backend access control.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `orderId` | `number` | Required | Order ID. |
+| `orderId` | `number \| string` | Required | Order ID. |
+| `orderIdentifier` | `string` | Required | The order's `orderIdentifier` token, sent as the `identifier` query parameter. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<Order>`.
 
 ```ts
 const ordersRes = await client.orders.list({ pageNumber: 1, pageSize: 1 });
-const firstOrderId = ordersRes.data?.orders?.[0]?.id;
+const firstOrder = ordersRes.data?.orders?.[0];
 
-if (firstOrderId) {
-  const orderRes = await client.orders.get(firstOrderId);
+if (firstOrder) {
+  const orderRes = await client.orders.get(firstOrder.id, firstOrder.orderIdentifier);
 }
 ```
+
+Migration: replace `orders.get(id, options?)` with
+`orders.get(id, orderIdentifier, options?)`. ID-only calls are no longer supported.
 
 ## `Order` key fields
 
@@ -74,7 +85,8 @@ if (firstOrderId) {
 
 | Type | When it happens |
 | --- | --- |
-| `api` | Missing/invalid authentication token or inaccessible order. |
+| `validation` | Missing/invalid order ID or missing/blank order identifier; no request is sent. |
+| `api` | Missing/invalid authentication for listing, or an inaccessible order / mismatched identifier for detail retrieval. |
 
 ## Examples
 

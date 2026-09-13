@@ -151,6 +151,7 @@ client from a domain.
 | `paymentReturn` | `CheckoutPaymentReturn` | Optional callback data for custom integrations. The server handler setup does not require this prop. |
 | `paymentReturnParams` | `Record<string, string>` | Legacy query-only callback parameters. The server handler setup does not require this prop. |
 | `className` | `string` | Extra class on the root element. |
+| `getOrderDetailsUrl` | `(order: CheckoutOrder) => string \| null` | Build the result screen's order-details link using your theme's routes and host. Return `null` to hide it. |
 | `renderNextButton` | `(props: RenderButtonProps) => ReactNode` | Replace the continue / next button across all steps. |
 | `renderBackButton` | `(props: RenderButtonProps) => ReactNode` | Replace the back button across all steps. |
 | `emptyCart` | `EmptyCartOptions` | Customize the built-in empty state's title, description, icon, action label, or action URL. |
@@ -445,6 +446,41 @@ Use `renderEmptyCart` when the storefront has its own empty-state component:
   )}
 />
 ```
+
+## Customizing the order detail link
+
+Set `getOrderDetailsUrl` on `SazitoCheckoutPage` (or `SazitoCheckout`) to use your
+storefront's order detail route. The callback receives the completed order,
+including `id` and `orderIdentifier`. Include both in the URL so the destination
+can call `client.orders.get(id, orderIdentifier)`.
+
+```tsx
+'use client';
+
+import { SazitoCheckoutPage } from '@sazito/checkout/next';
+
+export function ThemeCheckout() {
+  return (
+    <SazitoCheckoutPage
+      config={{ locale: 'fa', continueShoppingUrl: '/fa/products' }}
+      getOrderDetailsUrl={(order) =>
+        `/fa/orders/${encodeURIComponent(String(order.id))}?identifier=${encodeURIComponent(order.orderIdentifier)}`
+      }
+    />
+  );
+}
+```
+
+The returned URL is used as supplied: return a relative path for the current
+host, or an absolute URL such as `https://shop.example.com/fa/orders/...` for a
+different storefront host. Encode dynamic path and query values. Define the
+callback in a Client Component in Next.js, inside the existing `SazitoProvider`.
+
+Without this prop, checkout keeps `/orderinfo/{id}/{identifier}`, using the
+origin of `continueShoppingUrl` when it is absolute. Returning `null` hides the
+order-details action without falling back to that default. The link continues
+to open in a new tab. No callback runs when the payment result has no order.
+If you supply `renderResult`, your custom renderer owns its links.
 
 ## Replacing the result screen
 

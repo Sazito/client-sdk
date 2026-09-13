@@ -86,7 +86,7 @@ if (res.error) {
 
 ```ts
 // API route usage
-const res = await client.orders.get(123);
+const res = await client.orders.get(123, orderIdentifier);
 if (res.error) {
   const appError = mapSazitoError(res.error);
 

@@ -7,7 +7,7 @@ import { createSazitoClient, MemoryStorage } from '@sazito/client-sdk';
 import { CheckoutProvider } from '../src/react/provider';
 import { SazitoProvider } from '../src/react/client-context';
 import { useCheckout } from '../src/react/use-checkout';
-import { SazitoCheckoutPage } from '../src/next/SazitoCheckoutPage';
+import { SazitoCheckoutPage, type SazitoCheckoutPageProps } from '../src/next/SazitoCheckoutPage';
 import { SazitoCheckout as createCheckoutHandlers } from '../src/server';
 import { verifiedPaymentResultKey } from '../src/core/verified-payment-result';
 
@@ -45,12 +45,18 @@ it('does not infer success from a result URL without a server-provided confirmat
   expect(customFetchApi).not.toHaveBeenCalled();
 });
 
-it('opens order details in a new tab after a confirmed payment', async () => {
+it.each([
+  { name: 'default route', expected: '/orderinfo/290/token%2B%2F%26%3F%3D%23' },
+  { name: 'default route on the storefront host', continueShoppingUrl: 'https://store.example.com/products', expected: 'https://store.example.com/orderinfo/290/token%2B%2F%26%3F%3D%23' },
+  { name: 'theme route', customBase: '/fa/account/orders', expected: '/fa/account/orders/290?identifier=token%2B%2F%26%3F%3D%23' },
+  { name: 'theme host and route', customBase: 'https://theme.example.com/shop/orders', continueShoppingUrl: 'https://store.example.com/products', expected: 'https://theme.example.com/shop/orders/290?identifier=token%2B%2F%26%3F%3D%23' },
+  { name: 'hidden link', hide: true, expected: null }
+])('uses $name for order details after a confirmed payment', async ({ customBase, continueShoppingUrl, hide, expected }) => {
   const payment = { id: 304, identifier: 'test-payment' };
   const order = {
     id: 290,
     orderNumber: 'OR290',
-    orderIdentifier: '71d2c3ab895b75688d4ff344d7b545f5',
+    orderIdentifier: 'token+/&?=#',
     invoice: { invoiceItems: [], shippingItems: [] }
   };
   sessionStorage.setItem(verifiedPaymentResultKey(payment), JSON.stringify({
@@ -69,13 +75,25 @@ it('opens order details in a new tab after a confirmed payment', async () => {
     domain: 'shop.example.com',
     customFetchApi: vi.fn(async () => Response.json({ result: true }))
   });
+  const getOrderDetailsUrl = vi.fn<NonNullable<SazitoCheckoutPageProps['getOrderDetailsUrl']>>((value) => hide
+    ? null
+    : `${customBase}/${encodeURIComponent(String(value.id))}?identifier=${encodeURIComponent(value.orderIdentifier)}`);
 
   await act(async () => root.render(createElement(SazitoProvider, {
     client,
-    children: createElement(SazitoCheckoutPage, { config: { locale: 'fa' } })
+    children: createElement(SazitoCheckoutPage, {
+      config: { locale: 'fa', continueShoppingUrl },
+      getOrderDetailsUrl: customBase || hide ? getOrderDetailsUrl : undefined
+    })
   })));
 
-  const link = container.querySelector<HTMLAnchorElement>('a[href*="/orderinfo/290/"]');
+  const link = container.querySelector<HTMLAnchorElement>('a[target="_blank"]');
+  if (customBase || hide) expect(getOrderDetailsUrl).toHaveBeenCalledWith(order);
+  if (expected === null) {
+    expect(link).toBeNull();
+    return;
+  }
+  expect(link?.getAttribute('href')).toBe(expected);
   expect(link?.textContent).toBe('جزئیات سفارش');
   expect(link?.target).toBe('_blank');
   expect(link?.rel).toBe('noopener noreferrer');

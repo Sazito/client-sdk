@@ -172,6 +172,26 @@ The built-in empty-cart screen can be customized without replacing its layout:
 For complete control, use `renderEmptyCart`; it receives the resolved title,
 description, action label, icon, and continue-shopping URL.
 
+Customize just the order-details link with `getOrderDetailsUrl` on
+`SazitoCheckoutPage` or `SazitoCheckout`:
+
+```tsx
+<SazitoCheckoutPage
+  config={{ continueShoppingUrl: '/fa/products' }}
+  getOrderDetailsUrl={(order) =>
+    `/fa/orders/${encodeURIComponent(String(order.id))}?identifier=${encodeURIComponent(order.orderIdentifier)}`
+  }
+/>
+```
+
+The callback receives the full `CheckoutOrder`. Return a relative path or an
+absolute URL for your theme's host and routes, keeping both `id` and
+`orderIdentifier` so the destination can call `client.orders.get(id, orderIdentifier)`.
+The URL is used as supplied. Return `null` to hide the link. Without the callback,
+the default remains `/orderinfo/{id}/{identifier}` on the origin of an absolute
+`continueShoppingUrl`, or the current host otherwise. The link opens in a new
+tab. Define this callback inside a Client Component when using Next.js.
+
 The post-payment screen has the same replacement path through `renderResult`:
 
 ```tsx

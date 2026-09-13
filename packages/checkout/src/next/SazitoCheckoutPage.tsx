@@ -5,6 +5,7 @@ import type React from 'react';
 import { CheckoutProvider, useCheckout, useSazitoClient } from '../react';
 import {
   SazitoCheckout,
+  type SazitoCheckoutProps,
   type EmptyCartOptions,
   type RenderButtonProps,
   type RenderEmptyCartProps,
@@ -26,6 +27,8 @@ export interface SazitoCheckoutPageProps {
   /** @deprecated Prefer `paymentReturn`; retained for query-only callbacks. */
   paymentReturnParams?: Record<string, string>;
   className?: string;
+  /** Build the order-details link for your storefront routes; return null to hide it. */
+  getOrderDetailsUrl?: SazitoCheckoutProps['getOrderDetailsUrl'];
   renderNextButton?: (props: RenderButtonProps) => React.ReactNode;
   renderBackButton?: (props: RenderButtonProps) => React.ReactNode;
   renderEmptyCart?: (props: RenderEmptyCartProps) => React.ReactNode;
@@ -39,6 +42,7 @@ export function SazitoCheckoutPage({
   paymentReturn,
   paymentReturnParams,
   className,
+  getOrderDetailsUrl,
   renderNextButton,
   renderBackButton,
   renderEmptyCart,
@@ -79,6 +83,7 @@ export function SazitoCheckoutPage({
         theme={config?.theme}
         continueShoppingUrl={config?.continueShoppingUrl}
         className={className}
+        getOrderDetailsUrl={getOrderDetailsUrl}
         renderNextButton={renderNextButton}
         renderBackButton={renderBackButton}
         renderEmptyCart={renderEmptyCart}

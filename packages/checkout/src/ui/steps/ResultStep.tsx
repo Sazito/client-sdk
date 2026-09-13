@@ -7,6 +7,7 @@ import {
   type CheckoutShippingItem
 } from '../../core';
 import { Button, ProductPlaceholder, Spinner } from '../primitives';
+import type { SazitoCheckoutProps } from '../SazitoCheckout';
 
 interface ResultShipmentGroup {
   shipping: CheckoutShippingItem;
@@ -48,7 +49,7 @@ export function groupResultItemsByShipping(
   };
 }
 
-export function ResultStep({ continueShoppingUrl }: { continueShoppingUrl?: string }) {
+export function ResultStep({ continueShoppingUrl, getOrderDetailsUrl }: Pick<SazitoCheckoutProps, 'continueShoppingUrl' | 'getOrderDetailsUrl'>) {
   const { state, actions, money, t } = useCheckout();
   const result = state.result;
   const status = result?.status ?? 'pending';
@@ -58,7 +59,9 @@ export function ResultStep({ continueShoppingUrl }: { continueShoppingUrl?: stri
   const showSummary = invoice?.netTotal != null || invoice?.finalTotal != null;
   const isFailure = status === 'failed' || status === 'stock_violated';
   const orderDetailsUrl = order
-    ? buildOrderDetailsUrl(order.id, order.orderIdentifier, continueShoppingUrl)
+    ? getOrderDetailsUrl
+      ? getOrderDetailsUrl(order)
+      : buildOrderDetailsUrl(order.id, order.orderIdentifier, continueShoppingUrl)
     : null;
   const groupedItems = invoice
     ? groupResultItemsByShipping(invoice.invoiceItems, invoice.shippingItems)

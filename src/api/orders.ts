@@ -1,6 +1,6 @@
 /**
  * Orders API
- * Requires authentication
+ * Authenticated order listing and public detail retrieval using ID and identifier
  */
 
 import { HttpClient } from '../core/http-client';
@@ -45,13 +45,29 @@ export class OrdersAPI {
   }
 
   /**
-   * Get single order by ID (requires authentication)
+   * Get a public order by ID and its secret order identifier.
+   * The backend must validate that the identifier belongs to this order.
    */
   async get(
     orderId: OrderPublicId,
+    orderIdentifier: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<Order>> {
-    const response = await this.http.get<Order>(`${ORDERS_API}/${orderId}`, options);
+    const id = typeof orderId === 'string' ? orderId.trim() : orderId;
+    if (!((typeof id === 'string' && id.length > 0) ||
+      (typeof id === 'number' && Number.isSafeInteger(id) && id >= 0))) {
+      return { error: { type: 'validation', message: 'Order ID is required and must be valid.' } };
+    }
+
+    const identifier = typeof orderIdentifier === 'string' ? orderIdentifier.trim() : '';
+    if (!identifier) {
+      return { error: { type: 'validation', message: 'Order identifier is required.' } };
+    }
+
+    const response = await this.http.get<Order>(`${ORDERS_API}/${encodeURIComponent(String(id))}`, {
+      ...options,
+      params: { identifier }
+    });
     return response.data
       ? { data: transformOrderResponse<Order>(response.data) }
       : response;

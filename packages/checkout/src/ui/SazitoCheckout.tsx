@@ -70,6 +70,8 @@ export interface EmptyCartOptions {
 export interface SazitoCheckoutProps {
   theme?: CheckoutTheme;
   continueShoppingUrl?: string;
+  /** Build the order-details link for your storefront routes; return null to hide it. */
+  getOrderDetailsUrl?: (order: CheckoutOrder) => string | null;
   className?: string;
   renderNextButton?: (props: RenderButtonProps) => ReactNode;
   renderBackButton?: (props: RenderButtonProps) => ReactNode;
@@ -114,6 +116,7 @@ function CheckoutLoading({ label }: { label: string }) {
 export function SazitoCheckout({
   theme,
   continueShoppingUrl,
+  getOrderDetailsUrl,
   className,
   renderNextButton,
   renderBackButton,
@@ -325,7 +328,7 @@ export function SazitoCheckout({
               onRetry: () => void actions.retryPayment()
             })
           ) : (
-            <ResultStep continueShoppingUrl={continueShoppingUrl} />
+            <ResultStep continueShoppingUrl={continueShoppingUrl} getOrderDetailsUrl={getOrderDetailsUrl} />
           )}
         </div>
       ) : (

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createSazitoClient } from '../../../src/index';
 import type { CheckoutInvoice, CheckoutOrder, InvoiceItem, Order } from '../../../src/index';
 
@@ -74,7 +74,7 @@ describe('account orders remain independent of payment completion', () => {
 
     let order: Order | undefined;
     if (method === 'get') {
-      order = (await client.orders.get(123)).data;
+      order = (await client.orders.get(123, 'order-token')).data;
     } else {
       const response = await client.orders.list({ pageNumber: 2, pageSize: 10 });
       expect(response.data).toMatchObject({
@@ -88,5 +88,64 @@ describe('account orders remain independent of payment completion', () => {
     expect(order?.invoice.invoiceItems[0]).toMatchObject(accountOrder.invoice.invoiceItems[0]);
     expect(order?.invoice.invoiceItems[0]).not.toHaveProperty('singleItemPrice');
     expect(order?.invoice.invoiceItems[0]).not.toHaveProperty('productVariant');
+  });
+});
+
+describe('public order detail credentials', () => {
+  it.each([123, '123'])('sends ID %s and an encoded identifier while preserving request options', async (id) => {
+    const fetchApi = vi.fn(async () => new Response(JSON.stringify({ result: { order: rawAccountOrder } }), {
+      headers: { 'Content-Type': 'application/json' }
+    }));
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const controller = new AbortController();
+    const response = await client.orders.get(id, ' token+/&?=# ', {
+      headers: { 'X-Request-ID': 'order-detail' }, signal: controller.signal
+    });
+
+    const [url, init] = fetchApi.mock.calls[0] as unknown as [string, RequestInit];
+    expect(new URL(url).pathname).toBe('/api/v1/orders/123');
+    expect([...new URL(url).searchParams.entries()]).toEqual([['identifier', 'token+/&?=#']]);
+    expect(new Headers(init.headers).get('X-Request-ID')).toBe('order-detail');
+    expect(init.signal).toBe(controller.signal);
+    expect(response.data?.id).toBe(123);
+  });
+
+  it.each([undefined, null, '', '   ', 123, { cache: false }])('rejects invalid identifier %j before fetching', async (identifier) => {
+    const fetchApi = vi.fn();
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const response = await client.orders.get(123, identifier as string);
+    expect(response.error).toEqual({ type: 'validation', message: 'Order identifier is required.' });
+    expect(fetchApi).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, '', '   ', NaN, -1, 1.5])('rejects invalid ID %j before fetching', async (id) => {
+    const fetchApi = vi.fn();
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const response = await client.orders.get(id as number, 'order-token');
+    expect(response.error?.type).toBe('validation');
+    expect(fetchApi).not.toHaveBeenCalled();
+  });
+
+  it('returns a backend rejection for a mismatched identifier without an ID-only fallback', async () => {
+    const fetchApi = vi.fn(async () => new Response(JSON.stringify({ message: 'Order not found' }), { status: 404 }));
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const response = await client.orders.get(123, 'wrong-token');
+    expect(response.error).toMatchObject({ type: 'api', status: 404 });
+    expect(fetchApi).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reuse a cached order for a different identifier', async () => {
+    const fetchApi = vi.fn(async () => new Response(JSON.stringify({ result: { order: rawAccountOrder } }), {
+      headers: { 'Content-Type': 'application/json' }
+    }));
+    const client = createSazitoClient({
+      domain: 'shop.example.com', customFetchApi: fetchApi,
+      cache: { orders: { enabled: true, ttl: 60000 } }
+    });
+    await client.orders.get(123, 'first-token');
+    await client.orders.get(123, 'first-token');
+    expect(fetchApi).toHaveBeenCalledTimes(1);
+    await client.orders.get(123, 'second-token');
+    expect(fetchApi).toHaveBeenCalledTimes(2);
   });
 });
