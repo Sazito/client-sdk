@@ -736,8 +736,7 @@ const OPERATIONS = [
         label: 'Product Name',
         type: 'text',
         section: 'request',
-        defaultValue: 'Sample Product',
-        required: true
+        defaultValue: 'Sample Product'
       },
       {
         key: 'input.productRate',
@@ -767,8 +766,7 @@ const OPERATIONS = [
         label: 'Review Text',
         type: 'text',
         section: 'request',
-        defaultValue: 'Great product and quality.',
-        required: true
+        defaultValue: 'Great product and quality.'
       },
       {
         key: 'input.productAttributes',

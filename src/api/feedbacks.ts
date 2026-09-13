@@ -29,6 +29,8 @@ export interface FeedbackProductImage {
 }
 
 export interface FeedbackSeedItem {
+  /** Additional backend seed fields are retained for product submission. */
+  [key: string]: unknown;
   productId: string;
   productVariantId: string;
   productName: string;
@@ -44,7 +46,7 @@ export interface FeedbackSeed {
 }
 
 export interface CreateOrderRatingInput {
-  orderId: string;
+  orderId: string | number;
   orderIdentifier: string;
   orderRate: number;
 }
@@ -54,20 +56,22 @@ export interface CommentResponse {
 }
 
 export interface ProductReviewRequest {
-  commentId: string;
-  productId: string;
-  productVariantId: string;
-  productName: string;
-  productAttributes: FeedbackProductAttribute[];
-  productImage: FeedbackProductImage;
+  /** Spread the selected FeedbackSeedItem to retain backend-specific fields. */
+  [key: string]: unknown;
+  commentId: string | number;
+  productId: string | number;
+  productVariantId: string | number;
+  productName?: string;
+  productAttributes?: FeedbackProductAttribute[];
+  productImage?: FeedbackProductImage;
   productRate: number;
-  text: string;
-  pros: string[];
-  cons: string[];
-  recommendationStatus: RecommendationStatus;
-  attachmentsServeKeys: string[];
-  owner: boolean;
-  isAnonymous: boolean;
+  text?: string;
+  pros?: string[];
+  cons?: string[];
+  recommendationStatus?: RecommendationStatus;
+  attachmentsServeKeys?: string[];
+  owner?: boolean;
+  isAnonymous?: boolean;
 }
 
 export interface ProductStatistics {
@@ -175,25 +179,58 @@ export interface FeedbackFilters {
 export class FeedbacksAPI {
   constructor(private http: HttpClient) {}
 
-  private normalizeSeedItem(item: any): FeedbackSeedItem {
+  private validId(value: unknown): value is string | number {
+    return (typeof value === 'string' && value.trim().length > 0) ||
+      (typeof value === 'number' && Number.isSafeInteger(value) && value > 0);
+  }
+
+  private validRating(value: unknown): value is number {
+    return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5;
+  }
+
+  private normalizeSeedItem(item: any): FeedbackSeedItem | null {
+    const productId = item?.product_id ?? item?.productId;
+    const productVariantId = item?.product_variant_id ?? item?.productVariantId;
+    if (!this.validId(productId) || !this.validId(productVariantId)) return null;
+
+    // Keep unknown seed fields in their original wire format, including nested
+    // values. The general response transformer can rename or collide these keys.
+    const extra = { ...item };
+    for (const key of [
+      'product_id', 'productId', 'product_variant_id', 'productVariantId',
+      'product_name', 'productName', 'name', 'product_attributes', 'productAttributes',
+      'attributes', 'product_image', 'productImage', 'image'
+    ]) delete extra[key];
+
+    const attributes = item.product_attributes ?? item.productAttributes ?? item.attributes;
     return {
-      productId: String(item?.productId ?? ''),
-      productVariantId: String(item?.productVariantId ?? ''),
-      productName: String(item?.productName ?? item?.name ?? ''),
-      productAttributes: Array.isArray(item?.productAttributes)
-        ? item.productAttributes
-        : Array.isArray(item?.attributes) ? item.attributes : [],
-      productImage: item?.productImage || item?.image || { url: '', alt: '' }
+      ...extra,
+      productId: String(productId).trim(),
+      productVariantId: String(productVariantId).trim(),
+      productName: String(item.product_name ?? item.productName ?? item.name ?? ''),
+      productAttributes: Array.isArray(attributes) ? attributes : [],
+      productImage: item.product_image ?? item.productImage ?? item.image ?? { url: '', alt: '' }
     };
   }
 
-  private normalizeSeed(data: any): FeedbackSeed {
-    const items = Array.isArray(data?.items) ? data.items : [];
+  private normalizeSeed(data: any, identifier: string): FeedbackSeed | null {
+    const orderId = data?.order_id ?? data?.orderId;
+    const orderIdentifier = data?.order_identifier ?? data?.orderIdentifier;
+    const hasCommentAlready = data?.has_comment_already ?? data?.hasCommentAlready;
+    if (!this.validId(orderId) || orderIdentifier !== identifier ||
+      typeof hasCommentAlready !== 'boolean' || !Array.isArray(data?.items)) return null;
+
+    const items: FeedbackSeedItem[] = [];
+    for (const item of data.items) {
+      const normalized = this.normalizeSeedItem(item);
+      if (!normalized) return null;
+      items.push(normalized);
+    }
     return {
-      orderId: String(data?.orderId ?? ''),
-      orderIdentifier: String(data?.orderIdentifier ?? ''),
-      hasCommentAlready: Boolean(data?.hasCommentAlready),
-      items: items.map((item: any) => this.normalizeSeedItem(item))
+      orderId: String(orderId).trim(),
+      orderIdentifier,
+      hasCommentAlready,
+      items
     };
   }
 
@@ -245,14 +282,24 @@ export class FeedbacksAPI {
     orderIdentifier: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<FeedbackSeed>> {
-    const response = await this.http.get<any>(`${FEEDBACKS_SEED_API}/${orderIdentifier}`, options);
-
-    if (response.data) {
-      const seedData = response.data.seed || response.data.data || response.data;
-      return { data: this.normalizeSeed(seedData) };
+    const identifier = typeof orderIdentifier === 'string' ? orderIdentifier.trim() : '';
+    if (!identifier) {
+      return { error: { type: 'validation', message: 'Order identifier is required.' } };
     }
 
-    return response;
+    const response = await this.http.get<any>(`${FEEDBACKS_SEED_API}/${encodeURIComponent(identifier)}`, {
+      ...options,
+      cache: false,
+      skipTransform: true
+    });
+    if (response.error) return response;
+
+    const body = response.data?.result ?? response.data;
+    const seedData = body?.seed ?? body?.data ?? body;
+    const seed = this.normalizeSeed(seedData, identifier);
+    return seed
+      ? { data: seed }
+      : { error: { type: 'api', message: 'Feedback seed is invalid or does not match the requested order.' } };
   }
 
   /**
@@ -262,14 +309,28 @@ export class FeedbacksAPI {
     input: CreateOrderRatingInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<CommentResponse>> {
-    const response = await this.http.post<any>(FEEDBACKS_COMMENTS_API, input, options);
-
-    if (response.data) {
-      const id = response.data.id ?? response.data.commentId ?? response.data.comment?.id;
-      return { data: { id: String(id ?? '') } };
+    if (!this.validId(input?.orderId)) {
+      return { error: { type: 'validation', message: 'Order ID is required and must be valid.' } };
+    }
+    const identifier = typeof input.orderIdentifier === 'string' ? input.orderIdentifier.trim() : '';
+    if (!identifier) {
+      return { error: { type: 'validation', message: 'Order identifier is required.' } };
+    }
+    if (!this.validRating(input.orderRate)) {
+      return { error: { type: 'validation', message: 'Order rating must be an integer from 1 to 5.' } };
     }
 
-    return response;
+    const response = await this.http.post<any>(FEEDBACKS_COMMENTS_API, {
+      orderId: typeof input.orderId === 'string' ? input.orderId.trim() : input.orderId,
+      orderIdentifier: identifier,
+      orderRate: input.orderRate
+    }, { ...options, retries: 0, skipTransform: false });
+    if (response.error) return response;
+
+    const id = response.data?.id ?? response.data?.commentId ?? response.data?.comment?.id;
+    return this.validId(id)
+      ? { data: { id: String(id).trim() } }
+      : { error: { type: 'api', message: 'Order rating response is missing a valid comment ID. Check the seed before submitting again.' } };
   }
 
   /**
@@ -279,7 +340,53 @@ export class FeedbacksAPI {
     input: ProductReviewRequest,
     options?: RequestOptions
   ): Promise<SazitoResponse<void>> {
-    return this.http.post<void>(FEEDBACKS_COMMENT_DETAILS_API, input, options);
+    if (!this.validId(input?.commentId) || !this.validId(input?.productId) || !this.validId(input?.productVariantId)) {
+      return { error: { type: 'validation', message: 'Comment ID, product ID, and product variant ID are required.' } };
+    }
+    if (!this.validRating(input.productRate)) {
+      return { error: { type: 'validation', message: 'Product rating must be an integer from 1 to 5.' } };
+    }
+    const recommendationStatus = input.recommendationStatus ?? 'NONE';
+    if (!['RECOMMENDED', 'NEUTRAL', 'NOT-RECOMMENDED', 'NONE'].includes(recommendationStatus)) {
+      return { error: { type: 'validation', message: 'Recommendation status is invalid.' } };
+    }
+    for (const key of ['pros', 'cons', 'attachmentsServeKeys'] as const) {
+      const values = input[key];
+      if (values !== undefined && (!Array.isArray(values) || values.some(value =>
+        typeof value !== 'string' || (key === 'attachmentsServeKeys' && !value.trim())))) {
+        return { error: { type: 'validation', message: `${key} must contain strings${key === 'attachmentsServeKeys' ? ' with completed, non-empty serve keys' : ''}.` } };
+      }
+    }
+    if ((input.text !== undefined && typeof input.text !== 'string') ||
+      (input.isAnonymous !== undefined && typeof input.isAnonymous !== 'boolean') ||
+      (input.owner !== undefined && typeof input.owner !== 'boolean')) {
+      return { error: { type: 'validation', message: 'Review text must be a string and anonymity/owner must be booleans.' } };
+    }
+
+    const seedFields = { ...input };
+    for (const key of [
+      'commentId', 'productId', 'productVariantId', 'productRate', 'productName',
+      'productAttributes', 'productImage', 'recommendationStatus', 'attachmentsServeKeys', 'isAnonymous'
+    ]) delete seedFields[key];
+
+    return this.http.post<void>(FEEDBACKS_COMMENT_DETAILS_API, {
+      ...seedFields,
+      ...(input.productName !== undefined ? { product_name: input.productName } : {}),
+      ...(input.productAttributes !== undefined ? { product_attributes: input.productAttributes } : {}),
+      ...(input.productImage !== undefined ? { product_image: input.productImage } : {}),
+      // Apply validated values after seed extras, including snake_case keys.
+      comment_id: typeof input.commentId === 'string' ? input.commentId.trim() : input.commentId,
+      product_id: typeof input.productId === 'string' ? input.productId.trim() : input.productId,
+      product_variant_id: typeof input.productVariantId === 'string' ? input.productVariantId.trim() : input.productVariantId,
+      product_rate: input.productRate,
+      text: input.text ?? '',
+      pros: input.pros ?? [],
+      cons: input.cons ?? [],
+      recommendation_status: recommendationStatus,
+      attachments_serve_keys: input.attachmentsServeKeys ?? [],
+      owner: input.owner ?? true,
+      is_anonymous: input.isAnonymous ?? false
+    }, { ...options, retries: 0, skipRequestTransform: true });
   }
 
   /**
@@ -375,6 +482,7 @@ export class FeedbacksAPI {
 
   /**
    * Legacy create method kept for backwards compatibility.
+   * @deprecated For order feedback, use getSeed, createOrderRating, then submitProductReview.
    */
   async create(
     input: CreateFeedbackInput,

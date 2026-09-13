@@ -5,6 +5,22 @@ description: Tajrobe review flow (seed, order rating, product reviews, stats, an
 
 ## Review flow methods
 
+For Profile → Orders feedback, use `getSeed` → `createOrderRating` →
+`submitProductReview`. The legacy `create()` endpoint is a different API.
+
+Show **ثبت دیدگاه** only when both normalized flags are true:
+`generalInfo.settings.features.tajrobeEnabled === true` and
+`generalInfo.settings.tajrobe.enabled === true`. These correspond to
+`features.activate_tajrobe.enabled` and `tajrobe.configurations.enabled` in the
+raw general-info response. Require the selected order's non-empty
+`orderIdentifier`; never use its display `orderNumber`. There is no order-status
+filter in the supplied storefront flow.
+
+For a hosted flow, open `/review/{encodedOrderIdentifier}` on the storefront
+origin in a new tab. For your own UI, use the calls below. They reuse the SDK's
+configured HTTP client and session; same-origin storefront calls do not establish
+cross-origin authentication or CORS guarantees.
+
 ### Get Seed
 
 Use: `feedbacks.getSeed(orderIdentifier, options?)`.
@@ -13,10 +29,20 @@ Gets review seed data from `/api/v1/feedbacks/seed/{orderIdentifier}`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `orderIdentifier` | `string` | Required | Order identifier from order/invoice. |
+| `orderIdentifier` | `string` | Required | Selected order's `orderIdentifier` token. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<FeedbackSeed>`.
+
+The identifier is validated and URL-encoded. Seeds are fetched fresh to avoid
+reusing stale `hasCommentAlready` state. Malformed seeds and seeds for another
+identifier return an `api` error. IDs in the returned seed remain strings;
+additional item fields are retained in their original wire format. Spread the
+whole selected seed item when submitting its review.
+
+When `hasCommentAlready` is true, show completion without creating another
+comment. An empty `items` array is returned as-is: decide how to handle it before
+starting a submission; backend completion behavior for empty orders is unconfirmed.
 
 ### Create Order Rating
 
@@ -26,12 +52,17 @@ Submits order-level rating to `/api/v1/feedbacks/comments`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `input.orderId` | `string` | Required | Order ID. |
-| `input.orderIdentifier` | `string` | Required | Order identifier. |
-| `input.orderRate` | `number` | Required | Order rate (`1..5`). |
+| `input.orderId` | `number \| string` | Required | Order ID from the seed. |
+| `input.orderIdentifier` | `string` | Required | Order identifier from the same seed. |
+| `input.orderRate` | `number` | Required | Integer order rate (`1..5`). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<{ id: string }>` where `id` is `commentId`.
+
+Both credentials are required at runtime. Invalid input returns a `validation`
+error without sending a request. The wire body contains `order_id`,
+`order_identifier`, and `order_rate`. An HTTP success without a valid comment ID
+returns an `api` error; do not advance or blindly create another rating.
 
 ### Submit Product Review
 
@@ -39,23 +70,32 @@ Use: `feedbacks.submitProductReview(input, options?)`.
 
 Submits product review payload to `/api/v1/feedbacks/comments/details`.
 
-Required fields include:
-- `commentId`
-- `productId`
-- `productVariantId`
-- `productName`
-- `productRate`
-- `text`
-- `recommendationStatus`
-- `productAttributes`
-- `productImage`
-- `pros`
-- `cons`
-- `attachmentsServeKeys`
-- `owner`
-- `isAnonymous`
+| Field | Type | Required / default |
+| --- | --- | --- |
+| `commentId` | `number \| string` | Required; use the successful store-rating response ID. |
+| `productId`, `productVariantId` | `number \| string` | Required; use the selected seed item. |
+| `productRate` | `number` | Required integer from 1 to 5. |
+| `productName`, `productAttributes`, `productImage`, additional seed fields | Seed item fields | Preserve them by spreading the seed item. |
+| `text` | `string` | Optional; defaults to `''`. |
+| `pros`, `cons` | `string[]` | Optional; default to `[]`. |
+| `recommendationStatus` | `'RECOMMENDED' \| 'NEUTRAL' \| 'NOT-RECOMMENDED' \| 'NONE'` | Optional; defaults to `'NONE'`. |
+| `isAnonymous` | `boolean` | Optional; defaults to `false`. |
+| `attachmentsServeKeys` | `string[]` | Optional; defaults to `[]`. Only completed non-empty serve keys. |
+| `owner` | `boolean` | Optional; defaults to `true` for order feedback. |
 
 Returns: `SazitoResponse<void>`.
+
+Product requests use `comment_id`, `product_id`, and `product_variant_id`;
+the ID/identifier order pair is sent in the preceding store-rating request.
+Submit products sequentially and advance only after each success.
+
+`createOrderRating` and `submitProductReview` force `retries: 0`, including when
+request options or global configuration enable retries. Backend idempotency,
+duplicate protection, and partial-completion recovery remain unconfirmed. The
+SDK does not automatically resume submissions or prevent separate repeated calls.
+Keep the returned comment ID and successful product progress in the host UI;
+retain inputs and stop on failures. Do not claim completion until every product
+submission succeeds. A network failure can have an unknown server outcome.
 
 ### Get Product Statistics
 
@@ -92,6 +132,12 @@ Uploads review images to `/api/v1/service/filemanager/uploads/public/tajrobe`.
 
 Returns: `SazitoResponse<{ images: ReviewUploadedImage[] }>` where each image includes `serveKey`.
 
+Wait for uploads to complete, then pass `images.map(image => image.serveKey)` to
+the review request. Disable submission while uploads or requests are pending.
+The SDK can reject empty/invalid keys but cannot verify that a key belongs to a
+completed upload. Ratings, inputs, error messages, RTL layout, and accessible
+controls belong to the host UI.
+
 ## Legacy methods (backward compatibility)
 
 - `feedbacks.list(filters?, options?)`
@@ -103,26 +149,24 @@ These call legacy `/api/v1/feedbacks` endpoints and are kept for existing integr
 ## Example: End-to-end review submission
 
 ```ts
-const seed = await client.feedbacks.getSeed('ORDER-1001');
+// Check both feature flags before showing the action in your UI.
+const seed = await client.feedbacks.getSeed(selectedOrder.orderIdentifier);
 if (seed.error) throw new Error(seed.error.message);
 
-if (!seed.data?.hasCommentAlready) {
+if (!seed.data.hasCommentAlready && seed.data.items.length > 0) {
   const orderRating = await client.feedbacks.createOrderRating({
-    orderId: seed.data?.orderId ?? '',
-    orderIdentifier: seed.data?.orderIdentifier ?? '',
+    orderId: seed.data.orderId,
+    orderIdentifier: seed.data.orderIdentifier,
     orderRate: 5
   });
   if (orderRating.error) throw new Error(orderRating.error.message);
 
-  const first = seed.data?.items?.[0];
-  if (first) {
+  // Save this ID and progress in host state; never recreate the rating on a
+  // product failure. This loop illustrates a first submission, not recovery.
+  for (const item of seed.data.items) {
     const productReview = await client.feedbacks.submitProductReview({
-      commentId: orderRating.data?.id ?? '',
-      productId: first.productId,
-      productVariantId: first.productVariantId,
-      productName: first.productName,
-      productAttributes: first.productAttributes,
-      productImage: first.productImage,
+      ...item,
+      commentId: orderRating.data.id,
       productRate: 5,
       text: 'Great product.',
       pros: ['Quality'],
@@ -137,10 +181,169 @@ if (!seed.data?.hasCommentAlready) {
 }
 ```
 
+Use the customer's chosen ratings and draft fields in a real UI. Show a thank-you
+state after all product submissions succeed, explain that publication follows
+store approval, and offer a return action to Orders. If seed loading fails,
+show an explicit unavailable state or return to the storefront.
+
 {/* AUTO_FIELDS_START */}
 ## Type Details
 
 The following tables are generated from SDK TypeScript types and include nested object fields.
+
+#### FeedbackSeedItem
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `[key: string]` | `unknown` | N/A |
+| `productId` | `string` | Required |
+| `productVariantId` | `string` | Required |
+| `productName` | `string` | Required |
+| `productAttributes` | `FeedbackProductAttribute[]` | Required |
+| `productImage` | `FeedbackProductImage` | Required |
+
+#### FeedbackSeed
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `orderId` | `string` | Required |
+| `orderIdentifier` | `string` | Required |
+| `hasCommentAlready` | `boolean` | Required |
+| `items` | `FeedbackSeedItem[]` | Required |
+
+#### CreateOrderRatingInput
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `orderId` | `string \| number` | Required |
+| `orderIdentifier` | `string` | Required |
+| `orderRate` | `number` | Required |
+
+#### CommentResponse
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `string` | Required |
+
+#### ProductReviewRequest
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `[key: string]` | `unknown` | N/A |
+| `commentId` | `string \| number` | Required |
+| `productId` | `string \| number` | Required |
+| `productVariantId` | `string \| number` | Required |
+| `productName` | `string` | Optional |
+| `productAttributes` | `FeedbackProductAttribute[]` | Optional |
+| `productImage` | `FeedbackProductImage` | Optional |
+| `productRate` | `number` | Required |
+| `text` | `string` | Optional |
+| `pros` | `string[]` | Optional |
+| `cons` | `string[]` | Optional |
+| `recommendationStatus` | `RecommendationStatus` | Optional |
+| `attachmentsServeKeys` | `string[]` | Optional |
+| `owner` | `boolean` | Optional |
+| `isAnonymous` | `boolean` | Optional |
+
+#### ProductStatistics
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `productStatistics` | `{     averageRate: number;     totalCount: number;     recommendations: {       recommendedPercentage: number;       recommendedTotalCount: number;     };   }` | Required |
+| `productStatistics.averageRate` | `number` | Required |
+| `productStatistics.totalCount` | `number` | Required |
+| `productStatistics.recommendations` | `{       recommendedPercentage: number;       recommendedTotalCount: number;     }` | Required |
+| `productStatistics.recommendations.recommendedPercentage` | `number` | Required |
+| `productStatistics.recommendations.recommendedTotalCount` | `number` | Required |
+
+#### ProductReview
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `productRate` | `number` | Required |
+| `userFirstName` | `string` | Required |
+| `userLastName` | `string` | Required |
+| `createdAt` | `string` | Required |
+| `owner` | `boolean` | Required |
+| `text` | `string` | Required |
+| `recommendationStatus` | `RecommendationStatus` | Required |
+| `pros` | `string[]` | Required |
+| `cons` | `string[]` | Required |
+| `isAnonymous` | `boolean` | Required |
+| `metadata` | `{     variantOptions: any[];     productName: string;     variantId: string;   }` | Required |
+| `metadata.variantOptions` | `any[]` | Required |
+| `metadata.productName` | `string` | Required |
+| `metadata.variantId` | `string` | Required |
+| `attachments` | `Array<{     serveUrl: string;   }>` | Required |
+| `attachments.[].serveUrl` | `string` | Required |
+
+#### ProductReviewsFilters
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `pageNumber` | `number` | Optional |
+| `pageSize` | `number` | Optional |
+
+#### ProductReviewsResponse
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `entities` | `ProductReview[]` | Required |
+| `pageNumber` | `number` | Required |
+| `pageSize` | `number` | Required |
+| `totalCount` | `number` | Required |
+| `averageRate` | `number` | Required |
+| `recommendations` | `{     recommendedPercentage: number;     recommendedTotalCount: number;   }` | Required |
+| `recommendations.recommendedPercentage` | `number` | Required |
+| `recommendations.recommendedTotalCount` | `number` | Required |
+
+#### ReviewAttachmentInput
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `file` | `File \| Blob` | Required |
+| `name` | `string` | Optional |
+| `alt` | `string` | Optional |
+
+#### ReviewUploadedImage
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `string` | Required |
+| `url` | `string` | Required |
+| `alt` | `string` | Required |
+| `serveUrl` | `string` | Required |
+| `serveKey` | `string` | Required |
+
+#### ReviewImageUploadResponse
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `images` | `ReviewUploadedImage[]` | Required |
 
 #### FeedbackFilters
 
@@ -179,4 +382,3 @@ Source: `src/api/feedbacks.ts`
 | `createdAt` | `string` | Required |
 | `updatedAt` | `string` | Required |
 {/* AUTO_FIELDS_END */}
-

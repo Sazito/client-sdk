@@ -12,6 +12,26 @@ export type { SazitoConfig, CacheConfig, RetryConfig } from './core/config';
 // Types
 export * from './types';
 export type { SearchFilters } from './api/search';
+export type {
+  RecommendationStatus,
+  FeedbackProductAttribute,
+  FeedbackProductImage,
+  FeedbackSeedItem,
+  FeedbackSeed,
+  CreateOrderRatingInput,
+  CommentResponse,
+  ProductReviewRequest,
+  ProductStatistics,
+  ProductReview,
+  ProductReviewsFilters,
+  ProductReviewsResponse,
+  ReviewAttachmentInput,
+  ReviewUploadedImage,
+  ReviewImageUploadResponse,
+  Feedback,
+  CreateFeedbackInput,
+  FeedbackFilters
+} from './api/feedbacks';
 
 // For advanced usage
 export { HttpClient } from './core/http-client';

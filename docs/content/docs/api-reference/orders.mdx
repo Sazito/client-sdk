@@ -45,14 +45,14 @@ const ordersRes = await client.orders.list({
 Use: `orders.get(orderId, orderIdentifier, options?)`.
 
 Both credentials are required, including for signed-in users. The request is
-`GET /api/v1/orders/{orderId}?identifier={orderIdentifier}`. Treat the identifier
+`GET /api/v1/orders/{orderId}?order_identifier={orderIdentifier}`. Treat the identifier
 as a secret: the backend must reject missing or mismatched identifiers to prevent
 access through guessed IDs. SDK validation alone cannot enforce backend access control.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `orderId` | `number \| string` | Required | Order ID. |
-| `orderIdentifier` | `string` | Required | The order's `orderIdentifier` token, sent as the `identifier` query parameter. |
+| `orderIdentifier` | `string` | Required | The order's `orderIdentifier` token, sent as the `order_identifier` query parameter. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<Order>`.

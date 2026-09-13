@@ -104,7 +104,7 @@ describe('public order detail credentials', () => {
 
     const [url, init] = fetchApi.mock.calls[0] as unknown as [string, RequestInit];
     expect(new URL(url).pathname).toBe('/api/v1/orders/123');
-    expect([...new URL(url).searchParams.entries()]).toEqual([['identifier', 'token+/&?=#']]);
+    expect([...new URL(url).searchParams.entries()]).toEqual([['order_identifier', 'token+/&?=#']]);
     expect(new Headers(init.headers).get('X-Request-ID')).toBe('order-detail');
     expect(init.signal).toBe(controller.signal);
     expect(response.data?.id).toBe(123);

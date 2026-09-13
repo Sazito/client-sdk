@@ -47,6 +47,7 @@ export class OrdersAPI {
   /**
    * Get a public order by ID and its secret order identifier.
    * The backend must validate that the identifier belongs to this order.
+   * Sends `GET /api/v1/orders/{id}?order_identifier={orderIdentifier}`.
    */
   async get(
     orderId: OrderPublicId,
@@ -66,7 +67,7 @@ export class OrdersAPI {
 
     const response = await this.http.get<Order>(`${ORDERS_API}/${encodeURIComponent(String(id))}`, {
       ...options,
-      params: { identifier }
+      params: { orderIdentifier: identifier }
     });
     return response.data
       ? { data: transformOrderResponse<Order>(response.data) }
