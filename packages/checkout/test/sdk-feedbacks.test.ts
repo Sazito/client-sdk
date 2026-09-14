@@ -73,11 +73,12 @@ describe('creating order feedback', () => {
     expect(init?.method).toBe('POST');
     expect(init?.signal).toBe(controller.signal);
     expect(new Headers(init?.headers).get('X-Request-ID')).toBe('feedback');
-    expect(JSON.parse(String(init?.body))).toEqual({ order_id: orderId, order_identifier: 'order-token', order_rate: 5 });
+    expect(JSON.parse(String(init?.body))).toEqual({ order_id: Number(orderId), order_identifier: 'order-token', order_rate: 5 });
   });
 
   it.each([
     undefined, { ...rating, orderId: undefined }, { ...rating, orderId: '' }, { ...rating, orderId: -1 },
+    { ...rating, orderId: 'not-a-number' }, { ...rating, orderId: '1.5' },
     { ...rating, orderIdentifier: undefined }, { ...rating, orderIdentifier: '  ' },
     ...[0, 6, 2.5, NaN, '5'].map(orderRate => ({ ...rating, orderRate }))
   ])('rejects invalid order credentials or rating before posting', async (input) => {

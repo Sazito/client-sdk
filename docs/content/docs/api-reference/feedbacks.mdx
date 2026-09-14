@@ -52,14 +52,15 @@ Submits order-level rating to `/api/v1/feedbacks/comments`.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `input.orderId` | `number \| string` | Required | Order ID from the seed. |
+| `input.orderId` | `number \| string` | Required | Positive integer order ID from the seed; numeric strings are converted to JSON numbers. |
 | `input.orderIdentifier` | `string` | Required | Order identifier from the same seed. |
 | `input.orderRate` | `number` | Required | Integer order rate (`1..5`). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<{ id: string }>` where `id` is `commentId`.
 
-Both credentials are required at runtime. Invalid input returns a `validation`
+Both credentials are required at runtime. The order ID is sent as a JSON number,
+even when the seed exposes it as a string. Invalid input returns a `validation`
 error without sending a request. The wire body contains `order_id`,
 `order_identifier`, and `order_rate`. An HTTP success without a valid comment ID
 returns an `api` error; do not advance or blindly create another rating.

@@ -188,6 +188,12 @@ export class FeedbacksAPI {
     return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5;
   }
 
+  private normalizeOrderId(value: unknown): number | null {
+    if (!this.validId(value)) return null;
+    const numericId = typeof value === 'number' ? value : Number(value.trim());
+    return Number.isSafeInteger(numericId) && numericId > 0 ? numericId : null;
+  }
+
   private normalizeSeedItem(item: any): FeedbackSeedItem | null {
     const productId = item?.product_id ?? item?.productId;
     const productVariantId = item?.product_variant_id ?? item?.productVariantId;
@@ -309,7 +315,8 @@ export class FeedbacksAPI {
     input: CreateOrderRatingInput,
     options?: RequestOptions
   ): Promise<SazitoResponse<CommentResponse>> {
-    if (!this.validId(input?.orderId)) {
+    const orderId = this.normalizeOrderId(input?.orderId);
+    if (orderId === null) {
       return { error: { type: 'validation', message: 'Order ID is required and must be valid.' } };
     }
     const identifier = typeof input.orderIdentifier === 'string' ? input.orderIdentifier.trim() : '';
@@ -321,7 +328,7 @@ export class FeedbacksAPI {
     }
 
     const response = await this.http.post<any>(FEEDBACKS_COMMENTS_API, {
-      orderId: typeof input.orderId === 'string' ? input.orderId.trim() : input.orderId,
+      orderId,
       orderIdentifier: identifier,
       orderRate: input.orderRate
     }, { ...options, retries: 0, skipTransform: false });
