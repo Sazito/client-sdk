@@ -1,12 +1,12 @@
 ---
 title: Feedbacks
-description: Tajrobe review flow (seed, order rating, product reviews, stats, and uploads) plus legacy feedback endpoints.
+description: Tajrobe review flow (seed, order rating, product reviews, stats, and uploads).
 ---
 
 ## Review flow methods
 
 For Profile → Orders feedback, use `getSeed` → `createOrderRating` →
-`submitProductReview`. The legacy `create()` endpoint is a different API.
+`submitProductReview`.
 
 Show **ثبت دیدگاه** only when both normalized flags are true:
 `generalInfo.settings.features.tajrobeEnabled === true` and
@@ -20,6 +20,48 @@ For a hosted flow, open `/review/{encodedOrderIdentifier}` on the storefront
 origin in a new tab. For your own UI, use the calls below. They reuse the SDK's
 configured HTTP client and session; same-origin storefront calls do not establish
 cross-origin authentication or CORS guarantees.
+
+### Use the complete flow helper
+
+`feedbacks.submitOrderFeedback(input, options?)` is the shortest safe integration
+for a native UI. It loads a fresh seed (or accepts one already loaded by the
+host), skips already-submitted orders, creates one order rating, and submits the
+selected product reviews sequentially. Build each review with
+`buildProductReviewInput(item, commentId, draft)` when you need to use the
+lower-level methods yourself.
+
+```ts
+const seedResponse = await client.feedbacks.getSeed(selectedOrder.orderIdentifier);
+if (seedResponse.error) throw new Error(seedResponse.error.message);
+const seed = seedResponse.data;
+
+const result = await client.feedbacks.submitOrderFeedback({
+  orderIdentifier: selectedOrder.orderIdentifier,
+  orderRate: 5,
+  seed, // Reuse the seed rendered by the form; this avoids a second GET.
+  reviews: seed.items.map((item) => ({
+    item,
+    draft: {
+      productRate: 5,
+      text: 'Great quality.',
+      pros: ['Quality'],
+      recommendationStatus: 'RECOMMENDED'
+    }
+  }))
+});
+
+if (result.error) {
+  // result.error.details.feedback contains commentId and submittedProductCount.
+  // Keep the form values and resume product requests; do not create another rating.
+} else if (result.data.status === 'already_submitted') {
+  // Show the completion state without posting again.
+}
+```
+
+The helper accepts an empty or partial `reviews` array for UIs where product
+reviews are optional. It rejects items that do not belong to the loaded seed or
+that are repeated. State-changing requests are sequential and never retried
+automatically; a product failure returns progress so the host can resume safely.
 
 ### Get Seed
 
@@ -138,17 +180,39 @@ Returns: `SazitoResponse<{ images: ReviewUploadedImage[] }>` where each image in
 
 Wait for uploads to complete, then pass `images.map(image => image.serveKey)` to
 the review request. Disable submission while uploads or requests are pending.
-The SDK can reject empty/invalid keys but cannot verify that a key belongs to a
-completed upload. Ratings, inputs, error messages, RTL layout, and accessible
-controls belong to the host UI.
+The SDK rejects empty files, empty upload lists, and responses without completed
+serve keys before the review request is sent. The current storefront request
+uses these multipart field names:
 
-## Legacy methods (backward compatibility)
+```text
+images[][file]
+images[][name]
+images[][alt]
+```
 
-- `feedbacks.list(filters?, options?)`
-- `feedbacks.create(input, options?)`
-- `feedbacks.get(feedbackId, options?)`
+`images[][file]` carries the actual bytes. `images[][name]` and `images[][alt]`
+are metadata fields; both are optional in `ReviewAttachmentInput`, and the SDK
+fills sensible defaults when they are omitted. The field names above are based
+on the captured storefront request; the repository does not contain a server
+schema that establishes whether Sazito validates either metadata field.
 
-These call legacy `/api/v1/feedbacks` endpoints and are kept for existing integrations.
+Do not set `Content-Type: multipart/form-data` yourself. The browser must add the
+boundary generated for the `FormData` body. A manually copied request that uses
+`--data-raw` with empty file sections has no image bytes and will normally receive
+a `400` response. To replay an upload with cURL, use `-F` and actual local files:
+
+```bash
+curl 'http://localhost:3000/api/sazito/api/v1/service/filemanager/uploads/public/tajrobe' \
+  -H 'authorization: YOUR_TOKEN' \
+  -H 'x-forwarded-host: your-store.example' \
+  -F 'images[][file]=@/path/to/review.webp;type=image/webp' \
+  -F 'images[][name]=review.webp' \
+  -F 'images[][alt]='
+```
+
+The SDK removes caller-provided multipart `Content-Type` headers so `fetch` can
+create the correct boundary. Ratings, inputs, error messages, RTL layout, and
+accessible controls belong to the host UI.
 
 ## Example: End-to-end review submission
 
@@ -259,6 +323,46 @@ Source: `src/api/feedbacks.ts`
 | `owner` | `boolean` | Optional |
 | `isAnonymous` | `boolean` | Optional |
 
+#### ProductReviewDraft
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `productRate` | `number` | Required |
+| `text` | `string` | Optional |
+| `pros` | `string[]` | Optional |
+| `cons` | `string[]` | Optional |
+| `recommendationStatus` | `RecommendationStatus` | Optional |
+| `attachmentsServeKeys` | `string[]` | Optional |
+| `owner` | `boolean` | Optional |
+| `isAnonymous` | `boolean` | Optional |
+
+#### SubmitOrderFeedbackInput
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `orderIdentifier` | `string` | Required |
+| `orderRate` | `number` | Required |
+| `seed` | `FeedbackSeed` | Optional |
+| `reviews` | `Array<{     item: FeedbackSeedItem;     draft: ProductReviewDraft;   }>` | Optional |
+| `reviews.[].item` | `FeedbackSeedItem` | Required |
+| `reviews.[].draft` | `ProductReviewDraft` | Required |
+
+#### SubmitOrderFeedbackResult
+
+Source: `src/api/feedbacks.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `status` | `'submitted' \| 'already_submitted'` | Required |
+| `seed` | `FeedbackSeed` | Required |
+| `commentId` | `string` | Optional |
+| `submittedProductCount` | `number` | Required |
+| `requestedProductCount` | `number` | Required |
+
 #### ProductStatistics
 
 Source: `src/api/feedbacks.ts`
@@ -349,40 +453,4 @@ Source: `src/api/feedbacks.ts`
 | --- | --- | --- |
 | `images` | `ReviewUploadedImage[]` | Required |
 
-#### FeedbackFilters
-
-Source: `src/api/feedbacks.ts`
-
-| Field | Type | Required |
-| --- | --- | --- |
-| `productId` | `number` | Optional |
-| `page` | `number` | Optional |
-| `pageSize` | `number` | Optional |
-
-#### CreateFeedbackInput
-
-Source: `src/api/feedbacks.ts`
-
-| Field | Type | Required |
-| --- | --- | --- |
-| `productId` | `number` | Optional |
-| `rating` | `number` | Optional |
-| `comment` | `string` | Required |
-
-#### Feedback
-
-Source: `src/api/feedbacks.ts`
-
-| Field | Type | Required |
-| --- | --- | --- |
-| `id` | `number` | Required |
-| `user` | `{     id: number;     name: string;   }` | Optional |
-| `user.id` | `number` | Required |
-| `user.name` | `string` | Required |
-| `productId` | `number` | Optional |
-| `rating` | `number` | Optional |
-| `comment` | `string` | Required |
-| `status` | `'pending' \| 'approved' \| 'rejected'` | Required |
-| `createdAt` | `string` | Required |
-| `updatedAt` | `string` | Required |
 {/* AUTO_FIELDS_END */}

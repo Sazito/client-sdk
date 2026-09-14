@@ -268,7 +268,7 @@ The client instance exposes:
 | `payments` | `getMethods`, `create`, `initialize`, `verify`, `verifyPaymentCallback`, `getPaymentStep`, `processStep`, `processStepForm`, `pollUntilSettled`, `clearPayment` |
 | `users` | `login`, `requestMobileOTP`, `verifyMobileOTP`, `requestEmailLogin`, `register`, `getCurrentUser`, `updateProfile`, `requestMobilePhoneUpdate`, `verifyMobilePhoneUpdate`, `forgotPassword`, `revivePassword`, `mergeUser` |
 | `search` | `query` |
-| `feedbacks` | `getSeed`, `createOrderRating`, `submitProductReview`, `getProductStatistics`, `getProductReviews`, `uploadReviewImages`, `list`, `create`, `get` |
+| `feedbacks` | `getSeed`, `createOrderRating`, `submitOrderFeedback`, `submitProductReview`, `getProductStatistics`, `getProductReviews`, `uploadReviewImages` |
 | `wallet` | `getBalance`, `applyCredit`, `removeCredit`, `listTransactions` |
 | `cms` | `getPage`, `listPages`, `getBlogPost`, `listBlogPosts`, `listAll` |
 | `images` | `upload`, `delete` |

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSazitoClient } from '../../../src/index';
+import { buildProductReviewInput } from '../../../src/index';
 import type { CreateOrderRatingInput, ProductReviewRequest } from '../../../src/index';
 
 const item = {
@@ -95,6 +96,21 @@ describe('creating order feedback', () => {
 });
 
 describe('product review submission', () => {
+  it('builds a review from a seed item while retaining backend fields', () => {
+    expect(buildProductReviewInput({
+      productId: '456', productVariantId: '789', productName: 'Shoes',
+      productAttributes: item.product_attributes, productImage: item.product_image,
+      fulfillment_details: item.fulfillment_details
+    }, 'comment-token', { productRate: 5, text: ' Great ', pros: ['Quality'] })).toEqual({
+      productId: '456', productVariantId: '789', productName: 'Shoes',
+      productAttributes: item.product_attributes, productImage: item.product_image,
+      fulfillment_details: item.fulfillment_details,
+      commentId: 'comment-token', productRate: 5, text: ' Great ', pros: ['Quality'],
+      cons: [], recommendationStatus: 'NONE', attachmentsServeKeys: [], owner: true,
+      isAnonymous: false
+    });
+  });
+
   it('does not let seed extras override validated submission fields', async () => {
     const fetchApi = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => json({ result: {} }));
     const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
@@ -178,5 +194,108 @@ describe('product review submission', () => {
       : await client.feedbacks.submitProductReview(review, { retries: 3 });
     expect(response.error).toMatchObject({ type: 'api', status: 503 });
     expect(fetchApi).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('complete feedback submission', () => {
+  it('loads the seed, creates one rating, then submits product reviews sequentially', async () => {
+    const calls: string[] = [];
+    const fetchApi = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(url)).pathname;
+      calls.push(`${init?.method}:${path}`);
+      if (path.includes('/seed/')) return json({ result: { seed } });
+      if (path.endsWith('/feedbacks/comments')) return json({ result: { id: 'comment-token' } });
+      return json({ result: {} });
+    });
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const response = await client.feedbacks.submitOrderFeedback({
+      orderIdentifier: 'order-token', orderRate: 5,
+      reviews: [{ item: (await client.feedbacks.getSeed('order-token')).data!.items[0], draft: { productRate: 4 } }]
+    });
+    expect(response.data).toMatchObject({ status: 'submitted', commentId: 'comment-token', submittedProductCount: 1 });
+    expect(calls.slice(-3)).toEqual([
+      'GET:/api/v1/feedbacks/seed/order-token',
+      'POST:/api/v1/feedbacks/comments',
+      'POST:/api/v1/feedbacks/comments/details'
+    ]);
+  });
+
+  it('reuses a seed supplied by the host instead of fetching it again', async () => {
+    const fetchApi = vi.fn(async (url: RequestInfo | URL) => {
+      const path = new URL(String(url)).pathname;
+      return path.endsWith('/feedbacks/comments') ? json({ result: { id: 'comment-token' } }) : json({ result: {} });
+    });
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const response = await client.feedbacks.submitOrderFeedback({
+      orderIdentifier: 'order-token', orderRate: 5, seed: {
+        orderId: '123', orderIdentifier: 'order-token', hasCommentAlready: false,
+        items: [{ ...item, productId: '456', productVariantId: '789', productName: 'Shoes', productAttributes: item.product_attributes, productImage: item.product_image }]
+      },
+      reviews: [{
+        item: { ...item, productId: '456', productVariantId: '789', productName: 'Shoes', productAttributes: item.product_attributes, productImage: item.product_image },
+        draft: { productRate: 4 }
+      }]
+    });
+    expect(response.data?.submittedProductCount).toBe(1);
+    expect(fetchApi.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+      '/api/v1/feedbacks/comments', '/api/v1/feedbacks/comments/details'
+    ]);
+  });
+
+  it('returns progress when a product submission fails and never creates another rating', async () => {
+    let detailsCalls = 0;
+    const fetchApi = vi.fn(async (url: RequestInfo | URL) => {
+      const path = new URL(String(url)).pathname;
+      if (path.includes('/seed/')) return json({ result: { seed: { ...seed, items: [item, { ...item, product_id: 457 }] } } });
+      if (path.endsWith('/feedbacks/comments')) return json({ result: { id: 'comment-token' } });
+      detailsCalls += 1;
+      return detailsCalls === 1 ? json({ result: {} }) : json({ message: 'failed' }, 422);
+    });
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const loaded = await client.feedbacks.getSeed('order-token');
+    const response = await client.feedbacks.submitOrderFeedback({
+      orderIdentifier: 'order-token', orderRate: 5,
+      reviews: loaded.data!.items.map(item => ({ item, draft: { productRate: 4 } }))
+    });
+    expect(response.error).toMatchObject({ type: 'api', status: 422 });
+    expect(response.error?.details).toMatchObject({ feedback: {
+      commentId: 'comment-token', submittedProductCount: 1, requestedProductCount: 2
+    } });
+    expect(fetchApi.mock.calls.filter(([url]) => new URL(String(url)).pathname.endsWith('/feedbacks/comments')).length).toBe(1);
+  });
+
+  it('does not create a rating when the seed is already submitted', async () => {
+    const fetchApi = vi.fn(async () => json({ result: { seed: { ...seed, has_comment_already: true } } }));
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const response = await client.feedbacks.submitOrderFeedback({ orderIdentifier: 'order-token', orderRate: 5 });
+    expect(response.data).toMatchObject({ status: 'already_submitted', submittedProductCount: 0 });
+    expect(fetchApi).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('feedback image uploads', () => {
+  it.each([{ images: [] }, { images: [{ file: new Blob([]) }] }])('rejects $images before making an upload request', async ({ images }) => {
+    const fetchApi = vi.fn();
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    expect((await client.feedbacks.uploadReviewImages(images as any)).error?.type).toBe('validation');
+    expect(fetchApi).not.toHaveBeenCalled();
+  });
+
+  it('sends non-empty multipart files and normalizes completed serve keys', async () => {
+    const fetchApi = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = init?.body as FormData;
+      expect(body.getAll('images[][file]')).toHaveLength(1);
+      expect((body.getAll('images[][file]')[0] as File).name).toBe('review.webp');
+      expect(body.getAll('images[][name]')).toEqual(['review.webp']);
+      expect(body.getAll('images[][alt]')).toEqual(['']);
+      expect(Object.keys(Object.fromEntries(new Headers(init?.headers).entries()))
+        .some(key => key === 'content-type')).toBe(false);
+      return json({ result: { images: [{ id: 1, serve_key: 'serve-1' }] } });
+    });
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    const response = await client.feedbacks.uploadReviewImages([{
+      file: new Blob(['image-bytes'], { type: 'image/webp' }), name: 'review.webp'
+    }], { headers: { 'content-type': 'multipart/form-data' } });
+    expect(response).toEqual({ data: { images: [{ id: '1', url: '', alt: '', serveUrl: '', serveKey: 'serve-1' }] } });
   });
 });

@@ -5,11 +5,9 @@
 import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
-  PaginatedResponse,
   RequestOptions
 } from '../types';
 import {
-  FEEDBACKS_API,
   FEEDBACKS_SEED_API,
   FEEDBACKS_COMMENTS_API,
   FEEDBACKS_COMMENT_DETAILS_API,
@@ -74,6 +72,74 @@ export interface ProductReviewRequest {
   attachmentsServeKeys?: string[];
   owner?: boolean;
   isAnonymous?: boolean;
+}
+
+/**
+ * The editable part of a product review. Use `buildProductReviewInput` to
+ * combine this draft with an item returned by `getSeed`.
+ */
+export interface ProductReviewDraft {
+  productRate: number;
+  text?: string;
+  pros?: string[];
+  cons?: string[];
+  recommendationStatus?: RecommendationStatus;
+  attachmentsServeKeys?: string[];
+  owner?: boolean;
+  isAnonymous?: boolean;
+}
+
+/**
+ * Build the wire-ready product review input from a seed item. This keeps all
+ * backend-specific fields returned by the seed while applying the user's
+ * editable values in one place.
+ */
+export function buildProductReviewInput(
+  item: FeedbackSeedItem,
+  commentId: string | number,
+  draft: ProductReviewDraft
+): ProductReviewRequest {
+  return {
+    ...item,
+    commentId,
+    productId: item.productId,
+    productVariantId: item.productVariantId,
+    productName: item.productName,
+    productAttributes: item.productAttributes,
+    productImage: item.productImage,
+    productRate: draft.productRate,
+    text: draft.text ?? '',
+    pros: draft.pros ?? [],
+    cons: draft.cons ?? [],
+    recommendationStatus: draft.recommendationStatus ?? 'NONE',
+    attachmentsServeKeys: draft.attachmentsServeKeys ?? [],
+    owner: draft.owner ?? true,
+    isAnonymous: draft.isAnonymous ?? false
+  };
+}
+
+export interface SubmitOrderFeedbackInput {
+  /** Order identifier used to load and validate the feedback seed. */
+  orderIdentifier: string;
+  orderRate: number;
+  /**
+   * Optional seed already loaded by the host. Supplying it avoids a second
+   * seed request when the UI needs the items to render its form.
+   */
+  seed?: FeedbackSeed;
+  /** Product reviews to submit, in the desired order. */
+  reviews?: Array<{
+    item: FeedbackSeedItem;
+    draft: ProductReviewDraft;
+  }>;
+}
+
+export interface SubmitOrderFeedbackResult {
+  status: 'submitted' | 'already_submitted';
+  seed: FeedbackSeed;
+  commentId?: string;
+  submittedProductCount: number;
+  requestedProductCount: number;
 }
 
 export interface ProductStatistics {
@@ -141,41 +207,6 @@ export interface ReviewUploadedImage {
 
 export interface ReviewImageUploadResponse {
   images: ReviewUploadedImage[];
-}
-
-/**
- * Legacy feedback model kept for backwards compatibility.
- */
-export interface Feedback {
-  id: number;
-  user?: {
-    id: number;
-    name: string;
-  };
-  productId?: number;
-  rating?: number;
-  comment: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
- * Legacy create payload kept for backwards compatibility.
- */
-export interface CreateFeedbackInput {
-  productId?: number;
-  rating?: number;
-  comment: string;
-}
-
-/**
- * Legacy filters kept for backwards compatibility.
- */
-export interface FeedbackFilters {
-  productId?: number;
-  page?: number;
-  pageSize?: number;
 }
 
 export class FeedbacksAPI {
@@ -271,18 +302,6 @@ export class FeedbacksAPI {
     };
   }
 
-  private transformLegacyFilters(filters?: FeedbackFilters): Record<string, any> {
-    if (!filters) return {};
-
-    const params: Record<string, any> = {};
-
-    if (filters.productId !== undefined) params.product_id = filters.productId;
-    if (filters.page !== undefined) params.page = filters.page;
-    if (filters.pageSize !== undefined) params.page_size = filters.pageSize;
-
-    return params;
-  }
-
   /**
    * Validate order and get products that can be reviewed.
    */
@@ -321,7 +340,7 @@ export class FeedbacksAPI {
     if (orderId === null) {
       return { error: { type: 'validation', message: 'Order ID is required and must be valid.' } };
     }
-    const identifier = typeof input.orderIdentifier === 'string' ? input.orderIdentifier.trim() : '';
+    const identifier = typeof input?.orderIdentifier === 'string' ? input.orderIdentifier.trim() : '';
     if (!identifier) {
       return { error: { type: 'validation', message: 'Order identifier is required.' } };
     }
@@ -343,6 +362,114 @@ export class FeedbacksAPI {
   }
 
   /**
+   * Run the complete feedback flow in a safe, sequential order.
+   *
+   * The seed is always loaded first. An already-submitted seed returns a
+   * successful completion result without creating another comment. Product
+   * submissions stop at the first failure and the returned error includes the
+   * comment ID and progress so the host can resume without recreating the
+   * order rating.
+   */
+  async submitOrderFeedback(
+    input: SubmitOrderFeedbackInput,
+    options?: RequestOptions
+  ): Promise<SazitoResponse<SubmitOrderFeedbackResult>> {
+    const identifier = typeof input?.orderIdentifier === 'string' ? input.orderIdentifier.trim() : '';
+    if (!identifier) {
+      return { error: { type: 'validation', message: 'Order identifier is required.' } };
+    }
+    if (!this.validRating(input?.orderRate)) {
+      return { error: { type: 'validation', message: 'Order rating must be an integer from 1 to 5.' } };
+    }
+
+    let seed: FeedbackSeed;
+    if (input.seed) {
+      if (input.seed.orderIdentifier !== identifier || !this.validId(input.seed.orderId) ||
+        typeof input.seed.hasCommentAlready !== 'boolean' || !Array.isArray(input.seed.items)) {
+        return { error: { type: 'validation', message: 'The supplied feedback seed does not match the order identifier.' } };
+      }
+      seed = input.seed;
+    } else {
+      const seedResponse = await this.getSeed(identifier, { ...options, cache: false });
+      if (seedResponse.error) return seedResponse;
+      seed = seedResponse.data;
+    }
+    const requestedReviews = input?.reviews ?? [];
+
+    if (seed.hasCommentAlready) {
+      return {
+        data: {
+          status: 'already_submitted',
+          seed,
+          submittedProductCount: 0,
+          requestedProductCount: requestedReviews.length
+        }
+      };
+    }
+
+    // A review must originate from this seed. This catches accidentally
+    // mixing items from another order before any state-changing request.
+    const seedKeys = new Set(seed.items.map(item => `${item.productId}:${item.productVariantId}`));
+    const seenKeys = new Set<string>();
+    for (const review of requestedReviews) {
+      const key = `${review?.item?.productId}:${review?.item?.productVariantId}`;
+      if (!review?.item || !seedKeys.has(key) || seenKeys.has(key)) {
+        return {
+          error: {
+            type: 'validation',
+            message: 'Each product review must use a unique item from the feedback seed.'
+          }
+        };
+      }
+      seenKeys.add(key);
+    }
+
+    const ratingResponse = await this.createOrderRating({
+      orderId: seed.orderId,
+      orderIdentifier: seed.orderIdentifier,
+      orderRate: input.orderRate
+    }, options);
+    if (ratingResponse.error) return ratingResponse;
+
+    const commentId = ratingResponse.data.id;
+    let submittedProductCount = 0;
+    for (const review of requestedReviews) {
+      const productResponse = await this.submitProductReview(
+        buildProductReviewInput(review.item, commentId, review.draft),
+        options
+      );
+      if (productResponse.error) {
+        return {
+          error: {
+            ...productResponse.error,
+            details: {
+              feedback: {
+                commentId,
+                submittedProductCount,
+                requestedProductCount: requestedReviews.length
+              },
+              ...(productResponse.error.details !== undefined
+                ? { cause: productResponse.error.details }
+                : {})
+            }
+          }
+        };
+      }
+      submittedProductCount += 1;
+    }
+
+    return {
+      data: {
+        status: 'submitted',
+        seed,
+        commentId,
+        submittedProductCount,
+        requestedProductCount: requestedReviews.length
+      }
+    };
+  }
+
+  /**
    * Submit product-level review details.
    */
   async submitProductReview(
@@ -354,7 +481,7 @@ export class FeedbacksAPI {
     if (!this.validId(input?.commentId) || productId === null || productVariantId === null) {
       return { error: { type: 'validation', message: 'Comment ID, product ID, and product variant ID are required.' } };
     }
-    if (!this.validRating(input.productRate)) {
+    if (!this.validRating(input?.productRate)) {
       return { error: { type: 'validation', message: 'Product rating must be an integer from 1 to 5.' } };
     }
     const recommendationStatus = input.recommendationStatus ?? 'NONE';
@@ -462,61 +589,69 @@ export class FeedbacksAPI {
     images: ReviewAttachmentInput[],
     options?: RequestOptions
   ): Promise<SazitoResponse<ReviewImageUploadResponse>> {
+    if (!Array.isArray(images) || images.length === 0) {
+      return { error: { type: 'validation', message: 'At least one review image is required.' } };
+    }
+
+    for (const image of images) {
+      const file = image?.file as Blob | undefined;
+      if (!file || typeof file.size !== 'number' || file.size <= 0) {
+        return { error: { type: 'validation', message: 'Review images must contain non-empty files.' } };
+      }
+      if (image.name !== undefined && typeof image.name !== 'string') {
+        return { error: { type: 'validation', message: 'Review image names must be strings.' } };
+      }
+      if (image.alt !== undefined && typeof image.alt !== 'string') {
+        return { error: { type: 'validation', message: 'Review image alt text must be strings.' } };
+      }
+    }
+
     const formData = new FormData();
 
     images.forEach((image, index) => {
-      formData.append('images[][file]', image.file);
-      formData.append('images[][name]', image.name || `image-${index + 1}`);
-      formData.append('images[][alt]', image.alt || image.name || `image-${index + 1}`);
+      const name = image.name?.trim() || `image-${index + 1}`;
+      const alt = image.alt?.trim() ?? '';
+      // Supplying the filename also makes Blob inputs behave like File inputs.
+      formData.append('images[][file]', image.file, name);
+      formData.append('images[][name]', name);
+      formData.append('images[][alt]', alt);
     });
 
-    const response = await this.http.post<any>(FEEDBACKS_PUBLIC_UPLOAD_API, formData, options);
+    const uploadHeaders = { ...options?.headers };
+    Object.keys(uploadHeaders)
+      .filter(key => key.toLowerCase() === 'content-type')
+      .forEach(key => delete uploadHeaders[key]);
+    const response = await this.http.post<any>(FEEDBACKS_PUBLIC_UPLOAD_API, formData, {
+      ...options,
+      headers: uploadHeaders
+    });
 
     if (response.data) {
-      const list = Array.isArray(response.data.images)
+      const rawList = Array.isArray(response.data.images)
         ? response.data.images
         : Array.isArray(response.data.data?.images)
           ? response.data.data.images
           : Array.isArray(response.data.result?.images)
             ? response.data.result.images
             : [];
-      return { data: { images: list } };
+      const list = rawList.map((image: any) => {
+        const serveKey = image?.serveKey ?? image?.serve_key;
+        if (serveKey === undefined || serveKey === null || !String(serveKey).trim()) return null;
+        return {
+          id: String(image?.id ?? ''),
+          url: String(image?.url ?? ''),
+          alt: String(image?.alt ?? ''),
+          serveUrl: String(image?.serveUrl ?? image?.serve_url ?? ''),
+          serveKey: String(serveKey).trim()
+        } satisfies ReviewUploadedImage;
+      });
+      if (!list.length || list.some((image: ReviewUploadedImage | null) => image === null)) {
+        return { error: { type: 'api', message: 'Upload response did not contain completed serve keys.' } };
+      }
+      return { data: { images: list as ReviewUploadedImage[] } };
     }
 
     return response;
   }
 
-  /**
-   * Legacy list method kept for backwards compatibility.
-   */
-  async list(
-    filters?: FeedbackFilters,
-    options?: RequestOptions
-  ): Promise<SazitoResponse<PaginatedResponse<Feedback>>> {
-    return this.http.get<PaginatedResponse<Feedback>>(FEEDBACKS_API, {
-      ...options,
-      params: this.transformLegacyFilters(filters)
-    });
-  }
-
-  /**
-   * Legacy create method kept for backwards compatibility.
-   * @deprecated For order feedback, use getSeed, createOrderRating, then submitProductReview.
-   */
-  async create(
-    input: CreateFeedbackInput,
-    options?: RequestOptions
-  ): Promise<SazitoResponse<Feedback>> {
-    return this.http.post<Feedback>(FEEDBACKS_API, input, options);
-  }
-
-  /**
-   * Legacy get method kept for backwards compatibility.
-   */
-  async get(
-    feedbackId: number,
-    options?: RequestOptions
-  ): Promise<SazitoResponse<Feedback>> {
-    return this.http.get<Feedback>(`${FEEDBACKS_API}/${feedbackId}`, options);
-  }
 }

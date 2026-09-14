@@ -367,7 +367,11 @@ export class HttpClient {
     if (!omitJsonContentType) {
       headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     } else {
-      delete headers['Content-Type'];
+      // Header names are case-insensitive, but plain object keys are not.
+      // Remove every spelling so fetch can generate the multipart boundary.
+      Object.keys(headers)
+        .filter(key => key.toLowerCase() === 'content-type')
+        .forEach(key => delete headers[key]);
     }
 
     // Auto-inject JWT from cookie (raw JWT, no Bearer prefix)

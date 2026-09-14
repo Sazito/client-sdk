@@ -21,17 +21,18 @@ export type {
   CreateOrderRatingInput,
   CommentResponse,
   ProductReviewRequest,
+  ProductReviewDraft,
+  SubmitOrderFeedbackInput,
+  SubmitOrderFeedbackResult,
   ProductStatistics,
   ProductReview,
   ProductReviewsFilters,
   ProductReviewsResponse,
   ReviewAttachmentInput,
   ReviewUploadedImage,
-  ReviewImageUploadResponse,
-  Feedback,
-  CreateFeedbackInput,
-  FeedbackFilters
+  ReviewImageUploadResponse
 } from './api/feedbacks';
+export { buildProductReviewInput } from './api/feedbacks';
 
 // For advanced usage
 export { HttpClient } from './core/http-client';

@@ -25,7 +25,6 @@ export const USERS_API = '/api/v1/users';
 export const SESSIONS_API = '/api/v1/sessions';
 
 // Content
-export const FEEDBACKS_API = '/api/v1/feedbacks';
 export const CMS_PAGES_API = '/api/v1/cms_pages';
 
 // Wallet
