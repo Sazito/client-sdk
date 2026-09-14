@@ -74,7 +74,7 @@ Submits product review payload to `/api/v1/feedbacks/comments/details`.
 | Field | Type | Required / default |
 | --- | --- | --- |
 | `commentId` | `number \| string` | Required; use the successful store-rating response ID. |
-| `productId`, `productVariantId` | `number \| string` | Required; use the selected seed item. |
+| `productId`, `productVariantId` | `number \| string` | Required positive integer IDs; numeric strings are converted to JSON numbers. |
 | `productRate` | `number` | Required integer from 1 to 5. |
 | `productName`, `productAttributes`, `productImage`, additional seed fields | Seed item fields | Preserve them by spreading the seed item. |
 | `text` | `string` | Optional; defaults to `''`. |
@@ -86,8 +86,11 @@ Submits product review payload to `/api/v1/feedbacks/comments/details`.
 
 Returns: `SazitoResponse<void>`.
 
-Product requests use `comment_id`, `product_id`, and `product_variant_id`;
+Product requests use `comment_id`, numeric `product_id`, and numeric
+`product_variant_id`;
 the ID/identifier order pair is sent in the preceding store-rating request.
+Seed attributes may contain structured values such as color metadata, and seed
+images may contain additional fields; these values are preserved in the request.
 Submit products sequentially and advance only after each success.
 
 `createOrderRating` and `submitProductReview` force `retries: 0`, including when

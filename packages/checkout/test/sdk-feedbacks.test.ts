@@ -118,7 +118,7 @@ describe('product review submission', () => {
     const [url, init] = fetchApi.mock.calls[1];
     expect(new URL(String(url)).pathname).toBe('/api/v1/feedbacks/comments/details');
     expect(JSON.parse(String(init?.body))).toEqual({
-      ...item, product_id: '456', product_variant_id: '789', comment_id: 'comment-token', product_rate: 4,
+      ...item, product_id: 456, product_variant_id: 789, comment_id: 'comment-token', product_rate: 4,
       text: '', pros: [], cons: [], recommendation_status: 'NONE', attachments_serve_keys: [], owner: true, is_anonymous: false
     });
     expect(input).not.toHaveProperty('recommendationStatus');
@@ -139,6 +139,7 @@ describe('product review submission', () => {
 
   it.each([
     { ...review, commentId: '' }, { ...review, productId: null }, { ...review, productVariantId: undefined },
+    { ...review, productId: 'not-a-number' }, { ...review, productVariantId: '1.5' },
     ...[0, 6, 1.5].map(productRate => ({ ...review, productRate })),
     { ...review, recommendationStatus: 'YES' }, { ...review, attachmentsServeKeys: [''] },
     { ...review, attachmentsServeKeys: [{ status: 'pending' }] }, { ...review, pros: 'good' },
@@ -147,6 +148,23 @@ describe('product review submission', () => {
     const fetchApi = vi.fn();
     const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
     expect((await client.feedbacks.submitProductReview(input as ProductReviewRequest)).error?.type).toBe('validation');
+    expect(fetchApi).not.toHaveBeenCalled();
+  });
+
+  it.each(['456', 456])('normalizes product IDs from seed strings to JSON numbers (%s)', async (productId) => {
+    const fetchApi = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => json({ result: {} }));
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    await client.feedbacks.submitProductReview({ ...review, productId, productVariantId: '789' });
+    expect(JSON.parse(String(fetchApi.mock.calls[0][1]?.body))).toMatchObject({
+      product_id: 456, product_variant_id: 789
+    });
+  });
+
+  it.each(['', 'abc', '1.5', 0])('rejects invalid product IDs before requesting review statistics or reviews (%j)', async (productId) => {
+    const fetchApi = vi.fn();
+    const client = createSazitoClient({ domain: 'shop.example.com', customFetchApi: fetchApi });
+    expect((await client.feedbacks.getProductStatistics(productId as string)).error?.type).toBe('validation');
+    expect((await client.feedbacks.getProductReviews(productId as string)).error?.type).toBe('validation');
     expect(fetchApi).not.toHaveBeenCalled();
   });
 

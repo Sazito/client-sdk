@@ -19,13 +19,15 @@ import {
 export type RecommendationStatus = 'RECOMMENDED' | 'NEUTRAL' | 'NOT-RECOMMENDED' | 'NONE';
 
 export interface FeedbackProductAttribute {
+  [key: string]: unknown;
   name: string;
-  value: string;
+  value: unknown;
 }
 
 export interface FeedbackProductImage {
+  [key: string]: unknown;
   url: string;
-  alt: string;
+  alt?: string;
 }
 
 export interface FeedbackSeedItem {
@@ -347,7 +349,9 @@ export class FeedbacksAPI {
     input: ProductReviewRequest,
     options?: RequestOptions
   ): Promise<SazitoResponse<void>> {
-    if (!this.validId(input?.commentId) || !this.validId(input?.productId) || !this.validId(input?.productVariantId)) {
+    const productId = this.normalizeOrderId(input?.productId);
+    const productVariantId = this.normalizeOrderId(input?.productVariantId);
+    if (!this.validId(input?.commentId) || productId === null || productVariantId === null) {
       return { error: { type: 'validation', message: 'Comment ID, product ID, and product variant ID are required.' } };
     }
     if (!this.validRating(input.productRate)) {
@@ -383,8 +387,8 @@ export class FeedbacksAPI {
       ...(input.productImage !== undefined ? { product_image: input.productImage } : {}),
       // Apply validated values after seed extras, including snake_case keys.
       comment_id: typeof input.commentId === 'string' ? input.commentId.trim() : input.commentId,
-      product_id: typeof input.productId === 'string' ? input.productId.trim() : input.productId,
-      product_variant_id: typeof input.productVariantId === 'string' ? input.productVariantId.trim() : input.productVariantId,
+      product_id: productId,
+      product_variant_id: productVariantId,
       product_rate: input.productRate,
       text: input.text ?? '',
       pros: input.pros ?? [],
@@ -400,10 +404,14 @@ export class FeedbacksAPI {
    * Fetch product review statistics (without review list).
    */
   async getProductStatistics(
-    productId: string,
+    productId: string | number,
     options?: RequestOptions
   ): Promise<SazitoResponse<ProductStatistics>> {
-    const response = await this.http.get<any>(`${FEEDBACKS_COMMENT_DETAILS_API}/${productId}`, {
+    const normalizedProductId = this.normalizeOrderId(productId);
+    if (normalizedProductId === null) {
+      return { error: { type: 'validation', message: 'Product ID is required and must be a positive integer.' } };
+    }
+    const response = await this.http.get<any>(`${FEEDBACKS_COMMENT_DETAILS_API}/${encodeURIComponent(String(normalizedProductId))}`, {
       ...options,
       params: { exclude: 'comments' }
     });
@@ -423,11 +431,15 @@ export class FeedbacksAPI {
    * Fetch paginated product reviews.
    */
   async getProductReviews(
-    productId: string,
+    productId: string | number,
     filters?: ProductReviewsFilters,
     options?: RequestOptions
   ): Promise<SazitoResponse<ProductReviewsResponse>> {
-    const response = await this.http.get<any>(`${FEEDBACKS_COMMENT_DETAILS_API}/${productId}`, {
+    const normalizedProductId = this.normalizeOrderId(productId);
+    if (normalizedProductId === null) {
+      return { error: { type: 'validation', message: 'Product ID is required and must be a positive integer.' } };
+    }
+    const response = await this.http.get<any>(`${FEEDBACKS_COMMENT_DETAILS_API}/${encodeURIComponent(String(normalizedProductId))}`, {
       ...options,
       params: {
         page_number: filters?.pageNumber ?? 1,
