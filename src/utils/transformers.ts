@@ -1078,9 +1078,11 @@ function transformCheckoutInvoiceItem(item: TransformValue): TransformObject {
     image: isPlainObject(item.image)
       ? { url: toOptionalString(item.image.url) }
       : undefined,
-    variantAttributes: Array.isArray(item.variant_attributes)
-      ? item.variant_attributes.map(transformCheckoutVariantAttribute)
-      : [],
+    // Payment callbacks have used both the invoice-line field and the
+    // nested product-variant field over time. Prefer the explicit line
+    // value, but keep the nested forms so checkout does not lose variants
+    // when the callback shape changes.
+    variantAttributes: normalizeCheckoutVariantAttributes(item),
     singleItemPrice: toNumber(item.single_item_price),
     noOfItems: toNumber(item.no_of_items),
     totalItemsPrice: toNumber(item.total_items_price),
@@ -1126,8 +1128,29 @@ function transformCheckoutVariantAttribute(attribute: TransformValue): Transform
   if (!isPlainObject(attribute)) return {};
   return {
     name: toOptionalString(attribute.name),
-    value: toOptionalString(attribute.value)
+    value: transformAttributeValue(attribute.value)
   };
+}
+
+function normalizeCheckoutVariantAttributes(item: TransformObject): TransformObject[] {
+  const variant = isPlainObject(item.product_variant) ? item.product_variant : undefined;
+  const camelVariant = isPlainObject(item.productVariant) ? item.productVariant : undefined;
+  const attributes = item.variant_attributes
+    ?? item.variantAttributes
+    ?? variant?.attributes
+    ?? camelVariant?.attributes
+    ?? [];
+
+  return Array.isArray(attributes)
+    ? attributes.map(transformCheckoutVariantAttribute)
+    : [];
+}
+
+/** Return the human-readable part of a plain or rich attribute value. */
+function transformAttributeValue(value: TransformValue | undefined): string | undefined {
+  if (typeof value === 'string') return toOptionalString(value);
+  if (isPlainObject(value)) return toOptionalString(value.value);
+  return undefined;
 }
 
 function transformCheckoutCommercialFile(file: TransformValue): TransformObject {

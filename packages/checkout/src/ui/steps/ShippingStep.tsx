@@ -10,6 +10,7 @@ import {
 } from '../../core';
 import { Field, FieldLabel, ProductPlaceholder } from '../primitives';
 import type { ShippingGroup, ShippingRate, AddressFormValues } from '../../core';
+import { formatAttribute } from '../attribute-utils';
 
 type TouchedFields = Partial<Record<keyof AddressFormValues, true>>;
 type FormErrors = Partial<Record<keyof AddressFormValues, string>>;
@@ -477,7 +478,7 @@ function ShippingGroupCard({ group }: { group: ShippingGroup }) {
               <strong className="szc-ship-product__name">{item.name}</strong>
               {item.attributes.length > 0 ? (
                 <span className="szc-ship-product__attrs">
-                  {item.attributes.map((attribute) => `${attribute.name}: ${attribute.value}`).join(' · ')}
+                  {item.attributes.map(formatAttribute).join(' · ')}
                 </span>
               ) : null}
             </div>

@@ -7,6 +7,7 @@ import {
   type CheckoutShippingItem
 } from '../../core';
 import { Button, ProductPlaceholder, Spinner } from '../primitives';
+import { formatAttribute } from '../attribute-utils';
 import type { SazitoCheckoutProps } from '../SazitoCheckout';
 
 interface ResultShipmentGroup {
@@ -259,10 +260,6 @@ function buildOrderDetailsUrl(
   } catch {
     return path;
   }
-}
-
-function formatAttribute(attribute: CheckoutInvoiceItem['variantAttributes'][number]): string {
-  return `${attribute.name}: ${attribute.value}`;
 }
 
 function isImageUrl(value: string | undefined): value is string {
