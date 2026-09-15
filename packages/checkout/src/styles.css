@@ -1110,11 +1110,31 @@
   font-size: 13px;
 }
 .szc-ship-product__attrs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--szc-muted-fg);
   font-size: 11.5px;
+}
+.szc-ship-product__attr {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.szc-ship-product__attr-sep {
+  margin-inline-end: 4px;
+  opacity: 0.6;
+}
+.szc-ship-product__swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--szc-fg) 15%, transparent);
+  flex-shrink: 0;
 }
 .szc-rate-list {
   display: flex;
