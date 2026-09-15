@@ -1132,18 +1132,51 @@ function transformCheckoutVariantAttribute(attribute: TransformValue): Transform
   };
 }
 
-function normalizeCheckoutVariantAttributes(item: TransformObject): TransformObject[] {
-  const variant = isPlainObject(item.product_variant) ? item.product_variant : undefined;
-  const camelVariant = isPlainObject(item.productVariant) ? item.productVariant : undefined;
-  const attributes = item.variant_attributes
-    ?? item.variantAttributes
-    ?? variant?.attributes
-    ?? camelVariant?.attributes
-    ?? [];
+/**
+ * Select the attributes belonging to a cart, invoice, or checkout-order line
+ * item. Accepts both raw API shapes and shapes already passed through
+ * `transformResponseKeys`.
+ *
+ * Only a non-empty array wins at each level. Payment-success responses can
+ * contain an empty `variant_attributes` array even though the selected values
+ * are present on `product_variant.product_attributes`, and cart responses can
+ * do the reverse. An empty array must never shadow a populated fallback.
+ */
+function getLineItemAttributes(invoiceItem: TransformValue): TransformValue[] {
+  if (!isPlainObject(invoiceItem)) return [];
 
-  return Array.isArray(attributes)
-    ? attributes.map(transformCheckoutVariantAttribute)
-    : [];
+  // `transformResponseKeys` maps the line-level `variant_attributes` to
+  // `attributes`, so cart and invoice items arrive here under that key.
+  const variantAttributes = invoiceItem.variant_attributes
+    ?? invoiceItem.variantAttributes
+    ?? invoiceItem.attributes;
+  if (Array.isArray(variantAttributes) && variantAttributes.length > 0) {
+    return variantAttributes;
+  }
+
+  const productVariant = isPlainObject(invoiceItem.product_variant)
+    ? invoiceItem.product_variant
+    : isPlainObject(invoiceItem.productVariant)
+      ? invoiceItem.productVariant
+      : isPlainObject(invoiceItem.variant)
+        ? invoiceItem.variant
+        : undefined;
+  const productVariantAttributes = productVariant?.product_attributes
+    ?? productVariant?.productAttributes
+    ?? productVariant?.attributes;
+  if (Array.isArray(productVariantAttributes) && productVariantAttributes.length > 0) {
+    return productVariantAttributes;
+  }
+
+  const productAttributes = invoiceItem.product_attributes ?? invoiceItem.productAttributes;
+  if (Array.isArray(productAttributes)) return productAttributes;
+
+  const product = isPlainObject(invoiceItem.product) ? invoiceItem.product : undefined;
+  return Array.isArray(product?.attributes) ? product.attributes : [];
+}
+
+function normalizeCheckoutVariantAttributes(item: TransformObject): TransformObject[] {
+  return getLineItemAttributes(item).map(transformCheckoutVariantAttribute);
 }
 
 /** Return the human-readable part of a plain or rich attribute value. */
@@ -1630,13 +1663,7 @@ function transformCheckoutProduct(source: TransformValue): TransformObject {
   const variantId = toNumber(
     product?.variantId ?? variant?.id ?? source.productVariantId ?? source.variantId
   ) ?? 0;
-  const attributes = Array.isArray(product?.attributes)
-    ? product.attributes
-    : Array.isArray(variant?.attributes)
-      ? variant.attributes
-      : Array.isArray(source.attributes)
-        ? source.attributes
-      : [];
+  const attributes = getLineItemAttributes(source);
 
   return {
     variantId,
