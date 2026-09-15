@@ -1180,9 +1180,17 @@ function normalizeCheckoutVariantAttributes(item: TransformObject): TransformObj
 }
 
 /** Return the human-readable part of a plain or rich attribute value. */
-function transformAttributeValue(value: TransformValue | undefined): string | undefined {
+function transformAttributeValue(value: TransformValue | undefined): TransformValue | undefined {
   if (typeof value === 'string') return toOptionalString(value);
-  if (isPlainObject(value)) return toOptionalString(value.value);
+  if (isPlainObject(value)) {
+    const readableValue = toOptionalString(value.value);
+    if (readableValue === undefined) return undefined;
+    return {
+      value: readableValue,
+      ...(typeof value.extra === 'string' ? { extra: value.extra } : {}),
+      ...(typeof value.fieldType === 'string' ? { fieldType: value.fieldType } : {})
+    };
+  }
   return undefined;
 }
 

@@ -3,6 +3,7 @@
  */
 
 import type { OrderPublicId } from './order';
+import type { ProductAttribute } from './common';
 
 export interface CheckoutInvoiceItem {
   /** Invoice-line identifier used to associate this item with a shipment. */
@@ -10,10 +11,7 @@ export interface CheckoutInvoiceItem {
   productVariantId: OrderPublicId;
   name: string;
   image?: { url?: string };
-  variantAttributes: Array<{
-    name: string;
-    value: string;
-  }>;
+  variantAttributes: ProductAttribute[];
   singleItemPrice: number;
   noOfItems: number;
   totalItemsPrice: number;

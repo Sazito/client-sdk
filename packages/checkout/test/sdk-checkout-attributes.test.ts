@@ -39,7 +39,7 @@ describe('checkout order attribute normalization', () => {
     });
 
     expect(result.invoice.invoiceItems[0].variantAttributes).toEqual([
-      { name: 'رنگ', value: 'مشکی' }
+      { name: 'رنگ', value: { value: 'مشکی', extra: '#111111', fieldType: 'color' } }
     ]);
   });
 

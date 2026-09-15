@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatAttribute, formatAttributeValue } from '../src/ui/attribute-utils';
+import {
+  attributeHexColor,
+  attributeValueToString,
+  formatAttribute,
+  formatAttributeValue
+} from '../src/ui/attribute-utils';
 
 describe('attribute display formatting', () => {
   it('uses the human-readable value from rich attributes', () => {
@@ -11,5 +16,12 @@ describe('attribute display formatting', () => {
 
   it('keeps plain string attributes unchanged', () => {
     expect(formatAttribute({ name: 'Color', value: 'Black' })).toBe('Color: Black');
+  });
+
+  it('preserves rich color metadata for the checkout swatch', () => {
+    const value = { value: 'قرمز', extra: 'FF0000', fieldType: 'color' };
+
+    expect(attributeValueToString(value)).toBe('قرمز');
+    expect(attributeHexColor(value)).toBe('#FF0000');
   });
 });

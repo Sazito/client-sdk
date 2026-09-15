@@ -865,7 +865,12 @@ export class PaymentsAPI {
         typeof item.name === 'string' &&
         Array.isArray(item.variantAttributes) &&
         item.variantAttributes.every((attribute) =>
-          typeof attribute.name === 'string' && typeof attribute.value === 'string'
+          typeof attribute.name === 'string' &&
+          (typeof attribute.value === 'string' ||
+            (typeof attribute.value === 'object' &&
+              attribute.value !== null &&
+              !Array.isArray(attribute.value) &&
+              typeof attribute.value.value === 'string'))
         ) &&
         typeof item.singleItemPrice === 'number' && Number.isFinite(item.singleItemPrice) &&
         typeof item.noOfItems === 'number' && Number.isFinite(item.noOfItems) &&

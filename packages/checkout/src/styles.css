@@ -1969,6 +1969,29 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.szc-result-item__attrs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.szc-result-item__attr {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.szc-result-item__attr-sep {
+  margin-inline-end: 4px;
+  opacity: 0.6;
+}
+.szc-result-item__swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--szc-fg) 15%, transparent);
+  flex-shrink: 0;
+}
 .szc-result-item__thumb {
   width: 48px;
   height: 48px;

@@ -7,7 +7,10 @@ import {
   type CheckoutShippingItem
 } from '../../core';
 import { Button, ProductPlaceholder, Spinner } from '../primitives';
-import { formatAttribute } from '../attribute-utils';
+import {
+  attributeHexColor,
+  attributeValueToString
+} from '../attribute-utils';
 import type { SazitoCheckoutProps } from '../SazitoCheckout';
 
 interface ResultShipmentGroup {
@@ -81,7 +84,32 @@ export function ResultStep({ continueShoppingUrl, getOrderDetailsUrl }: Pick<Saz
             <span>
               <strong>{item.name}</strong>
               {item.variantAttributes.length ? (
-                <small>{item.variantAttributes.map(formatAttribute).join(' · ')}</small>
+                <small className="szc-result-item__attrs">
+                  {item.variantAttributes.map((attribute, attributeIndex) => {
+                    const value = attributeValueToString(attribute.value);
+                    const hex = attributeHexColor(attribute.value);
+                    return (
+                      <span
+                        key={`${attribute.name}-${attributeIndex}`}
+                        className="szc-result-item__attr"
+                      >
+                        {attributeIndex > 0 ? (
+                          <span className="szc-result-item__attr-sep">·</span>
+                        ) : null}
+                        <span>{attribute.name}:</span>
+                        {hex ? (
+                          <span
+                            className="szc-result-item__swatch"
+                            style={{ backgroundColor: hex }}
+                            title={hex}
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        {value ? <span>{value}</span> : null}
+                      </span>
+                    );
+                  })}
+                </small>
               ) : null}
             </span>
           </span>

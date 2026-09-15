@@ -6,6 +6,7 @@ import { useCheckout } from '../../react';
 import { sortCartItemsNewestFirst, toPersianDigits } from '../../core';
 import { Button, ProductPlaceholder } from '../primitives';
 import { CartIcon } from '../Stepper';
+import { attributeHexColor, attributeValueToString } from '../attribute-utils';
 import type { EmptyCartOptions, RenderEmptyCartProps } from '../SazitoCheckout';
 
 const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
@@ -16,32 +17,6 @@ function toLatinDigits(value: string): string {
   return value
     .replace(/[۰-۹]/g, (digit) => String(PERSIAN_DIGITS.indexOf(digit)))
     .replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)));
-}
-
-const HEX_COLOR_RE = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-
-function attrValueToString(value: unknown): string {
-  if (value == null) return '';
-  if (typeof value === 'object') {
-    const v = (value as Record<string, unknown>).value;
-    return v == null ? '' : String(v);
-  }
-  return String(value);
-}
-
-function toHexColor(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return HEX_COLOR_RE.test(trimmed) ? (trimmed.startsWith('#') ? trimmed : `#${trimmed}`) : null;
-}
-
-// Hex can arrive as the raw value, or nested in `extra`/`value` of an object attribute.
-function attrHexColor(value: unknown): string | null {
-  if (value && typeof value === 'object') {
-    const obj = value as Record<string, unknown>;
-    return toHexColor(obj.extra) ?? toHexColor(obj.value);
-  }
-  return toHexColor(value);
 }
 
 export function CartStep({
@@ -124,8 +99,8 @@ export function CartStep({
                 {item.product.attributes?.length ? (
                   <span className="szc-cart-row__attrs">
                     {item.product.attributes.map((a, i) => {
-                      const value = attrValueToString(a.value);
-                      const hex = attrHexColor(a.value);
+                      const value = attributeValueToString(a.value);
+                      const hex = attributeHexColor(a.value);
                       return (
                         <span key={`${a.name}-${i}`} className="szc-cart-row__attr">
                           {i > 0 ? <span className="szc-cart-row__attr-sep">·</span> : null}
