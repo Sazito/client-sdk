@@ -1124,11 +1124,13 @@ function transformCheckoutShippingItem(item: TransformValue): TransformObject {
   };
 }
 
-function transformCheckoutVariantAttribute(attribute: TransformValue): TransformObject {
-  if (!isPlainObject(attribute)) return {};
+function transformCheckoutVariantAttribute(attribute: TransformValue): TransformObject | undefined {
+  if (!isPlainObject(attribute)) return undefined;
+  const value = transformAttributeValue(attribute.value);
+  if (value === undefined) return undefined;
   return {
     name: toOptionalString(attribute.name),
-    value: transformAttributeValue(attribute.value)
+    value
   };
 }
 
@@ -1176,22 +1178,35 @@ function getLineItemAttributes(invoiceItem: TransformValue): TransformValue[] {
 }
 
 function normalizeCheckoutVariantAttributes(item: TransformObject): TransformObject[] {
-  return getLineItemAttributes(item).map(transformCheckoutVariantAttribute);
+  return getLineItemAttributes(item)
+    .map(transformCheckoutVariantAttribute)
+    .filter((attribute): attribute is TransformObject => attribute !== undefined);
 }
 
 /** Return the human-readable part of a plain or rich attribute value. */
 function transformAttributeValue(value: TransformValue | undefined): TransformValue | undefined {
-  if (typeof value === 'string') return toOptionalString(value);
+  if (typeof value === 'string') return value.trim();
   if (isPlainObject(value)) {
-    const readableValue = toOptionalString(value.value);
-    if (readableValue === undefined) return undefined;
+    if (typeof value.value !== 'string') return undefined;
     return {
-      value: readableValue,
+      value: value.value.trim(),
       ...(typeof value.extra === 'string' ? { extra: value.extra } : {}),
       ...(typeof value.fieldType === 'string' ? { fieldType: value.fieldType } : {})
     };
   }
   return undefined;
+}
+
+/** Keep product attribute metadata while enforcing the required value contract. */
+function normalizeProductAttributes(attributes: TransformValue): TransformObject[] {
+  if (!Array.isArray(attributes)) return [];
+
+  return attributes.reduce<TransformObject[]>((normalized, attribute) => {
+    if (!isPlainObject(attribute)) return normalized;
+    const value = transformAttributeValue(attribute.value);
+    if (value !== undefined) normalized.push({ ...attribute, value });
+    return normalized;
+  }, []);
 }
 
 function transformCheckoutCommercialFile(file: TransformValue): TransformObject {
@@ -1671,7 +1686,7 @@ function transformCheckoutProduct(source: TransformValue): TransformObject {
   const variantId = toNumber(
     product?.variantId ?? variant?.id ?? source.productVariantId ?? source.variantId
   ) ?? 0;
-  const attributes = getLineItemAttributes(source);
+  const attributes = normalizeProductAttributes(getLineItemAttributes(source));
 
   return {
     variantId,
@@ -1696,10 +1711,21 @@ function cleanProduct(product: TransformValue): TransformObject {
   // Fields to remove from product
   const cleanedProduct = removeKeys(product, ['staticUrl', 'summary', 'tags', 'slug']) as TransformObject;
 
+  if (Array.isArray(cleanedProduct.attributes)) {
+    cleanedProduct.attributes = normalizeProductAttributes(cleanedProduct.attributes);
+  }
+
   // Clean variants
   if (cleanedProduct.variants && Array.isArray(cleanedProduct.variants)) {
     cleanedProduct.variants = cleanedProduct.variants.map((variant: TransformValue) =>
-      isPlainObject(variant) ? removeKeys(variant, ['name', 'title', 'product', 'status', 'soldCount']) : {}
+      isPlainObject(variant)
+        ? {
+            ...removeKeys(variant, ['name', 'title', 'product', 'status', 'soldCount']),
+            ...(Array.isArray(variant.attributes)
+              ? { attributes: normalizeProductAttributes(variant.attributes) }
+              : {})
+          }
+        : {}
     );
   }
 
