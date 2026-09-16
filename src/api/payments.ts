@@ -178,7 +178,7 @@ export class PaymentsAPI {
    * POST for hosted gateways, or show_order for zero-amount/instant payments).
    */
   async initialize(options?: RequestOptions): Promise<SazitoResponse<PaymentAction>> {
-    // Keep initialization distinct from a later status poll. The v2 contract's
+    // Keep initialization distinct from a later status poll. The payment contract's
     // initialize request includes an explicit payload object, even when a
     // gateway (such as Zibal) does not require provider-specific fields.
     return this.submitJsonPaymentStep({ payload: {} }, options, 'initialize');
@@ -560,7 +560,7 @@ export class PaymentsAPI {
         }
       };
     }
-    // V2 sales-flow resources use route id 0 and resolve the concrete payment
+    // Sales-flow resources use route id 0 and resolve the concrete payment
     // from its identifier. Gateway-return URLs still carry a positive id and
     // are validated separately above.
     const storedId = this.normalizePaymentId(stored.id, true);
@@ -576,11 +576,11 @@ export class PaymentsAPI {
 
   /**
    * Payment creation has been returned in a few compatible envelope shapes
-   * across v2 deployments: `{ result: { payment: ... } }`, a direct payment
+   * across deployments: `{ result: { payment: ... } }`, a direct payment
    * under `result`, and (for request-log proxies) under `response.result`.
    * Keep the shape handling here so the credential parser never silently
    * mistakes an invoice identifier for the payment identifier. A zero id is
-   * valid for identifier-scoped v2 payment routes.
+   * valid for identifier-scoped payment routes.
    */
   private extractPaymentPayload(data: JsonObject): JsonObject | undefined {
     const isObject = (value: JsonValue | undefined): value is JsonObject =>
@@ -782,7 +782,7 @@ export class PaymentsAPI {
 
   private normalizeAction(action: JsonObject): PaymentAction | null {
     const actionName = typeof action.action === 'string' ? action.action.trim() : '';
-    // The v2 payment-step contract currently documents GET-style gateway
+    // The payment-step contract currently documents GET-style gateway
     // responses as `redirect`, while older deployments return `REDIRECT`.
     // Normalize known action names here so checkout always receives the
     // canonical PaymentAction discriminants it handles.

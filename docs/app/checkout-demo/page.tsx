@@ -28,7 +28,7 @@ const MOCK_ORDER_BASE = {
 };
 
 // Sanitized from a real payment-in-place `show_order` response captured from
-// the v2 API. Keep backend key names and nullable/empty fields intact so the
+// payment API. Keep backend key names and nullable/empty fields intact so the
 // demo exercises the production response transformer rather than a UI-shaped
 // fixture.
 const MOCK_CAPTURED_SUCCESS_ORDER = {

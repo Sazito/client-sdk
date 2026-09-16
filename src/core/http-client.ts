@@ -173,7 +173,7 @@ export class HttpClient {
       clearTimeout(timeoutId);
 
       // A transient proxy error must not automatically replay a state-changing
-      // POST. V2 payment initialization, invoice creation, and cart mutations
+      // POST. Payment initialization, invoice creation, and cart mutations
       // can succeed upstream even when the proxy ultimately returns 502.
       // Callers may still opt a specific request into retries explicitly.
       const maxRetries = this.config.retry.enabled

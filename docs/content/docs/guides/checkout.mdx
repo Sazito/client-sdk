@@ -358,7 +358,7 @@ You can also change **Payment result** in the demo toolbar:
 | Scenario | Expected result |
 |---|---|
 | `success-minimal` | Success with only the required order identifiers. This protects against the former `Invalid payment step result` failure when totals are absent. |
-| `success-full` | Sanitized real v2 payment-in-place `show_order` response with product, shipping, totals, receipt, and nullable backend fields. |
+| `success-full` | Sanitized real payment-in-place `show_order` response with product, shipping, totals, receipt, and nullable backend fields. |
 | `pending-success` | Pending callback followed by a successful JSON status poll. |
 | `failure` | Gateway-declared payment failure. |
 | `malformed` | Incomplete `show_order` payload; this should remain a compact success instead of displaying a false failure. |

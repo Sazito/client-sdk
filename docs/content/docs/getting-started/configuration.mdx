@@ -11,7 +11,6 @@ import { createSazitoClient } from '@sazito/client-sdk';
 const client = createSazitoClient({
   domain: 'mystore.sazito.com',
   apiBaseUrl: 'http://api.sazito.com:8080',
-  paymentsBasePath: '/api/v2/payments',
   timeout: 30000,
   customFetchApi: fetch,
   debug: false,
@@ -86,7 +85,7 @@ If a field is omitted, SDK defaults are used:
 | Field | Default |
 | --- | --- |
 | `apiBaseUrl` | `http://api.sazito.com:8080` |
-| `paymentsBasePath` | `/api/v2/payments` |
+| `paymentsBasePath` | Payment base path override |
 | `timeout` | `30000` |
 | `retry.enabled` | `true` |
 | `retry.retries` | `3` |

@@ -182,7 +182,7 @@ export class ShippingAPI {
         ) as ShippingAddress | undefined
       )
       .filter((address): address is ShippingAddress =>
-        // V2 lookups are identifier-driven and valid responses can have id=0.
+        // These lookups are identifier-driven and valid responses can have id=0.
         Boolean(address?.identifier)
       )
       .sort((left, right) => right.id - left.id);

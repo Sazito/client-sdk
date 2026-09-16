@@ -11,7 +11,7 @@ description: Cart APIs for guest and authenticated checkout entry, line-item cha
 - Use `addItem` for quick add-to-cart UX. If no cart exists, SDK creates it automatically.
 - After cart is ready, continue with `invoices.create()` to move into checkout.
 
-## V2 contract notes
+## Contract notes
 
 - `cart.get()` always sends required query `identifier` from stored cart credentials.
 - Only send `schedulerBookingAttributes` when all required booking fields are present.

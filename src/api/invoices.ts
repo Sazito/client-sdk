@@ -67,7 +67,7 @@ export class InvoicesAPI {
       };
     }
 
-    // v2 has no stable `GET /invoices/{id}` endpoint; use refresh contract to read current invoice.
+    // There is no stable `GET /invoices/{id}` endpoint; use refresh contract to read current invoice.
     const response = await this.http.post<Invoice>(
       `${INVOICES_API}/${invoiceCreds.id}/refresh`,
       {
@@ -175,7 +175,7 @@ export class InvoicesAPI {
         shipping_address_identifier: shippingAddressIdentifier,
         cart_id: CART_ID,
         cart_identifier: cartCreds.identifier,
-        // V2 resolves the address by identifier. An id of 0 is a valid SDK
+        // The API resolves the address by identifier. An id of 0 is a valid SDK
         // placeholder but should not be sent as an explicit address id.
         ...(shippingAddressId > 0 ? { shipping_address_id: shippingAddressId } : {})
       },

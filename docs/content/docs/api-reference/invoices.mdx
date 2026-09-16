@@ -11,9 +11,9 @@ description: Checkout invoice creation, updates, shipping assignment, and discou
 - Address, shipping method, discount code, notes, and credit are all attached via invoice endpoints.
 - `payments` depends on an existing invoice.
 
-## V2 contract notes
+## Contract notes
 
-- `get` uses the `refresh` contract under the hood in v2 (`POST /api/v2/invoices/{id}/refresh`).
+- `get` uses the `refresh` contract under the hood.
 - `create`/`refresh` require a cart identifier from stored cart credentials.
 - `assignShippingMethod` expects each `invoiceItemIds` value as a string.
 - `addCredit` generally requires authenticated user context in `Authorization`.
@@ -167,7 +167,7 @@ await client.invoices.addDetails('Please deliver between 14:00 and 16:00');
 
 Use: `invoices.addForm(input, options?)`.
 
-Attaches checkout dynamic form data to invoice via `/api/v2/invoices/{id}/add_form`.
+Attaches checkout dynamic form data to invoice via the invoice form endpoint.
 This is invoice-level checkout form data, not product form answers and not booking schedule fields.
 
 | Field | Type | Required | Description |

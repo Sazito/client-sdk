@@ -11,14 +11,14 @@ description: Checkout payment APIs for gateway selection, payment creation, veri
 - Supports redirect/post gateways and manual step-based flows like card-to-card upload/code verification.
 - When payment reaches `show_order`, SDK runs checkout finalization automatically.
 
-## V2 contract notes
+## Contract notes
 
-- `payments.getMethods` sends the current invoice identifier to `/api/v2/payments/list`.
-- Payment creation can return `id: 0`; v2 then resolves the payment by
-  `payment_identifier` at `/api/v2/payments/0/process_payment_step`.
+- `payments.getMethods` sends the current invoice identifier to the payment-list endpoint.
+- Payment creation can return `id: 0`; the payment endpoint then resolves the payment by
+  `payment_identifier` at the payment process-step endpoint.
 - Gateway-return verification uses the real positive payment ID embedded in
   the callback URL; zero is not accepted as a callback payment ID.
-- `/api/v2/payments/{id}/process_payment_step` behavior depends on exact `Content-Type`.
+- Payment process-step behavior depends on the exact `Content-Type`.
 - JSON mode uses exact `application/json`. The SDK sends the wire field as `payment_identifier`.
 - Use form mode for gateways that post callback/form payloads.
 - Action values are preserved exactly and are case-sensitive; the SDK does not rename them.
@@ -151,7 +151,7 @@ pending status polling intentionally use different encodings.
 Use: `payments.processStepForm(input, options?)`.
 
 Use this when gateway flow requires non-JSON form payload handling for
-`/api/v2/payments/{id}/process_payment_step`.
+the payment process-step endpoint.
 
 This callback branch requires the positive payment ID from the gateway-return
 URL; the temporary initialization ID `0` is rejected.
@@ -236,7 +236,7 @@ is invented when the payment response does not provide one.
 `variantAttributes` uses the shared `ProductAttribute` shape. Its `value` may
 be a string or a `ProductAttributeValueObject`; for color attributes,
 `fieldType: 'color'` identifies the field and `value.extra` contains the hex
-payload used for a swatch. If v2 returns an empty `variant_attributes` array,
+payload used for a swatch. If the payment response returns an empty `variant_attributes` array,
 the SDK falls back to `product_variant.product_attributes` before normalizing
 the result.
 

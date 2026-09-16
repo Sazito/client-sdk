@@ -60,7 +60,7 @@ export interface PaymentMethod {
 }
 
 export interface Payment {
-  /** Zero is valid for identifier-scoped v2 routes before gateway return. */
+  /** Zero is valid for identifier-scoped routes before gateway return. */
   id: number;
   identifier: string;
   paymentType: {
@@ -90,7 +90,7 @@ export type PaymentAction = PaymentActionBase & (
 );
 
 export interface PaymentCredentials {
-  /** Zero is valid for identifier-scoped v2 routes before gateway return. */
+  /** Zero is valid for identifier-scoped routes before gateway return. */
   id: number;
   identifier: string;
 }
