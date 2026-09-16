@@ -22,6 +22,11 @@ description: Shipping address and method APIs used during checkout address selec
 - Do not use `updateAddress()` in checkout: the backend mutates the referenced
   row, which can change the address shown on previous orders.
 
+Shipping rates expose their own `color` field, while product variant
+attributes shown beside shipping items come from the invoice line item. Those
+items use the shared `ProductAttribute` shape, including `value.extra` for a
+color hex payload and `fieldType: 'color'` for color fields.
+
 ## Methods
 
 ### Create Address
@@ -412,8 +417,6 @@ Source: `src/types/invoice.ts`
 | `latitude` | `number` | Optional |
 | `longitude` | `number` | Optional |
 | `userSetCoordinatesBefore` | `boolean` | Optional |
-| `createdAt` | `string` | Optional |
-| `updatedAt` | `string` | Optional |
 
 #### ShippingMethod
 

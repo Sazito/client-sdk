@@ -15,6 +15,10 @@ These methods return the account `Order` contract. Payment completion returns a
 separate [`CheckoutOrder`](/docs/api-reference/payments#checkoutorder). Account
 items remain `InvoiceItem[]`; existing account fixtures do not need checkout totals.
 
+Order invoice items keep the same `attributes` shape as invoice items. Rich
+color values expose the display label in `value.value` and the color payload
+(usually a hex string) in `value.extra` when `fieldType` is `'color'`.
+
 ## Methods
 
 ### List
@@ -352,6 +356,25 @@ Source: `src/types/invoice.ts`
 | `formAttributes` | `Record<string, FormAttributeValue> \| InvoiceItemFormAttributes` | Optional |
 | `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
 | `formFields` | `JsonObject` | Optional |
+
+#### ProductAttribute
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | `string` | Required |
+| `value` | `string \| ProductAttributeValueObject` | Required |
+
+#### ProductAttributeValueObject
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `value` | `string` | Required |
+| `extra` | `string` | Optional |
+| `fieldType` | `string` | Optional |
 
 #### ShippingAddress
 

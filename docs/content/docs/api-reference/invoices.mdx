@@ -20,6 +20,11 @@ description: Checkout invoice creation, updates, shipping assignment, and discou
 - `shippingAddress` is normalized by SDK to remove duplicated/noisy fields.
 - `Invoice` responses intentionally exclude `user`/`userData` profile objects.
 
+Invoice line attributes are returned as `invoice.items[].attributes` using the
+shared `ProductAttribute` shape. A color value may be a
+`ProductAttributeValueObject` with `fieldType: 'color'` and a hex payload in
+`value.extra`; use its nested `value` for the human-readable label.
+
 ## Methods
 
 ### Get
@@ -519,18 +524,43 @@ Source: `src/types/invoice.ts`
 | --- | --- | --- |
 | `id` | `number \| string` | Required |
 | `productVariantId` | `number` | Required |
+| `productId` | `number` | Optional |
 | `name` | `string` | Required |
+| `url` | `string` | Optional |
+| `attributes` | `ProductAttribute[]` | Required |
+| `productType` | `string` | Optional |
+| `hasMaxOrder` | `boolean` | Optional |
+| `maxOrderQuantity` | `number` | Optional |
+| `minOrderQuantity` | `number` | Optional |
+| `image` | `Image` | Optional |
 | `quantity` | `number` | Required |
 | `unitPrice` | `number` | Required |
 | `lineTotal` | `number` | Required |
 | `rawPrice` | `number` | Required |
 | `customerProfit` | `number` | Required |
-| `image` | `Image` | Required |
-| `product` | `CheckoutProductSnapshot` | Required |
-| `commercialFiles` | `any` | Optional |
+| `commercialFiles` | `JsonValue` | Optional |
 | `formAttributes` | `Record<string, FormAttributeValue> \| InvoiceItemFormAttributes` | Optional |
 | `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
-| `formFields` | `Record<string, any>` | Optional |
+| `formFields` | `JsonObject` | Optional |
+
+#### ProductAttribute
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | `string` | Required |
+| `value` | `string \| ProductAttributeValueObject` | Required |
+
+#### ProductAttributeValueObject
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `value` | `string` | Required |
+| `extra` | `string` | Optional |
+| `fieldType` | `string` | Optional |
 
 #### ShippingItem
 
@@ -560,12 +590,26 @@ Source: `src/types/invoice.ts`
 | `mobilePhone` | `string` | Optional |
 | `phoneNumber` | `string` | Optional |
 | `email` | `string` | Optional |
-| `region` | `Region` | Optional |
-| `city` | `City` | Required |
+| `region` | `ShippingAddressRegion` | Optional |
+| `city` | `ShippingAddressCity` | Required |
 | `address` | `string` | Required |
 | `postalCode` | `string` | Optional |
+| `description` | `string` | Optional |
 | `latitude` | `number` | Optional |
 | `longitude` | `number` | Optional |
 | `userSetCoordinatesBefore` | `boolean` | Optional |
 
+#### User
+
+Source: `src/types/invoice.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Optional |
+| `email` | `string` | Optional |
+| `mobilePhone` | `string` | Optional |
+| `phoneNumber` | `string` | Optional |
+| `firstName` | `string` | Optional |
+| `lastName` | `string` | Optional |
+| `birthDate` | `string` | Optional |
 {/* AUTO_FIELDS_END */}

@@ -27,6 +27,12 @@ description: Cart APIs for guest and authenticated checkout entry, line-item cha
 | `attributes.schedulerBookingAttributes` in `cart.addItemWithAttributes` | Booking product only | Booking/scheduling payload (`eventEntityId`, `startDateTimeLocal`, `endDateTimeLocal`, `timezone`). |
 | `input.formAttributes` in `invoices.addForm` | Invoice/checkout level | Checkout-level form values (not product customization, not booking time). |
 
+Cart line variant attributes are returned as `cart.items[].product.attributes`.
+Each value is either a string or a `ProductAttributeValueObject`; when
+`fieldType` is `'color'`, use the hex payload in `value.extra` to render a
+color swatch. These are display attributes and are separate from
+`formAttributes` and `schedulerBookingAttributes`.
+
 ## Methods
 
 ### Get
@@ -438,13 +444,34 @@ Source: `src/types/cart.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `id` | `number` | Required |
+| `id` | `number \| string` | Required |
+| `createdAt` | `string` | Optional |
+| `updatedAt` | `string` | Optional |
 | `productVariantId` | `number` | Required |
 | `quantity` | `number` | Required |
 | `unitPrice` | `number` | Required |
 | `lineTotal` | `number` | Required |
 | `product` | `CheckoutProductSnapshot` | Required |
 | `formAttributes` | `Record<string, FormAttributeValue>` | Optional |
-| `formFields` | `Record<string, any>` | Optional |
+| `formFields` | `JsonObject` | Optional |
 | `bookingAttributes` | `SchedulerBookingAttributes` | Optional |
+
+#### ProductAttribute
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | `string` | Required |
+| `value` | `string \| ProductAttributeValueObject` | Required |
+
+#### ProductAttributeValueObject
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `value` | `string` | Required |
+| `extra` | `string` | Optional |
+| `fieldType` | `string` | Optional |
 {/* AUTO_FIELDS_END */}

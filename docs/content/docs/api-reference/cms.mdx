@@ -273,7 +273,7 @@ Source: `src/types/search.ts`
 | `content` | `string` | Optional |
 | `summary` | `string` | Optional |
 | `image` | `Image` | Optional |
-| `themeConfig` | `any` | Optional |
+| `themeConfig` | `JsonObject` | Optional |
 | `attributes` | `ProductAttribute[]` | Optional |
 | `createdAt` | `string` | Required |
 | `updatedAt` | `string` | Required |
@@ -290,7 +290,6 @@ Source: `src/types/common.ts`
 | `alt` | `string` | Optional |
 | `width` | `number` | Optional |
 | `height` | `number` | Optional |
-| `order` | `number` | Optional |
 | `createdAt` | `string` | Required |
 | `updatedAt` | `string` | Required |
 
@@ -301,6 +300,15 @@ Source: `src/types/common.ts`
 | Field | Type | Required |
 | --- | --- | --- |
 | `name` | `string` | Required |
-| `value` | `string` | Required |
-{/* AUTO_FIELDS_END */}
+| `value` | `string \| ProductAttributeValueObject` | Required |
 
+#### ProductAttributeValueObject
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `value` | `string` | Required |
+| `extra` | `string` | Optional |
+| `fieldType` | `string` | Optional |
+{/* AUTO_FIELDS_END */}

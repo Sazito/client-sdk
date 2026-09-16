@@ -233,6 +233,13 @@ Items use `variantAttributes`,
 IDs retain their string or number values. No invoice-item ID or original price
 is invented when the payment response does not provide one.
 
+`variantAttributes` uses the shared `ProductAttribute` shape. Its `value` may
+be a string or a `ProductAttributeValueObject`; for color attributes,
+`fieldType: 'color'` identifies the field and `value.extra` contains the hex
+payload used for a swatch. If v2 returns an empty `variant_attributes` array,
+the SDK falls back to `product_variant.product_attributes` before normalizing
+the result.
+
 ## Known errors
 
 | Type | When it happens |
@@ -527,7 +534,7 @@ Source: `src/types/payment.ts`
 
 Source: `src/types/payment.ts`
 
-Type: `PaymentActionBase & (   \| { action: 'POST'; address: string; payload: Record<string, string \| number> }   \| { action: 'REDIRECT'; address: string }   \| { action: 'UPLOAD'; time?: number }   \| { action: 'show_otp_modal'; time?: number }   \| { action: 'show_order'; order?: CheckoutOrder }   \| { action: 'pending'; order: CheckoutOrder }   \| { action: 'payment_fail_error' \| 'show_error' \| 'FAIL' }   \| { action: 'StockViolated' } )`
+Type: `PaymentActionBase & (   \| { action: 'POST'; address: string; payload: Record<string, string \| number> }   \| { action: 'REDIRECT'; address: string }   \| { action: 'UPLOAD'; time?: number }   \| { action: 'show_otp_modal'; time?: number }   /** Successful payment; some deployments omit order details in the terminal response. */   \| { action: 'show_order'; order?: CheckoutOrder }   \| { action: 'pending'; order: CheckoutOrder }   \| { action: 'payment_fail_error' \| 'show_error' \| 'FAIL' }   \| { action: 'StockViolated' }   \| { action: 'unknown'; backendAction: string; raw: JsonObject } )`
 
 #### PaymentStepInput
 
@@ -563,8 +570,8 @@ Source: `src/types/checkout-order.ts`
 | --- | --- | --- |
 | `invoiceItems` | `CheckoutInvoiceItem[]` | Required |
 | `shippingItems` | `CheckoutShippingItem[]` | Required |
-| `netTotal` | `number` | Required |
-| `finalTotal` | `number` | Required |
+| `netTotal` | `number` | Optional |
+| `finalTotal` | `number` | Optional |
 | `shippingTotal` | `number` | Optional |
 | `discountTotal` | `number` | Optional |
 | `creditTotal` | `number` | Optional |
@@ -584,13 +591,12 @@ Source: `src/types/checkout-order.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
+| `id` | `OrderPublicId` | Optional |
 | `productVariantId` | `OrderPublicId` | Required |
 | `name` | `string` | Required |
 | `image` | `{ url?: string }` | Optional |
 | `image.url` | `string` | Optional |
-| `variantAttributes` | `Array<{     name: string;     value: string;   }>` | Required |
-| `variantAttributes.[].name` | `string` | Required |
-| `variantAttributes.[].value` | `string` | Required |
+| `variantAttributes` | `ProductAttribute[]` | Required |
 | `singleItemPrice` | `number` | Required |
 | `noOfItems` | `number` | Required |
 | `totalItemsPrice` | `number` | Required |
@@ -611,11 +617,31 @@ Source: `src/types/checkout-order.ts`
 | --- | --- | --- |
 | `id` | `OrderPublicId` | Required |
 | `invoiceItemIds` | `OrderPublicId[]` | Required |
-| `rate` | `{     id?: OrderPublicId;     name: string;     price: number;     type?: string;     icon?: string;     color?: string;   }` | Required |
+| `rate` | `{     id?: OrderPublicId;     name: string;     description?: string;     price: number;     type?: string;     icon?: string;     color?: string;   }` | Required |
 | `rate.id` | `OrderPublicId` | Optional |
 | `rate.name` | `string` | Required |
+| `rate.description` | `string` | Optional |
 | `rate.price` | `number` | Required |
 | `rate.type` | `string` | Optional |
 | `rate.icon` | `string` | Optional |
 | `rate.color` | `string` | Optional |
+
+#### ProductAttribute
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `name` | `string` | Required |
+| `value` | `string \| ProductAttributeValueObject` | Required |
+
+#### ProductAttributeValueObject
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `value` | `string` | Required |
+| `extra` | `string` | Optional |
+| `fieldType` | `string` | Optional |
 {/* AUTO_FIELDS_END */}

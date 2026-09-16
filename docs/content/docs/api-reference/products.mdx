@@ -62,6 +62,14 @@ Returns: `SazitoResponse<SearchResponse>`.
 | `categories` | `ProductCategory[]` | Required | Product categories. |
 | `attributes` | `ProductAttribute[]` | Optional | Additional attributes. |
 
+### Attribute values and colors
+
+`ProductAttribute.value` is either a display string or a rich
+`ProductAttributeValueObject`. For color attributes, `fieldType` is usually
+`'color'` and `extra` contains the color payload, commonly a hex value such as
+`'#ff0000'`. The same normalized attribute shape is used by cart, invoice,
+order, and checkout responses.
+
 ## Known errors
 
 | Type | When it happens |
@@ -289,7 +297,7 @@ Source: `src/types/product.ts`
 | `url` | `string` | Required |
 | `enabled` | `boolean` | Required |
 | `productType` | `string` | Required |
-| `themeConfig` | `any` | Optional |
+| `themeConfig` | `JsonObject` | Optional |
 | `dynamicFormId` | `number` | Optional |
 | `eventEntityId` | `number` | Optional |
 | `attributes` | `ProductAttribute[]` | Optional |
@@ -322,7 +330,7 @@ Source: `src/types/product.ts`
 | `dynamicFormId` | `number` | Optional |
 | `sortIndex` | `number` | Required |
 | `imageId` | `number` | Optional |
-| `commercialFiles` | `any[]` | Optional |
+| `commercialFiles` | `JsonValue[]` | Optional |
 | `createdAt` | `string` | Required |
 | `updatedAt` | `string` | Required |
 
@@ -338,7 +346,7 @@ Source: `src/types/product.ts`
 | `enabled` | `boolean` | Optional |
 | `description` | `string` | Optional |
 | `productsCount` | `number` | Optional |
-| `themeConfig` | `any` | Optional |
+| `themeConfig` | `JsonObject` | Optional |
 | `attributes` | `ProductAttribute[]` | Optional |
 | `createdAt` | `string` | Optional |
 | `updatedAt` | `string` | Optional |
@@ -350,7 +358,17 @@ Source: `src/types/common.ts`
 | Field | Type | Required |
 | --- | --- | --- |
 | `name` | `string` | Required |
+| `value` | `string \| ProductAttributeValueObject` | Required |
+
+#### ProductAttributeValueObject
+
+Source: `src/types/common.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
 | `value` | `string` | Required |
+| `extra` | `string` | Optional |
+| `fieldType` | `string` | Optional |
 
 #### Image
 
@@ -364,7 +382,6 @@ Source: `src/types/common.ts`
 | `alt` | `string` | Optional |
 | `width` | `number` | Optional |
 | `height` | `number` | Optional |
-| `order` | `number` | Optional |
 | `createdAt` | `string` | Required |
 | `updatedAt` | `string` | Required |
 
@@ -395,4 +412,3 @@ Source: `src/types/search.ts`
 | `productCategories.page` | `number` | Required |
 | `productCategories.pageSize` | `number` | Required |
 {/* AUTO_FIELDS_END */}
-
