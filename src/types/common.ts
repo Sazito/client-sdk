@@ -90,6 +90,10 @@ export interface ProductAttributeValueObject {
 
 export interface ProductAttribute {
   name: string;
+  /** Backend attribute category, such as `'differentiator'`, when present. */
+  attributeType?: string;
+  /** Backend value type, such as `'string'`, when present. */
+  type?: string;
   value: string | ProductAttributeValueObject;
 }
 

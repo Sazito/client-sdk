@@ -3,6 +3,7 @@
   "pages": [
     "client",
     "conventions",
+    "types",
     "products",
     "categories",
     "cms",

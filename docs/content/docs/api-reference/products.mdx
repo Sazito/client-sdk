@@ -70,6 +70,19 @@ Returns: `SazitoResponse<SearchResponse>`.
 `'#ff0000'`. The same normalized attribute shape is used by cart, invoice,
 order, and checkout responses.
 
+Import these types directly from the package in your application:
+
+```ts
+import type {
+  Product,
+  ProductVariant,
+  ProductAttribute,
+  ProductAttributeValueObject
+} from '@sazito/client-sdk';
+```
+
+For the full list of SDK types, see [TypeScript types](/docs/api-reference/types).
+
 ## Known errors
 
 | Type | When it happens |
@@ -358,6 +371,8 @@ Source: `src/types/common.ts`
 | Field | Type | Required |
 | --- | --- | --- |
 | `name` | `string` | Required |
+| `attributeType` | `string` | Optional |
+| `type` | `string` | Optional |
 | `value` | `string \| ProductAttributeValueObject` | Required |
 
 #### ProductAttributeValueObject

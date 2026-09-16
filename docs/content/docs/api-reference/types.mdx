@@ -1,0 +1,92 @@
+---
+title: TypeScript Types
+description: Import SDK request, response, model, and module types in a host project.
+---
+
+Every public type listed below is available from the package root. Use `import type`
+so the import disappears from your application's JavaScript output. No deep import
+from `dist`, `src/types`, or `src/api` is needed.
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+import type {
+  SazitoConfig,
+  SazitoResponse,
+  Product,
+  ProductAttribute,
+  CreateCartInput,
+  CategoryListResponse,
+  GeneralInfo
+} from '@sazito/client-sdk';
+
+const config: SazitoConfig = { domain: 'mystore.sazito.com' };
+const client = createSazitoClient(config);
+const productResult: SazitoResponse<Product> = await client.products.get('phone');
+```
+
+`SazitoResponse<T>` contains either `data: T` or an `error`. Import an input
+type when constructing a request, and a model or response type when passing
+SDK data between components or functions. You can also use indexed access for
+a nested type, such as `Product['variants'][number]`.
+
+## Shared models and inputs
+
+| Area | Root-exported types |
+| --- | --- |
+| Common | `JsonPrimitive`, `JsonValue`, `JsonObject`, `JsonArray`, `SazitoError`, `SazitoResponse`, `PaginatedResponse`, `RequestOptions`, `CookieOptions`, `Image`, `ProductAttribute`, `ProductAttributeValueObject`, `CheckoutProductSnapshot`, `Region`, `City` |
+| Client configuration | `SazitoConfig`, `CacheConfig`, `RetryConfig`, `ModuleContext`, `StorageAdapter` |
+| Products | `Product`, `ProductVariant`, `ProductCategory`, `Tag`, `ProductSort`, `ProductFilters` |
+| Cart | `SchedulerBookingAttributes`, `UploadedFormFileAttribute`, `FormAttributeValue`, `CartProduct`, `Cart`, `CartCredentials`, `AddToCartInput`, `CreateCartInput` |
+| Invoices | `InvoiceItemFormAttributes`, `InvoiceItem`, `ShippingItem`, `ShippingAddressRegion`, `ShippingAddressCity`, `ShippingAddress`, `InvoiceShippingAddressRegion`, `InvoiceShippingAddress`, `User`, `Invoice`, `InvoiceCredentials`, `CreateInvoiceInput`, `RefreshInvoiceInput` |
+| Shipping | `ShippingMethod`, `ShippingRate`, `ItemShippingRate`, `ApplicableShippingMethods`, `ShippingAddressInput`, `ShippingAddressCredentials`, `ShippingAssignment` |
+| Payments | `PaymentGateway`, `PaymentStatus`, `PaymentMethod`, `Payment`, `PaymentAction`, `PaymentCredentials`, `CreatePaymentInput`, `PaymentStepInput`, `PaymentCallbackFieldValue`, `PaymentCallbackFields`, `VerifyPaymentCallbackInput`, `PaymentPollingOptions`, `PaymentStepFormValue`, `PaymentStepFormFields` |
+| Orders | `OrderPublicId`, `OrderInvoiceItem`, `OrderShippingItem`, `OrderInvoice`, `Order`, `OrdersListResponse`, `OrderFilters`, `CheckoutInvoiceItem`, `CheckoutShippingItem`, `CheckoutInvoice`, `CheckoutOrder` |
+| Search and CMS | `CMSPageType`, `BlogPage`, `CmsPage`, `SearchResponse` |
+| Entity routes | `EntityType`, `EntityRoute`, `ProductEntityRoute`, `ProductCategoryEntityRoute`, `CMSPageEntityRoute`, `BlogPageEntityRoute`, `UnknownEntityRoute`, `EntityRouteResponse` |
+| Menu | `MenuItem`, `MenuTree`, `MenuNode` |
+
+## Module-specific types
+
+These types are defined beside the API method that uses them and are also
+importable from `@sazito/client-sdk`.
+
+| Module | Root-exported types |
+| --- | --- |
+| Categories | `CategoryTreeNode`, `CategoryTree`, `CategoryListResponse`, `CategoryFilters` |
+| Cart | `AddItemAttributesInput`, `UpdateItemAttributesInput` |
+| Invoices | `AddInvoiceFormInput` |
+| Users | `LoginInput`, `RegisterInput`, `MobileLoginInput`, `VerifyMobileInput`, `EmailLoginRequestInput`, `ForgotPasswordInput`, `ResetPasswordInput`, `UpdateProfileInput`, `UpdateMobilePhoneRequestInput`, `UpdateMobilePhoneVerificationInput`, `LoginResponse` |
+| Search | `SearchFilters` |
+| Feedbacks | `RecommendationStatus`, `FeedbackProductAttribute`, `FeedbackProductImage`, `FeedbackSeedItem`, `FeedbackSeed`, `CreateOrderRatingInput`, `CommentResponse`, `ProductReviewRequest`, `ProductReviewDraft`, `SubmitOrderFeedbackInput`, `SubmitOrderFeedbackResult`, `ProductStatistics`, `ProductReview`, `ProductReviewsFilters`, `ProductReviewsResponse`, `ReviewAttachmentInput`, `ReviewUploadedImage`, `ReviewImageUploadResponse` |
+| Wallet | `WalletTransactionReason`, `WalletTransaction`, `WalletBalance`, `Wallet`, `TransactionFilters`, `WalletTransactionsResponse` |
+| CMS | `CMSPage`, `CMSFilters` |
+| Images | `UploadImageResponse` |
+| Visits | `VisitInput`, `VisitResponse` |
+| Booking | `Event`, `SchedulerEvent`, `BookingTimeSlot`, `BookingAvailableDay`, `EventAvailabilitiesResponse`, `EventAvailabilityFilters`, `CreateBookingInput`, `Booking`, `EventFilters` |
+| General | `GeneralRegion`, `GeneralCity`, `PremiumInfo`, `GoogleAnalyticsCode`, `GoogleInfo`, `LogoInfo`, `SocialInfo`, `DomainInfo`, `EnamadInfo`, `ShopInfo`, `CheckoutConfig`, `TajrobeConfig`, `WalletConfig`, `ShopFeatures`, `ScriptsInfo`, `SettingsInfo`, `GeneralInfo` |
+| Dynamic forms | `DynamicFormFieldType`, `SelectOption`, `DynamicFormField`, `DynamicForm`, `UploadedDynamicFormFile` |
+| Regions | `RegionCity`, `RegionWithCities` |
+
+The general-information API's `Region` and `City` are exported as
+`GeneralRegion` and `GeneralCity`. The shorter `Region` and `City` names refer
+to the shared region models. `CMSPage` is the CMS API alias; `CmsPage` is the
+shared search model.
+
+## API module types
+
+For host props, dependency injection, or helper signatures, the module classes
+are available as types: `ProductsAPI`, `CategoriesAPI`, `CartAPI`, `OrdersAPI`,
+`InvoicesAPI`, `ShippingAPI`, `PaymentsAPI`, `UsersAPI`, `SearchAPI`,
+`FeedbacksAPI`, `WalletAPI`, `CMSAPI`, `ImagesAPI`, `VisitsAPI`, `BookingAPI`,
+`EntityRoutesAPI`, `MenuAPI`, `GeneralAPI`, `DynamicFormsAPI`, and `RegionsAPI`.
+
+The client and lower-level helpers are available as types too: `SazitoClient`,
+`HttpClient`, `TokenStorage`, `CredentialsManager`, and `MemoryStorage`.
+
+```ts
+import type { ProductsAPI } from '@sazito/client-sdk';
+
+function loadProduct(products: ProductsAPI, slug: string) {
+  return products.get(slug);
+}
+```

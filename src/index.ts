@@ -11,8 +11,78 @@ export type { SazitoConfig, CacheConfig, RetryConfig } from './core/config';
 
 // Types
 export * from './types';
-export type { SearchFilters } from './api/search';
+export type { ModuleContext } from './core/module-context';
+export type { ProductsAPI } from './api/products';
+export type { CategoriesAPI, CategoryTreeNode, CategoryTree, CategoryListResponse, CategoryFilters } from './api/categories';
+export type { CartAPI, AddItemAttributesInput, UpdateItemAttributesInput } from './api/cart';
+export type { OrdersAPI } from './api/orders';
+export type { InvoicesAPI, AddInvoiceFormInput } from './api/invoices';
+export type { ShippingAPI } from './api/shipping';
+export type { PaymentsAPI } from './api/payments';
 export type {
+  UsersAPI,
+  LoginInput,
+  RegisterInput,
+  MobileLoginInput,
+  VerifyMobileInput,
+  EmailLoginRequestInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+  UpdateProfileInput,
+  UpdateMobilePhoneRequestInput,
+  UpdateMobilePhoneVerificationInput,
+  LoginResponse
+} from './api/users';
+export type { SearchAPI, SearchFilters } from './api/search';
+export type { WalletAPI, WalletTransactionReason, WalletTransaction, WalletBalance, Wallet, TransactionFilters, WalletTransactionsResponse } from './api/wallet';
+export type { CMSAPI, CMSPage, CMSFilters } from './api/cms';
+export type { ImagesAPI, UploadImageResponse } from './api/images';
+export type { VisitsAPI, VisitInput, VisitResponse } from './api/visits';
+export type {
+  BookingAPI,
+  Event,
+  SchedulerEvent,
+  BookingTimeSlot,
+  BookingAvailableDay,
+  EventAvailabilitiesResponse,
+  EventAvailabilityFilters,
+  CreateBookingInput,
+  Booking,
+  EventFilters
+} from './api/booking';
+export type { EntityRoutesAPI } from './api/entity-routes';
+export type { MenuAPI } from './api/menu';
+export type {
+  GeneralAPI,
+  Region as GeneralRegion,
+  City as GeneralCity,
+  PremiumInfo,
+  GoogleAnalyticsCode,
+  GoogleInfo,
+  LogoInfo,
+  SocialInfo,
+  DomainInfo,
+  EnamadInfo,
+  ShopInfo,
+  CheckoutConfig,
+  TajrobeConfig,
+  WalletConfig,
+  ShopFeatures,
+  ScriptsInfo,
+  SettingsInfo,
+  GeneralInfo
+} from './api/general';
+export type {
+  DynamicFormsAPI,
+  DynamicFormFieldType,
+  SelectOption,
+  DynamicFormField,
+  DynamicForm,
+  UploadedDynamicFormFile
+} from './api/dynamic-forms';
+export type { RegionsAPI, RegionCity, RegionWithCities } from './api/regions';
+export type {
+  FeedbacksAPI,
   RecommendationStatus,
   FeedbackProductAttribute,
   FeedbackProductImage,

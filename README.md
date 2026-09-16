@@ -108,19 +108,24 @@ analytics, payment returns, and a fully custom layout, see the
 
 ## Core Response Model
 
-All SDK methods return a `SazitoResponse<T>`:
+All SDK methods return a `SazitoResponse<T>`. Import the SDK's request, response,
+and model types in host projects instead of declaring copies:
 
 ```ts
-type SazitoResponse<T> = {
-  data?: T;
-  error?: {
-    status?: number;
-    message: string;
-    type: 'network' | 'api' | 'validation';
-    details?: any;
-  };
-};
+import type {
+  SazitoResponse,
+  PaginatedResponse,
+  Product,
+  ProductAttribute,
+  CreateCartInput
+} from '@sazito/client-sdk';
+
+type ProductListResult = SazitoResponse<PaginatedResponse<Product>>;
 ```
+
+`SazitoResponse<T>` is a union: success contains `data`, and failure contains
+`error`. The [TypeScript types reference](https://developers.sazito.com/docs/api-reference/types)
+lists every type available from the package root.
 
 Typical usage:
 
@@ -439,7 +444,8 @@ pnpm build          # Build dist outputs
 pnpm dev            # Rollup watch mode
 pnpm typecheck      # TypeScript check (no emit)
 pnpm lint           # ESLint on src/
-pnpm validate       # typecheck + lint
+pnpm test           # build + SDK tests
+pnpm validate       # typecheck + lint + tests + public typecheck
 ```
 
 ### Releases
@@ -528,7 +534,8 @@ Make sure token is set with `setAuthToken` and that your backend accepts raw JWT
 ## Minimal TypeScript Example
 
 ```ts
-import { createSazitoClient, SazitoResponse, Product } from '@sazito/client-sdk';
+import { createSazitoClient } from '@sazito/client-sdk';
+import type { SazitoResponse, Product } from '@sazito/client-sdk';
 
 const client = createSazitoClient({ domain: 'mystore.sazito.com' });
 
