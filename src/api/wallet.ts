@@ -53,10 +53,6 @@ export interface Wallet extends WalletBalance {
 export interface TransactionFilters {
   pageNumber?: number;
   pageSize?: number;
-  /** @deprecated Use `pageNumber`. */
-  page_number?: number;
-  /** @deprecated Use `pageSize`. */
-  page_size?: number;
 }
 
 export interface WalletTransactionsResponse {
@@ -96,8 +92,8 @@ export class WalletAPI {
     filters?: TransactionFilters,
     options?: RequestOptions
   ): Promise<SazitoResponse<WalletTransactionsResponse>> {
-    const pageNumber = filters?.pageNumber ?? filters?.page_number ?? 1;
-    const pageSize = filters?.pageSize ?? filters?.page_size ?? 20;
+    const pageNumber = filters?.pageNumber ?? 1;
+    const pageSize = filters?.pageSize ?? 20;
 
     const response = await this.http.get<WalletTransactionsResponse>(
       WALLET_TRANSACTIONS_API,

@@ -8,6 +8,7 @@ import type {
   AddItemAttributesInput,
   LoginInput,
   WalletBalance,
+  TransactionFilters,
   CMSPage,
   Booking,
   DynamicForm,
@@ -36,6 +37,13 @@ const productAttributes: NonNullable<Product['attributes']> = [attribute];
 const variantAttributes: ProductVariant['attributes'] = productAttributes;
 
 void variantAttributes;
+
+const walletFilters: TransactionFilters = { pageNumber: 1, pageSize: 20 };
+void walletFilters;
+
+// @ts-expect-error Wallet filters use camelCase, not the backend's snake_case.
+const legacyWalletFilters: TransactionFilters = { page_size: 20 };
+void legacyWalletFilters;
 
 type HostModuleTypes = [
   ProductsAPI,
