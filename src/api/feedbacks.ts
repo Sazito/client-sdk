@@ -285,20 +285,54 @@ export class FeedbacksAPI {
     };
   }
 
+  private normalizeProductStatistics(data: any): ProductStatistics['productStatistics'] {
+    const statistics = data?.productStatistics ?? data?.product_statistics ?? data ?? {};
+    const recommendations = statistics?.recommendations ?? {};
+
+    return {
+      averageRate: Number(statistics?.averageRate ?? statistics?.average_rate ?? 0),
+      totalCount: Number(
+        statistics?.totalCount
+        ?? statistics?.total_count
+        ?? statistics?.total
+        ?? 0
+      ),
+      recommendations: {
+        recommendedPercentage: Number(
+          recommendations?.recommendedPercentage
+          ?? recommendations?.recommended_percentage
+          ?? 0
+        ),
+        recommendedTotalCount: Number(
+          recommendations?.recommendedTotalCount
+          ?? recommendations?.recommended_total_count
+          ?? 0
+        )
+      }
+    };
+  }
+
   private normalizeProductReviewsResponse(data: any): ProductReviewsResponse {
-    const entities = Array.isArray(data?.entities) ? data.entities : [];
-    const recommendations = data?.recommendations || {};
+    const productComments = data?.productComments ?? data?.product_comments ?? {};
+    const entitySource = data?.entities ?? productComments?.results;
+    const entities = Array.isArray(entitySource) ? entitySource : [];
+    const productStatistics = this.normalizeProductStatistics(
+      data?.productStatistics ?? data?.product_statistics ?? data
+    );
 
     return {
       entities: entities.map((entity: any) => this.normalizeProductReview(entity)),
-      pageNumber: Number(data?.pageNumber ?? 1),
-      pageSize: Number(data?.pageSize ?? 10),
-      totalCount: Number(data?.totalCount ?? entities.length),
-      averageRate: Number(data?.averageRate ?? 0),
-      recommendations: {
-        recommendedPercentage: Number(recommendations.recommendedPercentage ?? 0),
-        recommendedTotalCount: Number(recommendations.recommendedTotalCount ?? 0)
-      }
+      pageNumber: Number(data?.pageNumber ?? data?.page_number ?? data?.page ?? 1),
+      pageSize: Number(data?.pageSize ?? data?.page_size ?? 10),
+      totalCount: Number(
+        data?.totalCount
+        ?? data?.total_count
+        ?? data?.total
+        ?? productComments?.total
+        ?? entities.length
+      ),
+      averageRate: productStatistics.averageRate,
+      recommendations: productStatistics.recommendations
     };
   }
 
@@ -544,11 +578,12 @@ export class FeedbacksAPI {
     });
 
     if (response.data) {
-      const productStatistics = response.data.productStatistics
-        || response.data.data?.productStatistics
-        || response.data;
+      const responseData = response.data.data ?? response.data;
+      const productStatistics = this.normalizeProductStatistics(
+        responseData.productStatistics ?? responseData.product_statistics ?? responseData
+      );
 
-      return { data: { productStatistics } as ProductStatistics };
+      return { data: { productStatistics } };
     }
 
     return response;
