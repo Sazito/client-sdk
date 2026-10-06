@@ -22,8 +22,7 @@ const client = createSazitoClient({
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `domain` | `string` | Required | Store domain without protocol. |
-| `apiBaseUrl` | `string` | Optional | API origin; defaults to `https://sdk.sazito.com`. |
-| `apiKey` | `string` | Optional | Sent as `Sazito-API-Key` when provided. |
+| `apiKey` | `string` | Optional | Sazito API key. |
 | `paymentsBasePath` | `string` | Optional | Override the payment base path used by the SDK. |
 | `timeout` | `number` | Optional | Global request timeout. |
 | `retry` | `RetryConfig` | Optional | Retry policy for 5xx responses. |
@@ -145,7 +144,6 @@ Source: `src/core/config.ts`
 | Field | Type | Required |
 | --- | --- | --- |
 | `domain` | `string` | Required |
-| `apiBaseUrl` | `string` | Optional |
 | `apiKey` | `string` | Optional |
 | `paymentsBasePath` | `string` | Optional |
 | `timeout` | `number` | Optional |

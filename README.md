@@ -150,7 +150,6 @@ import { createSazitoClient } from '@sazito/client-sdk';
 const sazito = createSazitoClient({
   domain: 'mystore.sazito.com',
   apiKey: 'YOUR_SAZITO_API_KEY',
-  apiBaseUrl: 'https://sdk.sazito.com',
   timeout: 30000,
   debug: false,
   retry: {
@@ -176,17 +175,12 @@ const sazito = createSazitoClient({
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `domain` | `string` | Yes | Store domain without protocol |
-| `apiKey` | `string` | No | Sent as `Sazito-API-Key` on every request when provided |
-| `apiBaseUrl` | `string` | No | API origin (default `https://sdk.sazito.com`) |
+| `apiKey` | `string` | No | Sazito API key |
 | `timeout` | `number` | No | Global request timeout in ms (default `30000`) |
 | `retry` | object | No | Retry policy for 5xx responses on idempotent requests |
 | `cache` | object | No | Per-module cache strategy |
 | `customFetchApi` | `typeof fetch` | No | Override fetch implementation |
 | `debug` | `boolean` | No | Enables SDK debug logging |
-
-The SDK sends `Sazito-API-Key` alongside the store's `x-forwarded-host` header
-and the customer's `Authorization` token when available. If `apiKey` is omitted
-or empty, the API key header is omitted. Per-request `headers` can override it.
 
 ## Per-Request Overrides
 

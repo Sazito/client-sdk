@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Configure the API key, API origin, retries, timeout, cache policy, custom fetch, and debugging.
+description: Configure the API key, retries, timeout, cache policy, custom fetch, and debugging.
 ---
 
 ## Client configuration
@@ -11,7 +11,6 @@ import { createSazitoClient } from '@sazito/client-sdk';
 const client = createSazitoClient({
   domain: 'mystore.sazito.com',
   apiKey: 'YOUR_SAZITO_API_KEY',
-  apiBaseUrl: 'https://sdk.sazito.com',
   timeout: 30000,
   customFetchApi: fetch,
   debug: false,
@@ -38,8 +37,7 @@ const client = createSazitoClient({
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
 | `domain` | `string` | Yes | Store domain without protocol |
-| `apiKey` | `string` | No | Sent as the `Sazito-API-Key` header when provided |
-| `apiBaseUrl` | `string` | No | API origin; override for a deployment-specific Sazito endpoint |
+| `apiKey` | `string` | No | Sazito API key |
 | `paymentsBasePath` | `string` | No | Payments collection path, including its API version |
 | `timeout` | `number` | No | Global request timeout in ms |
 | `customFetchApi` | `typeof fetch` | No | Override runtime fetch implementation |
@@ -86,8 +84,7 @@ If a field is omitted, SDK defaults are used:
 
 | Field | Default |
 | --- | --- |
-| `apiBaseUrl` | `https://sdk.sazito.com` |
-| `apiKey` | Empty string; header omitted |
+| `apiKey` | `''` |
 | `paymentsBasePath` | Payment base path override |
 | `timeout` | `30000` |
 | `retry.enabled` | `true` |
@@ -102,13 +99,6 @@ If a field is omitted, SDK defaults are used:
 | `cache.tags` | `{ enabled: true, ttl: 600000 }` |
 | `cache.entityRoutes` | `{ enabled: true, ttl: 600000 }` |
 | `debug` | `false` |
-
-## API key header
-
-Set `apiKey` to your Sazito API key. The SDK sends it as `Sazito-API-Key` on every
-request, alongside `x-forwarded-host` and any customer `Authorization` token.
-Omitting `apiKey` or setting it to an empty string omits the API key header.
-You can override it for an individual request through `headers`.
 
 ## Per-request overrides
 
