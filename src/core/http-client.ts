@@ -364,6 +364,10 @@ export class HttpClient {
       ...customHeaders
     };
 
+    if (this.config.apiKey && !Object.keys(headers).some(key => key.toLowerCase() === 'sazito-api-key')) {
+      headers['Sazito-API-Key'] = this.config.apiKey;
+    }
+
     if (!omitJsonContentType) {
       headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     } else {

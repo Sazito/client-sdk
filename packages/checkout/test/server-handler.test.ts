@@ -59,12 +59,12 @@ describe('SazitoCheckout server handlers', () => {
     expect(customFetchApi).toHaveBeenCalledTimes(2);
     expect(customFetchApi).toHaveBeenNthCalledWith(
       1,
-      'http://api.sazito.com:8080/api/v2/payments/304/process_payment_step',
+      'https://sdk.sazito.com/api/v2/payments/304/process_payment_step',
       expect.anything()
     );
     expect(customFetchApi).toHaveBeenNthCalledWith(
       2,
-      'http://api.sazito.com:8080/api/v1/pinch/order',
+      'https://sdk.sazito.com/api/v1/pinch/order',
       expect.anything()
     );
   });

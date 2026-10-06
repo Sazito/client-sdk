@@ -1,4 +1,4 @@
-const SAZITO_API_ORIGIN = 'http://api.sazito.com:8080';
+const SAZITO_API_ORIGIN = 'https://sdk.sazito.com';
 
 interface ProxyContext {
   params: Promise<{ path: string[] }>;
@@ -21,12 +21,16 @@ async function proxyRequest(request: Request, context: ProxyContext): Promise<Re
   });
   const contentType = request.headers.get('content-type');
   const authorization = request.headers.get('authorization');
+  const apiKey = request.headers.get('Sazito-API-Key');
 
   if (contentType) {
     headers.set('content-type', contentType);
   }
   if (authorization) {
     headers.set('authorization', authorization);
+  }
+  if (apiKey) {
+    headers.set('Sazito-API-Key', apiKey);
   }
 
   try {

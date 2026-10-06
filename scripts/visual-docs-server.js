@@ -11,7 +11,7 @@ const HOST = process.env.HOST || '127.0.0.1';
 const ROOT_DIR = process.cwd();
 const PUBLIC_DIR = path.join(ROOT_DIR, 'scripts', 'visual-api-playground', 'public');
 const DIST_ENTRY = path.join(ROOT_DIR, 'dist', 'index.js');
-const API_BASE = 'http://api.sazito.com:8080';
+const API_BASE = 'https://sdk.sazito.com';
 const PLAYGROUND_DEFAULT_DOMAIN = 'noel-accessories.ir';
 
 // Persist SDK "localStorage" credentials across requests in this Node process.

@@ -15,8 +15,10 @@ export interface RetryConfig {
 
 export interface SazitoConfig {
   domain: string;                    // Without https (e.g., 'mystore.sazito.com')
-  /** Sazito API origin. Keeps the legacy SDK origin when omitted. */
+  /** Sazito API origin. Defaults to https://sdk.sazito.com. */
   apiBaseUrl?: string;
+  /** API key sent in the Sazito-API-Key header when provided. */
+  apiKey?: string;
   /** Payments collection path for deployments with a custom API version map. */
   paymentsBasePath?: string;
   timeout?: number;                  // Request timeout in ms (default: 30000)
@@ -36,7 +38,8 @@ export interface SazitoConfig {
 }
 
 export const DEFAULT_CONFIG: Required<Omit<SazitoConfig, 'domain' | 'customFetchApi'>> = {
-  apiBaseUrl: 'http://api.sazito.com:8080',
+  apiBaseUrl: 'https://sdk.sazito.com',
+  apiKey: '',
   paymentsBasePath: '/api/v2/payments',
   timeout: 30000,
   retry: {

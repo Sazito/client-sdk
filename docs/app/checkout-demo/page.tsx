@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createSazitoClient } from '@sazito/client-sdk';
 import { SazitoProvider, SazitoCheckoutPage } from '@sazito/checkout/next';
 
-const SAZITO_API_ORIGIN = 'http://api.sazito.com:8080';
+const SAZITO_API_ORIGIN = 'https://sdk.sazito.com';
 
 type MockPaymentScenario =
   | 'live'

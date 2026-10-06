@@ -103,8 +103,8 @@ describe('PaymentsAPI gateway return', () => {
       address: expect.stringContaining('/payment/325/identifier/v2-payment-token')
     });
     expect(requests.map(({ input }) => String(input))).toEqual([
-      'http://api.sazito.com:8080/api/v2/payments',
-      'http://api.sazito.com:8080/api/v2/payments/0/process_payment_step'
+      'https://sdk.sazito.com/api/v2/payments',
+      'https://sdk.sazito.com/api/v2/payments/0/process_payment_step'
     ]);
     expect(JSON.parse(String(requests[1]?.init?.body))).toEqual({
       payment_identifier: 'v2-payment-token',
@@ -270,7 +270,7 @@ describe('PaymentsAPI gateway return', () => {
       expect(response.error).toBeUndefined();
       expect(response.data?.action).toBe('FAIL');
       expect(fetchApi).toHaveBeenCalledWith(
-        'http://api.sazito.com:8080/api/v2/payments/0/process_payment_step',
+        'https://sdk.sazito.com/api/v2/payments/0/process_payment_step',
         expect.anything()
       );
     }
@@ -296,7 +296,7 @@ describe('PaymentsAPI gateway return', () => {
     client.getCredentialsManager().setPaymentCredentials({ id: 0, identifier: 'payment-token' });
     await client.payments.verify({ id: 324, paymentIdentifier: 'payment-token' });
     expect(fetchApi).toHaveBeenCalledWith(
-      'http://api.sazito.com:8080/api/v2/payments/324/process_payment_step', expect.anything()
+      'https://sdk.sazito.com/api/v2/payments/324/process_payment_step', expect.anything()
     );
     expect(client.getCredentialsManager().getPaymentCredentials()?.id).toBe(324);
   });
@@ -888,7 +888,7 @@ describe('PaymentsAPI gateway return', () => {
     });
 
     expect(requestUrl).toBe(
-      'http://api.sazito.com:8080/api/v2/payments/3728/process_payment_step'
+      'https://sdk.sazito.com/api/v2/payments/3728/process_payment_step'
     );
   });
 

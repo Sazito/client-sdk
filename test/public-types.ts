@@ -1,4 +1,5 @@
 import type {
+  SazitoConfig,
   Product,
   ProductVariant,
   ProductAttribute,
@@ -19,6 +20,12 @@ import type {
   RegionWithCities,
   FeedbackSeed
 } from '@sazito/client-sdk';
+
+const sdkConfig: SazitoConfig = {
+  domain: 'shop.example.com',
+  apiKey: 'test-api-key'
+};
+void sdkConfig;
 
 const color: ProductAttributeValueObject = {
   value: 'Blue',

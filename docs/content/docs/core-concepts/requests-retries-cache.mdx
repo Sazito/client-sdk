@@ -5,8 +5,9 @@ description: Transport behavior, retry policy, and cache invalidation mechanics.
 
 ## Transport defaults
 
-- Base URL: internal SDK transport derived from your configured store `domain`
+- Base URL: `https://sdk.sazito.com` (override with `apiBaseUrl`)
 - Header: `x-forwarded-host: <domain>`
+- Header: `Sazito-API-Key: <apiKey>` when configured
 - JSON request/response handling
 - Abort-based timeout control
 
