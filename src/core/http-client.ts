@@ -3,14 +3,14 @@
  * Provides unified response pattern, retry logic, caching, and automatic data transformation
  */
 
-import { SazitoResponse, RequestOptions } from '../types';
+import { SazitoResponse, RequestOptions, JsonObject } from '../types';
 import { SazitoConfig } from './config';
 import { TokenStorage } from '../utils/token-storage';
 import { CacheManager } from './cache';
 import { transformRequestKeys, transformResponseKeys } from '../utils/transformers';
 
 export class HttpClient {
-  private baseUrl: string;
+  private readonly baseUrl = 'https://sdk.sazito.com';
   private domain: string;
   private config: Required<SazitoConfig>;
   private tokenStorage: TokenStorage;
@@ -19,7 +19,6 @@ export class HttpClient {
 
   constructor(config: Required<SazitoConfig>) {
     this.config = config;
-    this.baseUrl = config.apiBaseUrl.replace(/\/$/, '');
     this.domain = config.domain;
     this.tokenStorage = new TokenStorage();
     this.cache = new CacheManager();
@@ -305,11 +304,24 @@ export class HttpClient {
   }
 
   /** Keep network error details serializable, matching `SazitoError.details`. */
-  private serializeErrorDetails(error: any): { name: string; message: string } {
-    return {
+  private serializeErrorDetails(error: any): JsonObject {
+    const details: JsonObject = {
       name: typeof error?.name === 'string' ? error.name : 'Error',
       message: typeof error?.message === 'string' ? error.message : String(error)
     };
+    if (typeof error?.code === 'string') details.code = error.code;
+
+    // Native fetch wraps TLS failures in TypeError('fetch failed'). Preserve
+    // its immediate cause without serializing arbitrary or circular objects.
+    const cause = error?.cause;
+    if (cause && typeof cause === 'object') {
+      details.cause = {
+        name: typeof cause.name === 'string' ? cause.name : 'Error',
+        message: typeof cause.message === 'string' ? cause.message : String(cause),
+        ...(typeof cause.code === 'string' ? { code: cause.code } : {})
+      };
+    }
+    return details;
   }
 
   /** Preserve debug structure without printing credentials or customer PII. */

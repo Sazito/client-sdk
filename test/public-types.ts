@@ -27,6 +27,8 @@ const sdkConfig: SazitoConfig = {
   apiKey: 'test-api-key'
 };
 void sdkConfig;
+// @ts-expect-error The API origin is fixed by the SDK.
+sdkConfig.apiBaseUrl = 'https://other.example.com';
 
 const color: ProductAttributeValueObject = {
   value: 'Blue',

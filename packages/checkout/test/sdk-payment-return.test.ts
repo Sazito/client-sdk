@@ -843,11 +843,10 @@ describe('PaymentsAPI gateway return', () => {
     expect(JSON.parse(String(request?.init?.body))).toEqual({ payment_identifier: 'pi_abc' });
   });
 
-  it('supports a configured API origin and payments base path', async () => {
+  it('supports a configured payments base path on the fixed SDK origin', async () => {
     let requestUrl = '';
     const client = createSazitoClient({
       domain: 'shop.example.com',
-      apiBaseUrl: 'https://payments-api.example.com/',
       paymentsBasePath: '/custom/v2/payments',
       customFetchApi: async (input) => {
         requestUrl = String(input);
@@ -863,7 +862,7 @@ describe('PaymentsAPI gateway return', () => {
     });
 
     expect(requestUrl).toBe(
-      'https://payments-api.example.com/custom/v2/payments/789/process_payment_step'
+      'https://sdk.sazito.com/custom/v2/payments/789/process_payment_step'
     );
   });
 

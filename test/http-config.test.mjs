@@ -35,16 +35,50 @@ test('API key header is omitted when the key is absent or empty', async () => {
   }
 });
 
-test('custom API origins and case-insensitive per-request API key overrides work', async () => {
+test('unsupported configuration cannot override the fixed HTTPS origin', async () => {
+  for (const apiBaseUrl of [undefined, 'http://api.sazito.com:8080', 'https://other.example.com']) {
+    const { client, requests } = captureClient({ apiBaseUrl });
+    await client.wallet.getBalance();
+    assert.equal(requests[0].url.origin, 'https://sdk.sazito.com');
+  }
+});
+
+test('the fixed HTTPS origin applies to every HTTP verb and preserves retries', async () => {
+  const requests = [];
+  const client = createSazitoClient({
+    domain: 'shop.example.com', apiKey: 'test-key',
+    retry: { enabled: true, retries: 1, retryDelay: 0 },
+    customFetchApi: async (input, init) => {
+      requests.push({ url: new URL(String(input)), ...init });
+      return Response.json({ result: {} }, { status: requests.length === 1 ? 503 : 200 });
+    }
+  });
+  await client.wallet.getBalance({ headers: { Authorization: 'test-jwt' } });
+  await client.images.upload(new Blob(['image']));
+  await client.users.updateProfile(123, { firstName: 'Test' });
+  await client.images.delete(1);
+  assert.deepEqual(requests.map(request => request.method), ['GET', 'GET', 'POST', 'PUT', 'DELETE']);
+  for (const request of requests) {
+    assert.equal(request.url.origin, 'https://sdk.sazito.com');
+    assert.ok(request.url.pathname.startsWith('/api/'));
+    assert.equal(new Headers(request.headers).get('Sazito-API-Key'), 'test-key');
+  }
+  assert.equal(new Headers(requests[1].headers).get('Authorization'), 'test-jwt');
+  assert.equal(requests[0].url.href, requests[1].url.href);
+  assert.ok(requests[2].body instanceof FormData);
+  assert.equal(new Headers(requests[2].headers).has('Content-Type'), false);
+  assert.deepEqual(JSON.parse(requests[3].body), { first_name: 'Test' });
+});
+
+test('case-insensitive per-request API key overrides work on the fixed origin', async () => {
   const { client, requests } = captureClient({
-    apiBaseUrl: 'https://custom-api.example.com/',
     apiKey: 'default-key'
   });
   for (const headerName of ['Sazito-API-Key', 'sazito-api-key']) {
     await client.wallet.getBalance({ headers: { [headerName]: 'request-key' } });
   }
   for (const request of requests) {
-    assert.equal(request.url.origin, 'https://custom-api.example.com');
+    assert.equal(request.url.origin, 'https://sdk.sazito.com');
     assert.ok(!request.url.pathname.startsWith('//'));
     assert.equal(new Headers(request.headers).get('Sazito-API-Key'), 'request-key');
   }

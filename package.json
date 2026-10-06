@@ -30,6 +30,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "pnpm run build && node --test test/*.test.mjs",
+    "test:https": "pnpm run build && node scripts/check-api-tls.mjs",
     "typecheck:public": "tsc --noEmit --strict --skipLibCheck --target ES2020 --module ESNext --moduleResolution bundler test/public-types.ts",
     "validate": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run typecheck:public",
     "prepublishOnly": "pnpm run validate",
