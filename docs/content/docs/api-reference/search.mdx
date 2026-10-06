@@ -21,11 +21,32 @@ Use: `search.query(query, filters?, options?)`.
 
 Returns: `SazitoResponse<SearchResponse>`.
 
+Calls `GET /api/v1/storefront/search`; `products.search()` uses this endpoint
+too. Product hits are `ProductListItem` objects for product cards, with a two-image default
+plus variant-referenced images.
+Use `imageCount` for the total image count and `products.get()` for categories,
+custom page configuration, description, SEO attributes, or variant SKUs.
+Images only expose `id`, `alt`, `url`, `width`, and `height`.
+
+`productType` can be an empty string and image `id`, `width`, or `height` can be
+zero. Display images using `url`. Only calculate an aspect ratio from positive
+dimensions, and only match variant images by ID when the ID is valid.
+
+Each result group has its own `total`, `page`, and `pageSize`. Do not use the
+product group's pagination to determine whether other groups have more results.
+
+`products.search()` supports query and pagination. Use `search.query()` for
+`categoryId`, `minPrice`, and `maxPrice` filters. List sort, pinned-product, and
+similar-product controls are not search parameters exposed by these methods.
+
+See [Products](/docs/api-reference/products#response-key-fields) for image-count
+examples, nullable collections, attributes, and variant fields.
+
 ## `SearchResponse` fields
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `products.items` | `Product[]` | Required | Product results. |
+| `products.items` | `ProductListItem[]` | Required | Slim product card results. |
 | `blogPages.items` | `BlogPage[]` | Required | Blog page results. |
 | `cmsPages.items` | `CmsPage[]` | Required | CMS page results. |
 | `productCategories.items` | `ProductCategory[]` | Required | Category results. |
@@ -243,8 +264,8 @@ Source: `src/types/search.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `products` | `{     items: Product[];     total: number;     page: number;     pageSize: number;   }` | Required |
-| `products.items` | `Product[]` | Required |
+| `products` | `{     items: ProductListItem[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `products.items` | `ProductListItem[]` | Required |
 | `products.total` | `number` | Required |
 | `products.page` | `number` | Required |
 | `products.pageSize` | `number` | Required |
@@ -264,26 +285,55 @@ Source: `src/types/search.ts`
 | `productCategories.page` | `number` | Required |
 | `productCategories.pageSize` | `number` | Required |
 
-#### Product
+#### ProductListItem
 
 Source: `src/types/product.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `id` | `number` | Optional |
+| `id` | `number` | Required |
 | `name` | `string` | Required |
 | `url` | `string` | Required |
 | `enabled` | `boolean` | Required |
 | `productType` | `string` | Required |
-| `themeConfig` | `any` | Optional |
 | `dynamicFormId` | `number` | Optional |
 | `eventEntityId` | `number` | Optional |
 | `attributes` | `ProductAttribute[]` | Optional |
-| `images` | `Image[]` | Required |
-| `variants` | `ProductVariant[]` | Required |
-| `categories` | `ProductCategory[]` | Required |
-| `createdAt` | `string` | Required |
-| `updatedAt` | `string` | Required |
+| `imageCount` | `number` | Required |
+| `images` | `ProductImage[] \| null` | Required |
+| `variants` | `ProductListVariant[] \| null` | Required |
+
+#### ProductListVariant
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `enabled` | `boolean` | Required |
+| `price` | `number` | Required |
+| `originalPrice` | `number` | Optional |
+| `stockQuantity` | `number` | Required |
+| `isStockManaged` | `boolean` | Required |
+| `attributes` | `ProductAttribute[]` | Required |
+| `hasMaxOrder` | `boolean` | Required |
+| `maxOrderQuantity` | `number` | Required |
+| `minOrderQuantity` | `number` | Required |
+| `dynamicFormId` | `number` | Optional |
+| `sortIndex` | `number` | Required |
+| `imageId` | `number` | Optional |
+
+#### ProductImage
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `alt` | `string` | Optional |
+| `url` | `string` | Required |
+| `width` | `number` | Optional |
+| `height` | `number` | Optional |
 
 #### BlogPage
 
@@ -299,7 +349,7 @@ Source: `src/types/search.ts`
 | `content` | `string` | Optional |
 | `summary` | `string` | Optional |
 | `image` | `Image` | Optional |
-| `themeConfig` | `any` | Optional |
+| `themeConfig` | `JsonObject` | Optional |
 | `attributes` | `ProductAttribute[]` | Optional |
 | `createdAt` | `string` | Required |
 | `updatedAt` | `string` | Required |
@@ -318,7 +368,7 @@ Source: `src/types/search.ts`
 | `content` | `string` | Optional |
 | `summary` | `string` | Optional |
 | `image` | `Image` | Optional |
-| `themeConfig` | `any` | Optional |
+| `themeConfig` | `JsonObject` | Optional |
 | `attributes` | `ProductAttribute[]` | Optional |
 | `createdAt` | `string` | Required |
 | `updatedAt` | `string` | Required |
@@ -335,7 +385,7 @@ Source: `src/types/product.ts`
 | `enabled` | `boolean` | Optional |
 | `description` | `string` | Optional |
 | `productsCount` | `number` | Optional |
-| `themeConfig` | `any` | Optional |
+| `themeConfig` | `JsonObject` | Optional |
 | `attributes` | `ProductAttribute[]` | Optional |
 | `createdAt` | `string` | Optional |
 | `updatedAt` | `string` | Optional |

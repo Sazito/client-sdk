@@ -16,6 +16,29 @@ Use: `entityRoutes.resolve(urlPart, options?)`.
 
 Returns: `SazitoResponse<EntityRouteResponse>`.
 
+Calls `GET /api/v1/storefront/entity_route/route?url_part=<path>`. Product
+entities use the [Product](/docs/api-reference/products) detail shape. The SDK
+places the resolved entity ID in `entityId` and omits it from `entity`.
+
+Use `products.get()` for product pages and this method to resolve category,
+CMS, and blog paths. Route requests take a full path; product detail requests
+take a slug. Product routes do not provide taxonomy metafields. SSR integrations
+that need them should consume the raw storefront product-details envelope;
+`products.get()` returns the product alone.
+
+Narrow the response by `entityType` before reading entity-specific fields:
+
+```ts
+const response = await client.entityRoutes.resolve('/category/shoes');
+if (response.error) {
+  // Render the request error.
+} else if (response.data.entityType === 'product_category') {
+  const route = response.data;
+  const { name, description, productsCount } = route.entity;
+  // Render the category information using route.entityId as its ID.
+}
+```
+
 ## `EntityRouteResponse` fields
 
 | Field | Type | Required | Description |

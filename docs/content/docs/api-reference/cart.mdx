@@ -17,6 +17,13 @@ description: Cart APIs for guest and authenticated checkout entry, line-item cha
 - Only send `schedulerBookingAttributes` when all required booking fields are present.
 - `updateItem` accepts `count = 0` to remove the target line-item.
 
+The raw v2 API places variant IDs at `cart_items[].product.variant_id` and uses
+`product.max_no_of_orders` (plural) for order limits. Its product image contains
+only `{ url }`. Prices belong to the cart line item; stock constraints are
+enforced by the server. Item-level `created_at` and `updated_at` are available
+when returned by the API. These are raw API field names; SDK methods return the
+normalized `Cart` and `CartProduct` shapes documented below.
+
 ## Attribute map (form vs booking)
 
 | Field | Scope | What it is for |

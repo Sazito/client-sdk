@@ -3,6 +3,14 @@ title: Products
 description: Product lookup, filtered listing, and cross-entity search.
 ---
 
+Use this module for product grids, product pages, and product discovery.
+
+| Use case | Method | Response data |
+| --- | --- | --- |
+| Product grid | `products.list(filters?)` | `PaginatedResponse<ProductListItem>` |
+| Product detail page | `products.get(slugOrPath)` | `Product` |
+| Cross-entity search | `products.search(query, filters?)` | `SearchResponse` |
+
 ## Methods
 
 ### Get
@@ -16,6 +24,12 @@ Use: `products.get(slugOrPath, options?)`.
 
 Returns: `SazitoResponse<Product>`.
 
+Calls `GET /api/v1/storefront/products/details?url_part=<slug>`. A full product
+path is converted to its decoded slug. The SDK returns the detail product.
+All images and attributes (including description and SEO) are available here.
+`themeConfig` is absent when the product has no custom page. Images, variants,
+and categories preserve the API's `null` versus `[]` values.
+
 ### List
 
 Use: `products.list(filters?, options?)`.
@@ -23,7 +37,7 @@ Use: `products.list(filters?, options?)`.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `filters.page` | `number` | Optional | Page number. |
-| `filters.pageSize` | `number` | Optional | Items per page. |
+| `filters.pageSize` | `number` | Optional | Items per page; capped at 100 by the API. |
 | `filters.sort` | `'newest' \| 'best-selling' \| 'availability' \| 'discount' \| '!price' \| 'price'` | Optional | Sort strategy. |
 | `filters.categories` | `number \| number[]` | Optional | Category filter(s). |
 | `filters.priceMin` | `number` | Optional | Minimum price. |
@@ -34,7 +48,11 @@ Use: `products.list(filters?, options?)`.
 | `filters.similarTo` | `number` | Optional | Similar-to product ID. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-Returns: `SazitoResponse<PaginatedResponse<Product>>`.
+Returns: `SazitoResponse<PaginatedResponse<ProductListItem>>`.
+
+Calls `GET /api/v1/storefront/products`. `items` contains `ProductListItem`
+objects intended for product cards. Fetch `products.get()` for categories,
+custom page configuration, description and SEO attributes, and variant SKUs.
 
 ### Search
 
@@ -43,12 +61,32 @@ Use: `products.search(query, filters?, options?)`.
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `query` | `string` | Required | Search text. |
-| `filters` | `ProductFilters` | Optional | Search pagination/filter parameters. |
+| `filters` | `ProductFilters` | Optional | Search uses `page` and `pageSize`. Other product-list filters are not sent by this method. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<SearchResponse>`.
 
+Calls `GET /api/v1/storefront/search`. Product hits use the same
+`ProductListItem` shape as lists, with a two-image default. See
+[Search](/docs/api-reference/search) for the other result groups.
+
 ## Response key fields
+
+### ProductListItem
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id`, `name`, `url` | `number`, `string`, `string` | Product identity and resolved storefront URL. |
+| `productType`, `enabled` | `string`, `boolean` | Product type and enabled status. |
+| `imageCount` | `number` | Total product images, including images outside the returned collection. |
+| `images` | `ProductImage[] \| null` | Images for the card, including variant-referenced images. |
+| `variants` | `ProductListVariant[] \| null` | Pricing, stock, order constraints, and variant attributes. |
+| `attributes` | `ProductAttribute[]` | Optional card attributes. |
+| `dynamicFormId`, `eventEntityId` | `number` | Optional form and event identifiers. |
+
+Card attributes exclude `description`, `metaTitle`, `metaDescription`,
+`metaKeywords`, `focusKeyphrase`, `redirect`, `canonical`, `noindex`, and `id`.
+These attributes are available on the detail product.
 
 ### Product
 
@@ -57,10 +95,114 @@ Returns: `SazitoResponse<SearchResponse>`.
 | `name` | `string` | Required | Product name. |
 | `url` | `string` | Required | Product URL path. |
 | `enabled` | `boolean` | Required | Enabled status. |
-| `variants` | `ProductVariant[]` | Required | Variant list. |
-| `images` | `Image[]` | Required | Product images. |
-| `categories` | `ProductCategory[]` | Required | Product categories. |
+| `variants` | `ProductVariant[] \| null` | Required | Detail variants, including `sku` when present. |
+| `images` | `ProductImage[] \| null` | Required | All images: `id`, `alt`, `url`, `width`, `height`. |
+| `categories` | `ProductBreadcrumbCategory[] \| null` | Required | Breadcrumb categories with only `id`, `name`, `url`. |
 | `attributes` | `ProductAttribute[]` | Optional | Additional attributes. |
+
+### Images and optional fields
+
+List images default to the first two images plus any images referenced by
+variants, in the original order. A list item can return more than two images.
+Use `imageCount` for the total number of product images. Details return all
+images; count their `images` collection when it is present.
+
+The raw list endpoint accepts `image_limit` (default 2, maximum 10).
+`ProductFilters` does not expose this parameter, so `products.list()` uses the
+API default. Direct API list requests can set `image_limit` when their cards
+need more images. The API caps list `page_size` at 100.
+
+```ts
+import type { ProductListItem } from '@sazito/client-sdk';
+
+function cardImages(product: ProductListItem) {
+  const images = product.images ?? [];
+  return {
+    coverUrl: images[0]?.url,
+    totalImages: product.imageCount,
+    remainingImages: Math.max(0, product.imageCount - images.length),
+  };
+}
+```
+
+The array fallback above is for presentation. The SDK preserves `null` and `[]`
+as returned by the API. `themeConfig` is absent when a detail product has no
+custom page; use optional access when reading it.
+
+Product images expose `id`, `alt`, `url`, `width`, and `height`. Use `url` to
+display an image and positive dimensions to calculate an aspect ratio.
+
+### Variants, pricing, and categories
+
+Use `variant.price` for the final price, including gold-pricing adjustments.
+`originalPrice` is the raw price when present. Gold component breakdowns,
+shipping weight, download links, and timestamps are not part of storefront
+variants. Product timestamps and tags are not part of storefront products.
+
+A variant contains its own attributes and identifiers. Read the product's
+name and URL from the surrounding `Product` or `ProductListItem`.
+
+Detail categories provide `id`, `name`, and `url` for breadcrumbs. To get a
+category's description or product count, resolve its URL through
+[Entity Routes](/docs/api-reference/entity-routes).
+
+### Dynamic forms
+
+Fetch the form definition when rendering a product form. Use the selected
+variant's `dynamicFormId`, falling back to the product's ID when absent:
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+const client = createSazitoClient({ domain: 'mystore.sazito.com' });
+async function loadProductForm(slug: string, variantId: number) {
+  const response = await client.products.get(slug);
+  if (response.error) return response;
+
+  const product = response.data;
+  const variant = product.variants?.find((item) => item.id === variantId);
+  const formId = variant?.dynamicFormId ?? product.dynamicFormId;
+
+  if (formId === undefined || formId <= 0) return null;
+  return client.dynamicForms.getForm(formId);
+}
+
+const formResponse = await loadProductForm('shoe-123', 12001);
+// null means no form; otherwise handle formResponse.data or formResponse.error.
+```
+
+See [Dynamic Forms](/docs/api-reference/dynamic-forms) for form fields and uploads.
+
+### Raw API fields and SDK names
+
+| Raw API field | SDK field |
+| --- | --- |
+| `result.products` in a list | `data.items` |
+| `result.product` in details | `data` |
+| `product_type` | `productType` |
+| `image_count` | `imageCount` |
+| `product_attributes` | `attributes` |
+| `product_variants` | `variants` |
+| `product_categories` on details | `categories` |
+| `theme_config` | `themeConfig` |
+| `dynamic_form_id` | `dynamicFormId` |
+| `raw_price` on a variant | `originalPrice` |
+| `stock_number` | `stockQuantity` |
+| `is_stock_managed` | `isStockManaged` |
+| `image_id` | `imageId` |
+| `min_order_count` | `minOrderQuantity` |
+| `max_no_of_order` | `maxOrderQuantity` |
+| `has_max_order` | `hasMaxOrder` |
+
+The SDK list wrapper returns `items`, `total`, `page`, `pageSize`, and
+`totalPages`. Raw list envelope fields such as `total_count_raw`, `min_price`,
+`max_price`, `sub_categories`, and `stock_alert_limit` are not exposed by this wrapper.
+
+The raw details envelope includes `metafields` and `success_taxonomy`, and raw
+detail variants include `title` and `sku`. `products.get()` returns the product
+alone, without taxonomy envelope fields or variant titles. `sku` is available
+on SDK detail variants. Consume the storefront details endpoint directly when
+your integration needs taxonomy metadata or raw variant titles.
 
 ### Attribute values and colors
 
@@ -75,6 +217,7 @@ Import these types directly from the package in your application:
 ```ts
 import type {
   Product,
+  ProductListItem,
   ProductVariant,
   ProductAttribute,
   ProductAttributeValueObject
@@ -87,7 +230,7 @@ For the full list of SDK types, see [TypeScript types](/docs/api-reference/types
 
 | Type | When it happens |
 | --- | --- |
-| `api` | Resolved entity is not a product or product not found. |
+| `api` | Product not found or rejected by the API. |
 | `network` | Connectivity/timeout issues. |
 
 ## Examples
@@ -299,6 +442,44 @@ Source: `src/types/product.ts`
 | `pinnedIds` | `number[]` | Optional |
 | `similarTo` | `number` | Optional |
 
+#### ProductListItem
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
+| `enabled` | `boolean` | Required |
+| `productType` | `string` | Required |
+| `dynamicFormId` | `number` | Optional |
+| `eventEntityId` | `number` | Optional |
+| `attributes` | `ProductAttribute[]` | Optional |
+| `imageCount` | `number` | Required |
+| `images` | `ProductImage[] \| null` | Required |
+| `variants` | `ProductListVariant[] \| null` | Required |
+
+#### ProductListVariant
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `enabled` | `boolean` | Required |
+| `price` | `number` | Required |
+| `originalPrice` | `number` | Optional |
+| `stockQuantity` | `number` | Required |
+| `isStockManaged` | `boolean` | Required |
+| `attributes` | `ProductAttribute[]` | Required |
+| `hasMaxOrder` | `boolean` | Required |
+| `maxOrderQuantity` | `number` | Required |
+| `minOrderQuantity` | `number` | Required |
+| `dynamicFormId` | `number` | Optional |
+| `sortIndex` | `number` | Required |
+| `imageId` | `number` | Optional |
+
 #### Product
 
 Source: `src/types/product.ts`
@@ -314,11 +495,9 @@ Source: `src/types/product.ts`
 | `dynamicFormId` | `number` | Optional |
 | `eventEntityId` | `number` | Optional |
 | `attributes` | `ProductAttribute[]` | Optional |
-| `images` | `Image[]` | Required |
-| `variants` | `ProductVariant[]` | Required |
-| `categories` | `ProductCategory[]` | Required |
-| `createdAt` | `string` | Required |
-| `updatedAt` | `string` | Required |
+| `images` | `ProductImage[] \| null` | Required |
+| `variants` | `ProductVariant[] \| null` | Required |
+| `categories` | `ProductBreadcrumbCategory[] \| null` | Required |
 
 #### ProductVariant
 
@@ -327,25 +506,29 @@ Source: `src/types/product.ts`
 | Field | Type | Required |
 | --- | --- | --- |
 | `id` | `number` | Required |
-| `productId` | `number` | Optional |
-| `sku` | `string` | Optional |
 | `enabled` | `boolean` | Required |
 | `price` | `number` | Required |
 | `originalPrice` | `number` | Optional |
 | `stockQuantity` | `number` | Required |
 | `isStockManaged` | `boolean` | Required |
-| `isAvailable` | `boolean` | Optional |
 | `attributes` | `ProductAttribute[]` | Required |
 | `hasMaxOrder` | `boolean` | Required |
 | `maxOrderQuantity` | `number` | Required |
 | `minOrderQuantity` | `number` | Required |
-| `weight` | `number` | Optional |
 | `dynamicFormId` | `number` | Optional |
 | `sortIndex` | `number` | Required |
 | `imageId` | `number` | Optional |
-| `commercialFiles` | `JsonValue[]` | Optional |
-| `createdAt` | `string` | Required |
-| `updatedAt` | `string` | Required |
+| `sku` | `string` | Optional |
+
+#### ProductBreadcrumbCategory
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `number` | Required |
+| `name` | `string` | Required |
+| `url` | `string` | Required |
 
 #### ProductCategory
 
@@ -385,20 +568,17 @@ Source: `src/types/common.ts`
 | `extra` | `string` | Optional |
 | `fieldType` | `string` | Optional |
 
-#### Image
+#### ProductImage
 
-Source: `src/types/common.ts`
+Source: `src/types/product.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
 | `id` | `number` | Required |
-| `name` | `string` | Required |
-| `url` | `string` | Required |
 | `alt` | `string` | Optional |
+| `url` | `string` | Required |
 | `width` | `number` | Optional |
 | `height` | `number` | Optional |
-| `createdAt` | `string` | Required |
-| `updatedAt` | `string` | Required |
 
 #### SearchResponse
 
@@ -406,8 +586,8 @@ Source: `src/types/search.ts`
 
 | Field | Type | Required |
 | --- | --- | --- |
-| `products` | `{     items: Product[];     total: number;     page: number;     pageSize: number;   }` | Required |
-| `products.items` | `Product[]` | Required |
+| `products` | `{     items: ProductListItem[];     total: number;     page: number;     pageSize: number;   }` | Required |
+| `products.items` | `ProductListItem[]` | Required |
 | `products.total` | `number` | Required |
 | `products.page` | `number` | Required |
 | `products.pageSize` | `number` | Required |

@@ -24,10 +24,10 @@ export const usersApi = users(config);
 ```vue
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import type { Product } from '@sazito/client-sdk';
+import type { ProductListItem } from '@sazito/client-sdk';
 import { productsApi } from '@/lib/sazito';
 
-const items = ref<Product[]>([]);
+const items = ref<ProductListItem[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 

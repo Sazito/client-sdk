@@ -34,12 +34,15 @@ const SOURCE_FILES = [
 const PAGE_TYPE_MAP = {
   'docs/content/docs/api-reference/products.mdx': [
     'src/types/product.ts:ProductFilters',
+    'src/types/product.ts:ProductListItem',
+    'src/types/product.ts:ProductListVariant',
     'src/types/product.ts:Product',
     'src/types/product.ts:ProductVariant',
+    'src/types/product.ts:ProductBreadcrumbCategory',
     'src/types/product.ts:ProductCategory',
     'src/types/common.ts:ProductAttribute',
     'src/types/common.ts:ProductAttributeValueObject',
-    'src/types/common.ts:Image',
+    'src/types/product.ts:ProductImage',
     'src/types/search.ts:SearchResponse',
   ],
   'docs/content/docs/api-reference/categories.mdx': [
@@ -113,7 +116,9 @@ const PAGE_TYPE_MAP = {
   'docs/content/docs/api-reference/search.mdx': [
     'src/api/search.ts:SearchFilters',
     'src/types/search.ts:SearchResponse',
-    'src/types/product.ts:Product',
+    'src/types/product.ts:ProductListItem',
+    'src/types/product.ts:ProductListVariant',
+    'src/types/product.ts:ProductImage',
     'src/types/search.ts:BlogPage',
     'src/types/search.ts:CmsPage',
     'src/types/product.ts:ProductCategory',

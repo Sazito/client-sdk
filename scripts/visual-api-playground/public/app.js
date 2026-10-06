@@ -11,7 +11,7 @@ const OPERATIONS = [
   {
     id: 'products.list',
     label: 'Products: List',
-    description: 'GET /api/v1/products with dedicated filter, sort, and pagination controls.',
+    description: 'GET /api/v1/storefront/products with dedicated filter, sort, and pagination controls.',
     fields: [
       {
         key: 'filters.categories',
@@ -92,7 +92,7 @@ const OPERATIONS = [
   {
     id: 'products.get',
     label: 'Products: Get Single',
-    description: 'GET /api/v1/entity_route/route?url_part=... resolved via products.get().',
+    description: 'GET /api/v1/storefront/products/details?url_part=<slug> via products.get().',
     fields: [
       {
         key: 'slugOrPath',
@@ -107,7 +107,7 @@ const OPERATIONS = [
   {
     id: 'search.query',
     label: 'Search: Global',
-    description: 'GET /api/v1/search with SDK filter mapping and pagination controls.',
+    description: 'GET /api/v1/storefront/search with SDK filter mapping and pagination controls.',
     fields: [
       {
         key: 'query',
@@ -220,7 +220,7 @@ const OPERATIONS = [
   {
     id: 'cms.getPage',
     label: 'CMS: Get Page',
-    description: 'GET /api/v1/entity_route/route?url_part=... resolved via cms.getPage().',
+    description: 'GET /api/v1/storefront/entity_route/route?url_part=... resolved via cms.getPage().',
     fields: [
       {
         key: 'urlPath',
@@ -258,7 +258,7 @@ const OPERATIONS = [
   {
     id: 'cms.getBlogPost',
     label: 'CMS: Get Blog Post',
-    description: 'GET /api/v1/entity_route/route?url_part=... resolved via cms.getBlogPost().',
+    description: 'GET /api/v1/storefront/entity_route/route?url_part=... resolved via cms.getBlogPost().',
     fields: [
       {
         key: 'urlPath',

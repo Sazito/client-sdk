@@ -2,7 +2,7 @@
  * Search-related types
  */
 
-import { Product, ProductCategory } from './product';
+import { ProductListItem, ProductCategory } from './product';
 import { Image, ProductAttribute, JsonObject } from './common';
 
 /**
@@ -52,7 +52,7 @@ export interface CmsPage {
  */
 export interface SearchResponse {
   products: {
-    items: Product[];
+    items: ProductListItem[];
     total: number;
     page: number;
     pageSize: number;

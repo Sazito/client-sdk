@@ -42,8 +42,8 @@ test('get and list products omit null attributes and trim display values', async
   const client = createSazitoClient({
     domain: 'shop.example.com',
     customFetchApi: async (input) => {
-      const result = String(input).includes('/entity_route/')
-        ? { route: { entity_name: 'product', entity_id: 56, other_props: rawProduct } }
+      const result = String(input).includes('/products/details')
+        ? { product: rawProduct }
         : { products: [rawProduct], total_count: 1 };
       return new Response(JSON.stringify({ result }), {
         headers: { 'Content-Type': 'application/json' }

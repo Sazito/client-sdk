@@ -4,9 +4,10 @@
  */
 
 // Products
-export const PRODUCTS_API = '/api/v1/products';
+export const PRODUCTS_API = '/api/v1/storefront/products';
+export const PRODUCT_DETAILS_API = '/api/v1/storefront/products/details';
 export const PRODUCT_CATEGORIES_API = '/api/v1/product_categories';
-export const SEARCH_API = '/api/v1/search';
+export const SEARCH_API = '/api/v1/storefront/search';
 
 // Cart & Checkout
 export const CARTS_API = '/api/v2/carts';
@@ -43,7 +44,7 @@ export const SCHEDULER_BOOKINGS_API = '/api/v1/scheduler/bookings';
 export const SCHEDULER_AVAILABILITIES_API = '/api/v1/scheduler/availabilities';
 
 // Entity Routes
-export const ENTITY_ROUTE_API = '/api/v1/entity_route/route';
+export const ENTITY_ROUTE_API = '/api/v1/storefront/entity_route/route';
 
 // Menu & Navigation
 export const MENU_API = '/api/v1/trees/fetch_single';

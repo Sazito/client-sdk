@@ -20,6 +20,16 @@ description: Checkout invoice creation, updates, shipping assignment, and discou
 - `shippingAddress` is normalized by SDK to remove duplicated/noisy fields.
 - `Invoice` responses intentionally exclude `user`/`userData` profile objects.
 
+The raw v2 `invoice_items[].product_variant.product` contains product identity
+(`id`, `name`, `product_type`, `url`) and dynamic-form information
+(`dynamic_form_id`, plus `dynamic_form` when present). This nested product is
+part of the invoice contract. Product images, categories, and full product
+attributes are available through the storefront product-details endpoint.
+Commercial download links are provided by the paid-order API rather than
+invoice variants. See [Orders](/docs/api-reference/orders) for order retrieval.
+These raw API paths differ from the SDK's normalized `InvoiceItem` shape
+documented below.
+
 Invoice line attributes are returned as `invoice.items[].attributes` using the
 shared `ProductAttribute` shape. A color value may be a
 `ProductAttributeValueObject` with `fieldType: 'color'` and a hex payload in

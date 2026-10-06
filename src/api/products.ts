@@ -6,15 +6,16 @@ import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
   PaginatedResponse,
+  ProductListItem,
   Product,
   ProductFilters,
   RequestOptions,
   SearchResponse,
-  EntityRouteResponse,
+  JsonObject,
   JsonValue
 } from '../types';
-import { PRODUCTS_API, SEARCH_API, ENTITY_ROUTE_API } from '../constants/endpoints';
-import { transformProductListResponse, transformSearchResponse, transformEntityRouteResponse } from '../utils/transformers';
+import { PRODUCTS_API, PRODUCT_DETAILS_API, SEARCH_API } from '../constants/endpoints';
+import { transformProductListResponse, transformSearchResponse, transformProductDetailsResponse } from '../utils/transformers';
 
 export class ProductsAPI {
   constructor(private http: HttpClient) {}
@@ -111,46 +112,30 @@ export class ProductsAPI {
 
   /**
    * Get a single product by slug or URL path
-   * Uses the entity route API to resolve the product
+   * Uses the storefront product details API
    */
   async get(
     slugOrPath: string,
     options?: RequestOptions
   ): Promise<SazitoResponse<Product>> {
-    // Ensure the path starts with /product/
-    const urlPart = slugOrPath.startsWith('/product/')
-      ? slugOrPath
-      : `/product/${slugOrPath}`;
+    // The details API expects the slug, unlike entity routes' full pathname.
+    const slug = slugOrPath.replace(/^\/product\//, '').split(/[/?#]/)[0];
+    let urlPart = slug;
+    try {
+      urlPart = decodeURIComponent(slug);
+    } catch {
+      // Preserve malformed percent escapes rather than throwing from an API method.
+    }
 
-    const response = await this.http.get<EntityRouteResponse>(ENTITY_ROUTE_API, {
+    const response = await this.http.get<JsonObject>(PRODUCT_DETAILS_API, {
       ...options,
       params: { url_part: urlPart }
     });
 
     if (response.data) {
-      const route = transformEntityRouteResponse<EntityRouteResponse>(response.data);
-
-      if (route.entityType === 'product' && route.entity) {
-        return { data: route.entity };
-      }
-
-      if (route.entityType === 'unknown') {
-        return {
-          error: {
-            message: 'Product not found',
-            type: 'api',
-            status: 404
-          }
-        };
-      }
-
-      return {
-        error: {
-          message: `Invalid entity type: expected 'product', got '${route.entityType}'`,
-          type: 'api',
-          status: 400
-        }
-      };
+      const product = transformProductDetailsResponse<Product>(response.data);
+      if (product) return { data: product };
+      return { error: { message: 'Product not found', type: 'api', status: 404 } };
     }
 
     if (response.error) {
@@ -171,16 +156,16 @@ export class ProductsAPI {
   async list(
     filters?: ProductFilters,
     options?: RequestOptions
-  ): Promise<SazitoResponse<PaginatedResponse<Product>>> {
+  ): Promise<SazitoResponse<PaginatedResponse<ProductListItem>>> {
     const params = this.transformFilters(filters);
 
-    const response = await this.http.get<PaginatedResponse<Product>>(PRODUCTS_API, {
+    const response = await this.http.get<PaginatedResponse<ProductListItem>>(PRODUCTS_API, {
       ...options,
       params
     });
 
     if (response.data) {
-      const transformed = transformProductListResponse<PaginatedResponse<Product>>(response.data);
+      const transformed = transformProductListResponse<PaginatedResponse<ProductListItem>>(response.data);
       return { data: transformed };
     }
 

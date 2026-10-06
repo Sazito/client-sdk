@@ -29,10 +29,10 @@ Use `AbortController` in effects to avoid race conditions on unmount.
 ```tsx
 import { useEffect, useState } from 'react';
 import { sazito } from '../lib/sazito';
-import type { Product } from '@sazito/client-sdk';
+import type { ProductListItem } from '@sazito/client-sdk';
 
 export function ProductGrid() {
-  const [items, setItems] = useState<Product[]>([]);
+  const [items, setItems] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -131,11 +131,11 @@ export const cartApi = cart(config);
 
 ```tsx
 import { useEffect, useState } from 'react';
-import type { Product } from '@sazito/client-sdk';
+import type { ProductListItem } from '@sazito/client-sdk';
 import { productsApi } from '../lib/sazito-modules';
 
 export function ProductList() {
-  const [items, setItems] = useState<Product[]>([]);
+  const [items, setItems] = useState<ProductListItem[]>([]);
 
   useEffect(() => {
     let active = true;

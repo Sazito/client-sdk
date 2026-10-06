@@ -27,7 +27,7 @@ const productResult: SazitoResponse<Product> = await client.products.get('phone'
 `SazitoResponse<T>` contains either `data: T` or an `error`. Import an input
 type when constructing a request, and a model or response type when passing
 SDK data between components or functions. You can also use indexed access for
-a nested type, such as `Product['variants'][number]`.
+a nested type, such as `NonNullable<Product['variants']>[number]`.
 
 ## Shared models and inputs
 
@@ -35,7 +35,7 @@ a nested type, such as `Product['variants'][number]`.
 | --- | --- |
 | Common | `JsonPrimitive`, `JsonValue`, `JsonObject`, `JsonArray`, `SazitoError`, `SazitoResponse`, `PaginatedResponse`, `RequestOptions`, `CookieOptions`, `Image`, `ProductAttribute`, `ProductAttributeValueObject`, `CheckoutProductSnapshot`, `Region`, `City` |
 | Client configuration | `SazitoConfig`, `CacheConfig`, `RetryConfig`, `ModuleContext`, `StorageAdapter` |
-| Products | `Product`, `ProductVariant`, `ProductCategory`, `Tag`, `ProductSort`, `ProductFilters` |
+| Products | `Product`, `ProductListItem`, `ProductListVariant`, `ProductVariant`, `ProductImage`, `ProductBreadcrumbCategory`, `ProductCategory`, `Tag`, `ProductSort`, `ProductFilters` |
 | Cart | `SchedulerBookingAttributes`, `UploadedFormFileAttribute`, `FormAttributeValue`, `CartProduct`, `Cart`, `CartCredentials`, `AddToCartInput`, `CreateCartInput` |
 | Invoices | `InvoiceItemFormAttributes`, `InvoiceItem`, `ShippingItem`, `ShippingAddressRegion`, `ShippingAddressCity`, `ShippingAddress`, `InvoiceShippingAddressRegion`, `InvoiceShippingAddress`, `User`, `Invoice`, `InvoiceCredentials`, `CreateInvoiceInput`, `RefreshInvoiceInput` |
 | Shipping | `ShippingMethod`, `ShippingRate`, `ItemShippingRate`, `ApplicableShippingMethods`, `ShippingAddressInput`, `ShippingAddressCredentials`, `ShippingAssignment` |

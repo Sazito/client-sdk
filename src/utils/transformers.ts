@@ -1766,7 +1766,25 @@ function cleanProductListItem(product: TransformValue): TransformObject {
   const cleaned = cleanProduct(product);
   if (!cleaned) return cleaned;
 
-  return removeKeys(cleaned, ['themeConfig']);
+  return removeKeys(cleaned, ['themeConfig', 'categories']);
+}
+
+/**
+ * Extract the storefront detail product.
+ * Accepts both the detail envelope and the HTTP client's single-product unwrap.
+ */
+export function transformProductDetailsResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T | null {
+  const transformed = transformApiResponse<TransformObject>(response);
+  if (!isPlainObject(transformed)) return null;
+
+  const product = isPlainObject(transformed.product)
+    ? transformed.product
+    : typeof transformed.name === 'string' && transformed.id !== undefined
+      ? transformed
+      : null;
+  if (!product) return null;
+
+  return cleanProduct(product) as T;
 }
 
 /**

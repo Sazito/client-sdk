@@ -116,17 +116,34 @@ and model types in host projects instead of declaring copies:
 import type {
   SazitoResponse,
   PaginatedResponse,
-  Product,
+  ProductListItem,
   ProductAttribute,
   CreateCartInput
 } from '@sazito/client-sdk';
 
-type ProductListResult = SazitoResponse<PaginatedResponse<Product>>;
+type ProductListResult = SazitoResponse<PaginatedResponse<ProductListItem>>;
 ```
 
 `SazitoResponse<T>` is a union: success contains `data`, and failure contains
 `error`. The [TypeScript types reference](https://developers.sazito.com/docs/api-reference/types)
 lists every type available from the package root.
+
+Product reads use the storefront endpoints exclusively:
+
+| SDK method | Endpoint |
+| --- | --- |
+| `products.list()` | `GET /api/v1/storefront/products` |
+| `products.get(slugOrPath)` | `GET /api/v1/storefront/products/details?url_part=<slug>` |
+| `products.search()` / `search.query()` | `GET /api/v1/storefront/search` |
+| `entityRoutes.resolve(path)` | `GET /api/v1/storefront/entity_route/route` |
+
+List and search hits use `ProductListItem` for product cards. `products.get()`
+provides categories, custom page configuration, description/SEO attributes,
+and variant SKUs. Product images expose `id`, `alt`, `url`, `width`, and `height`.
+Detail collections preserve `null` and empty arrays.
+
+See [Products](https://developers.sazito.com/docs/api-reference/products) for
+image counts, detail fields, dynamic forms, and API-to-SDK field mappings.
 
 Typical usage:
 
