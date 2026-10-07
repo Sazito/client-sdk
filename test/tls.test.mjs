@@ -89,7 +89,8 @@ test('native fetch accepts a trusted HTTPS origin while preserving API keys, aut
   for (const request of requests) {
     assert.equal(request.headers['sazito-api-key'], 'test-key');
     assert.equal(request.headers.authorization, 'test-jwt');
-    assert.equal(request.headers['x-forwarded-host'], 'shop.example.com');
+    assert.equal(request.headers['x-domain'], 'shop.example.com');
+    assert.equal(request.headers['x-forwarded-host'], undefined);
   }
   assert.match(requests[1].headers['content-type'], /^multipart\/form-data; boundary=/);
   assert.match(requests[1].body, /test-image/);

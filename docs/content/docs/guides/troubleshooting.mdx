@@ -22,7 +22,7 @@ Check:
 ## Authentication failures
 
 - Confirm `setAuthToken` has been called.
-- Ensure backend expects raw JWT in `Authorization` header.
+- Set the token before calling methods that require authentication.
 
 ## Debug mode
 
@@ -40,9 +40,6 @@ const client = createSazitoClient({
 />
 ```
 
-The SDK trace covers callback input, credential validation, encoded request,
-raw response, proxy/envelope unwrapping, extracted and normalized action,
-polling, and pinch finalization. The checkout trace covers callback parsing,
-SDK invocation, action routing, and the resulting UI state. Every line shares a
-correlation ID such as `callback-...`, while credentials and customer PII are
-redacted.
+Debug logs help follow payment verification, polling, and checkout UI state.
+Related entries share a correlation ID such as `callback-...`; credentials
+and customer personal information are redacted.

@@ -248,11 +248,11 @@ function createDemoFetch(mockPayment: MockPaymentScenario): typeof fetch {
     }
 
     const headers = new Headers(init?.headers);
-    const shopDomain = headers.get('x-forwarded-host');
+    const shopDomain = headers.get('x-domain');
 
     if (shopDomain) {
       headers.set('x-sazito-shop-domain', shopDomain);
-      headers.delete('x-forwarded-host');
+      headers.delete('x-domain');
     }
 
     return fetch(url.replace(SAZITO_API_ORIGIN, '/sazito-api'), {

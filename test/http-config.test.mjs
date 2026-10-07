@@ -23,7 +23,8 @@ test('default transport uses the HTTPS SDK origin and configured API key', async
   assert.equal(requests[0].url.port, '');
   const headers = new Headers(requests[0].headers);
   assert.equal(headers.get('Sazito-API-Key'), 'test-api-key');
-  assert.equal(headers.get('x-forwarded-host'), 'shop.example.com');
+  assert.equal(headers.get('x-domain'), 'shop.example.com');
+  assert.equal(headers.has('x-forwarded-host'), false);
   assert.equal(headers.get('Content-Type'), 'application/json');
 });
 
@@ -62,6 +63,8 @@ test('the fixed HTTPS origin applies to every HTTP verb and preserves retries', 
     assert.equal(request.url.origin, 'https://sdk.sazito.com');
     assert.ok(request.url.pathname.startsWith('/api/'));
     assert.equal(new Headers(request.headers).get('Sazito-API-Key'), 'test-key');
+    assert.equal(new Headers(request.headers).get('x-domain'), 'shop.example.com');
+    assert.equal(new Headers(request.headers).has('x-forwarded-host'), false);
   }
   assert.equal(new Headers(requests[1].headers).get('Authorization'), 'test-jwt');
   assert.equal(requests[0].url.href, requests[1].url.href);
@@ -100,6 +103,8 @@ test('module factories send the API key on multipart uploads and DELETE requests
   assert.deepEqual(requests.map(request => request.method), ['POST', 'DELETE']);
   for (const request of requests) {
     assert.equal(new Headers(request.headers).get('Sazito-API-Key'), 'upload-key');
+    assert.equal(new Headers(request.headers).get('x-domain'), 'shop.example.com');
+    assert.equal(new Headers(request.headers).has('x-forwarded-host'), false);
   }
   assert.ok(requests[0].body instanceof FormData);
   assert.equal(new Headers(requests[0].headers).has('Content-Type'), false);

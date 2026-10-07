@@ -16,15 +16,12 @@ Use: `entityRoutes.resolve(urlPart, options?)`.
 
 Returns: `SazitoResponse<EntityRouteResponse>`.
 
-Calls `GET /api/v1/storefront/entity_route/route?url_part=<path>`. Product
-entities use the [Product](/docs/api-reference/products) detail shape. The SDK
+Product entities use the [Product](/docs/api-reference/products) detail shape. The SDK
 places the resolved entity ID in `entityId` and omits it from `entity`.
 
 Use `products.get()` for product pages and this method to resolve category,
-CMS, and blog paths. Route requests take a full path; product detail requests
-take a slug. Product routes do not provide taxonomy metafields. SSR integrations
-that need them should consume the raw storefront product-details envelope;
-`products.get()` returns the product alone.
+CMS, and blog paths. Pass a full path to `entityRoutes.resolve()`.
+`products.get()` accepts a slug or product path and returns the product alone.
 
 Narrow the response by `entityType` before reading entity-specific fields:
 

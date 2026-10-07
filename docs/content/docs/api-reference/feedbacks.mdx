@@ -67,7 +67,7 @@ automatically; a product failure returns progress so the host can resume safely.
 
 Use: `feedbacks.getSeed(orderIdentifier, options?)`.
 
-Gets review seed data from `/api/v1/feedbacks/seed/{orderIdentifier}`.
+Gets review seed data for the selected order.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -79,18 +79,18 @@ Returns: `SazitoResponse<FeedbackSeed>`.
 The identifier is validated and URL-encoded. Seeds are fetched fresh to avoid
 reusing stale `hasCommentAlready` state. Malformed seeds and seeds for another
 identifier return an `api` error. IDs in the returned seed remain strings;
-additional item fields are retained in their original wire format. Spread the
+additional item fields are retained as returned. Spread the
 whole selected seed item when submitting its review.
 
 When `hasCommentAlready` is true, show completion without creating another
 comment. An empty `items` array is returned as-is: decide how to handle it before
-starting a submission; backend completion behavior for empty orders is unconfirmed.
+starting a submission.
 
 ### Create Order Rating
 
 Use: `feedbacks.createOrderRating(input, options?)`.
 
-Submits order-level rating to `/api/v1/feedbacks/comments`.
+Submits an order-level rating.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -101,22 +101,20 @@ Submits order-level rating to `/api/v1/feedbacks/comments`.
 
 Returns: `SazitoResponse<{ id: string }>` where `id` is `commentId`.
 
-Both credentials are required at runtime. The order ID is sent as a JSON number,
-even when the seed exposes it as a string. Invalid input returns a `validation`
-error without sending a request. The wire body contains `order_id`,
-`order_identifier`, and `order_rate`. An HTTP success without a valid comment ID
-returns an `api` error; do not advance or blindly create another rating.
+Both credentials are required. Invalid input returns a `validation` error.
+A response without a valid comment ID returns an `api` error; retain the form
+inputs and do not advance to product reviews.
 
 ### Submit Product Review
 
 Use: `feedbacks.submitProductReview(input, options?)`.
 
-Submits product review payload to `/api/v1/feedbacks/comments/details`.
+Submits a product review.
 
 | Field | Type | Required / default |
 | --- | --- | --- |
 | `commentId` | `number \| string` | Required; use the successful store-rating response ID. |
-| `productId`, `productVariantId` | `number \| string` | Required positive integer IDs; numeric strings are converted to JSON numbers. |
+| `productId`, `productVariantId` | `number \| string` | Required positive integer IDs; numeric strings are accepted. |
 | `productRate` | `number` | Required integer from 1 to 5. |
 | `productName`, `productAttributes`, `productImage`, additional seed fields | Seed item fields | Preserve them by spreading the seed item. |
 | `text` | `string` | Optional; defaults to `''`. |
@@ -128,17 +126,13 @@ Submits product review payload to `/api/v1/feedbacks/comments/details`.
 
 Returns: `SazitoResponse<void>`.
 
-Product requests use `comment_id`, numeric `product_id`, and numeric
-`product_variant_id`;
-the ID/identifier order pair is sent in the preceding store-rating request.
 Seed attributes may contain structured values such as color metadata, and seed
 images may contain additional fields; these values are preserved in the request.
 Submit products sequentially and advance only after each success.
 
 `createOrderRating` and `submitProductReview` force `retries: 0`, including when
-request options or global configuration enable retries. Backend idempotency,
-duplicate protection, and partial-completion recovery remain unconfirmed. The
-SDK does not automatically resume submissions or prevent separate repeated calls.
+request options or global configuration enable retries. The SDK does not
+automatically resume submissions or prevent separate repeated calls.
 Keep the returned comment ID and successful product progress in the host UI;
 retain inputs and stop on failures. Do not claim completion until every product
 submission succeeds. A network failure can have an unknown server outcome.
@@ -147,7 +141,7 @@ submission succeeds. A network failure can have an unknown server outcome.
 
 Use: `feedbacks.getProductStatistics(productId, options?)`.
 
-Reads review statistics from `/api/v1/feedbacks/comments/details/{productId}?exclude=comments`.
+Reads review statistics for the selected product.
 
 Returns: `SazitoResponse<ProductStatistics>`.
 
@@ -155,7 +149,7 @@ Returns: `SazitoResponse<ProductStatistics>`.
 
 Use: `feedbacks.getProductReviews(productId, filters?, options?)`.
 
-Reads paginated reviews from `/api/v1/feedbacks/comments/details/{productId}`.
+Reads paginated reviews for the selected product.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -168,7 +162,7 @@ Returns: `SazitoResponse<ProductReviewsResponse>`.
 
 Use: `feedbacks.uploadReviewImages(images, options?)`.
 
-Uploads review images to `/api/v1/service/filemanager/uploads/public/tajrobe`.
+Uploads review images and returns their serve keys.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -181,37 +175,8 @@ Returns: `SazitoResponse<{ images: ReviewUploadedImage[] }>` where each image in
 Wait for uploads to complete, then pass `images.map(image => image.serveKey)` to
 the review request. Disable submission while uploads or requests are pending.
 The SDK rejects empty files, empty upload lists, and responses without completed
-serve keys before the review request is sent. The current storefront request
-uses these multipart field names:
-
-```text
-images[][file]
-images[][name]
-images[][alt]
-```
-
-`images[][file]` carries the actual bytes. `images[][name]` and `images[][alt]`
-are metadata fields; both are optional in `ReviewAttachmentInput`, and the SDK
-fills sensible defaults when they are omitted. The field names above are based
-on the captured storefront request; the repository does not contain a server
-schema that establishes whether Sazito validates either metadata field.
-
-Do not set `Content-Type: multipart/form-data` yourself. The browser must add the
-boundary generated for the `FormData` body. A manually copied request that uses
-`--data-raw` with empty file sections has no image bytes and will normally receive
-a `400` response. To replay an upload with cURL, use `-F` and actual local files:
-
-```bash
-curl 'http://localhost:3000/api/sazito/api/v1/service/filemanager/uploads/public/tajrobe' \
-  -H 'authorization: YOUR_TOKEN' \
-  -H 'x-forwarded-host: your-store.example' \
-  -F 'images[][file]=@/path/to/review.webp;type=image/webp' \
-  -F 'images[][name]=review.webp' \
-  -F 'images[][alt]='
-```
-
-The SDK removes caller-provided multipart `Content-Type` headers so `fetch` can
-create the correct boundary. Ratings, inputs, error messages, RTL layout, and
+serve keys. Pass `File` or `Blob` objects to `uploadReviewImages()`; the SDK
+handles the upload request. Ratings, inputs, error messages, RTL layout, and
 accessible controls belong to the host UI.
 
 ## Example: End-to-end review submission

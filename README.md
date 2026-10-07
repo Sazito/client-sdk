@@ -128,14 +128,12 @@ type ProductListResult = SazitoResponse<PaginatedResponse<ProductListItem>>;
 `error`. The [TypeScript types reference](https://developers.sazito.com/docs/api-reference/types)
 lists every type available from the package root.
 
-Product reads use the storefront endpoints exclusively:
-
-| SDK method | Endpoint |
+| SDK method | Use case |
 | --- | --- |
-| `products.list()` | `GET /api/v1/storefront/products` |
-| `products.get(slugOrPath)` | `GET /api/v1/storefront/products/details?url_part=<slug>` |
-| `products.search()` / `search.query()` | `GET /api/v1/storefront/search` |
-| `entityRoutes.resolve(path)` | `GET /api/v1/storefront/entity_route/route` |
+| `products.list()` | Product grids and category listings. |
+| `products.get(slugOrPath)` | Product detail pages. |
+| `products.search()` / `search.query()` | Search results. |
+| `entityRoutes.resolve(path)` | Resolve storefront paths to entities. |
 
 List and search hits use `ProductListItem` for product cards. `products.get()`
 provides categories, custom page configuration, description/SEO attributes,
@@ -143,7 +141,7 @@ and variant SKUs. Product images expose `id`, `alt`, `url`, `width`, and `height
 Detail collections preserve `null` and empty arrays.
 
 See [Products](https://developers.sazito.com/docs/api-reference/products) for
-image counts, detail fields, dynamic forms, and API-to-SDK field mappings.
+image counts, detail fields, and dynamic forms.
 
 Typical usage:
 
@@ -222,8 +220,8 @@ Supported request options:
 - `signal`
 
 Automatic retries do not replay `POST` requests. Setting a per-request `retries`
-value on a `POST` is an explicit opt-in and should only be used for an endpoint
-with an idempotency guarantee.
+value on a `POST` is an explicit opt-in. Only enable it when repeating the
+operation cannot create duplicate changes.
 
 ## Authentication
 
@@ -546,7 +544,7 @@ Usually means prerequisite state is missing (for example no cart/invoice credent
 Check connectivity, runtime `fetch` support, and request timeout.
 
 ### Authentication issues
-Make sure token is set with `setAuthToken` and that your backend accepts raw JWT in `Authorization`.
+Set the token with `setAuthToken` before calling methods that require authentication.
 
 ### CMS helpers may throw
 `cms.getPage` / `cms.getBlogPost` validate entity type and can throw when URL resolves to another entity type. Wrap these calls in `try/catch`.

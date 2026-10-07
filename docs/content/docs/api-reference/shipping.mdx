@@ -18,9 +18,9 @@ description: Shipping address and method APIs used during checkout address selec
 
 - `address.mobilePhone` is required for create/update flows.
 - `regionId` and `cityId` are optional in request contract.
-- `getAddress()` uses stored `identifier` query behind the scenes.
-- Do not use `updateAddress()` in checkout: the backend mutates the referenced
-  row, which can change the address shown on previous orders.
+- `getAddress()` uses stored address credentials.
+- Use `createAddress()` in checkout. Updating an existing address can change
+  the address shown on previous orders.
 
 Shipping rates expose their own `color` field, while product variant
 attributes shown beside shipping items come from the invoice line item. Those
@@ -65,7 +65,7 @@ const addressRes = await client.shipping.createAddress({
 
 Use: `shipping.updateAddress(address, options?)`.
 
-> Deprecated for checkout. This mutates the existing address row. Use
+> Deprecated for checkout. This changes an existing address. Use
 > `createAddress()` to preserve historical order snapshots.
 
 Same input schema as `createAddress`.

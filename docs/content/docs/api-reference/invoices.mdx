@@ -8,7 +8,7 @@ description: Checkout invoice creation, updates, shipping assignment, and discou
 `invoices` is the checkout state machine between cart and payment.
 
 - `create` builds checkout state from current cart credentials.
-- Address, shipping method, discount code, notes, and credit are all attached via invoice endpoints.
+- Use the invoice methods to set its address, shipping method, discount code, notes, and credit.
 - `payments` depends on an existing invoice.
 
 ## Contract notes
@@ -20,15 +20,9 @@ description: Checkout invoice creation, updates, shipping assignment, and discou
 - `shippingAddress` is normalized by SDK to remove duplicated/noisy fields.
 - `Invoice` responses intentionally exclude `user`/`userData` profile objects.
 
-The raw v2 `invoice_items[].product_variant.product` contains product identity
-(`id`, `name`, `product_type`, `url`) and dynamic-form information
-(`dynamic_form_id`, plus `dynamic_form` when present). This nested product is
-part of the invoice contract. Product images, categories, and full product
-attributes are available through the storefront product-details endpoint.
-Commercial download links are provided by the paid-order API rather than
-invoice variants. See [Orders](/docs/api-reference/orders) for order retrieval.
-These raw API paths differ from the SDK's normalized `InvoiceItem` shape
-documented below.
+Use `products.get()` for product images, categories, and full product
+attributes. Retrieve paid-order downloads through
+[Orders](/docs/api-reference/orders).
 
 Invoice line attributes are returned as `invoice.items[].attributes` using the
 shared `ProductAttribute` shape. A color value may be a
@@ -123,20 +117,15 @@ if (res.error) {
 }
 ```
 
-**Error response.** When the code is invalid or expired, the backend replies with a single field:
-
-```json
-{ "message": "کد تخفیف معتبر نیست" }
-```
-
-The SDK surfaces it on `res.error`:
+When a code is invalid or expired, use `res.error.message` for the user-facing
+error. The SDK returns:
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `message` | `string` | Backend message, ready to display (localized server-side, e.g. `کد تخفیف معتبر نیست`). |
+| `message` | `string` | Localized message, ready to display (e.g. `کد تخفیف معتبر نیست`). |
 | `type` | `'api'` | Invalid/expired code is an API error. |
 | `status` | `number` | HTTP status from the gateway. |
-| `details` | `JsonValue` | Raw backend body (`{ message }`). |
+| `details` | `JsonValue` | Additional error details. |
 
 ### Assign Shipping Method
 
@@ -145,7 +134,7 @@ Use: `invoices.assignShippingMethod(shippings, options?)`.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `shippings[].rateId` | `number` | Required | Shipping rate ID. |
-| `shippings[].invoiceItemIds` | `Array<string \| number>` | Required | Invoice item IDs covered by this rate (sent as strings to backend). |
+| `shippings[].invoiceItemIds` | `Array<string \| number>` | Required | Invoice item IDs covered by this rate. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 ```ts
@@ -177,7 +166,7 @@ await client.invoices.addDetails('Please deliver between 14:00 and 16:00');
 
 Use: `invoices.addForm(input, options?)`.
 
-Attaches checkout dynamic form data to invoice via the invoice form endpoint.
+Adds checkout dynamic form values to the invoice.
 This is invoice-level checkout form data, not product form answers and not booking schedule fields.
 
 | Field | Type | Required | Description |
@@ -256,7 +245,7 @@ client.invoices.clearInvoice();
 | `items` | `InvoiceItem[]` | Required | Invoice items. |
 | `shippingAddress` | `InvoiceShippingAddress` | Optional | Selected address. |
 | `shippingItems` | `ShippingItem[]` | Required | Shipping assignments. |
-| `netTotal` | `number` | Required | Net total from backend invoice pricing. |
+| `netTotal` | `number` | Required | Net invoice total. |
 | `finalTotal` | `number` | Required | Final checkout total. |
 | `creditTotal` | `number` | Required | Applied wallet credit amount. |
 | `discountCode` | `string` | Optional | Applied discount code. |

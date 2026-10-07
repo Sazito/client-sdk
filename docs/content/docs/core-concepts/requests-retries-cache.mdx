@@ -1,13 +1,13 @@
 ---
 title: Requests, Retries, Cache
-description: Transport behavior, retry policy, and cache invalidation mechanics.
+description: Configure request timeouts, retries, and caching.
 ---
 
-## Transport defaults
+## Request configuration
 
-- Header: `x-forwarded-host: <domain>`
-- JSON request/response handling
-- Abort-based timeout control
+Set your store's `domain` and optional `apiKey` in the
+[client configuration](/docs/getting-started/configuration). Configure timeouts,
+retries, and caching globally or override them for individual SDK calls.
 
 ## Retry behavior
 
@@ -24,7 +24,7 @@ const res = await client.orders.list(undefined, {
 ```
 
 Setting `retries` explicitly on an individual `POST` opts that request into replay.
-Only do this when the endpoint provides its own idempotency guarantee.
+Only enable this when repeating the operation cannot create duplicate changes.
 
 ## Cache behavior
 

@@ -13,23 +13,19 @@ description: Cart APIs for guest and authenticated checkout entry, line-item cha
 
 ## Contract notes
 
-- `cart.get()` always sends required query `identifier` from stored cart credentials.
+- `cart.get()` uses stored cart credentials.
 - Only send `schedulerBookingAttributes` when all required booking fields are present.
 - `updateItem` accepts `count = 0` to remove the target line-item.
 
-The raw v2 API places variant IDs at `cart_items[].product.variant_id` and uses
-`product.max_no_of_orders` (plural) for order limits. Its product image contains
-only `{ url }`. Prices belong to the cart line item; stock constraints are
-enforced by the server. Item-level `created_at` and `updated_at` are available
-when returned by the API. These are raw API field names; SDK methods return the
-normalized `Cart` and `CartProduct` shapes documented below.
+Use the `Cart` and `CartProduct` shapes documented below. Prices belong to
+the cart line item; product fields describe its variant and order limits.
 
 ## Attribute map (form vs booking)
 
 | Field | Scope | What it is for |
 | --- | --- | --- |
 | `variants[].formAttributes` in `cart.create` | Product line item | Product-specific dynamic form values for that variant (for example engraving text, custom options). |
-| `input.formAttributes` in `cart.create` | Cart add request | Additional dynamic form payload accepted by checkout cart endpoint. |
+| `input.formAttributes` in `cart.create` | Cart add request | Additional checkout dynamic form values. |
 | `attributes.formAttributes` in `cart.addItemWithAttributes` | Product line item | Same as above, but for a single add-item action. |
 | `attributes.schedulerBookingAttributes` in `cart.addItemWithAttributes` | Booking product only | Booking/scheduling payload (`eventEntityId`, `startDateTimeLocal`, `endDateTimeLocal`, `timezone`). |
 | `input.formAttributes` in `invoices.addForm` | Invoice/checkout level | Checkout-level form values (not product customization, not booking time). |
@@ -202,14 +198,14 @@ client.cart.clearCart();
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `number` | Required | Backend response field. Cart API requests always use the internal ID `0`; callers use `identifier` for cart identity. |
+| `id` | `number` | Required | Cart ID. Use `identifier` for cart identity. |
 | `identifier` | `string` | Required | Guest cart identifier. |
 | `items` | `CartProduct[]` | Required | Cart line items. |
-| `netTotal` | `number` | Required | Net total from backend checkout pricing. |
-| `grossTotal` | `number` | Optional | Gross total (when present in backend response). |
+| `netTotal` | `number` | Required | Net checkout total. |
+| `grossTotal` | `number` | Optional | Gross checkout total, when available. |
 | `needsShipping` | `boolean` | Required | Whether shipping step is required. |
 | `minBasketLimitViolated` | `boolean` | Required | Minimum basket status flag. |
-| `deleteCoupon` | `boolean` | Optional | Coupon deletion flag from backend. |
+| `deleteCoupon` | `boolean` | Optional | Indicates whether the coupon was deleted. |
 
 ## Known errors
 

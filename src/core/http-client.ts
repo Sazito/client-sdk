@@ -372,7 +372,7 @@ export class HttpClient {
     omitJsonContentType = false
   ): Record<string, string> {
     const headers: Record<string, string> = {
-      'x-forwarded-host': this.domain,  // Send domain in header
+      'x-domain': this.domain,  // Send domain in header
       ...customHeaders
     };
 

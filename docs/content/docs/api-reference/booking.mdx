@@ -9,7 +9,7 @@ description: Scheduler events, availabilities, and booking management APIs.
 
 Use: `booking.listEvents(filters?, options?)`.
 
-Legacy scheduler event listing endpoint.
+Lists scheduler events.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -26,7 +26,7 @@ Returns: `SazitoResponse<PaginatedResponse<Event>>`.
 
 Use: `booking.getEvent(entityId, options?)`.
 
-Fetches scheduler event details from `/api/v1/scheduler/events/{entityId}`.
+Fetches details for a scheduler event.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -39,7 +39,7 @@ Returns: `SazitoResponse<SchedulerEvent>`.
 
 Use: `booking.getEventAvailabilities(filters, options?)`.
 
-Fetches available days and slots from `/api/v1/scheduler/availabilities`.
+Fetches available days and slots for an event.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -56,7 +56,7 @@ Returns: `SazitoResponse<{ availableDays: BookingAvailableDay[] }>`.
 
 Use: `booking.createBooking(input, options?)`.
 
-Legacy booking creation endpoint.
+Creates a booking for the selected event.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -172,7 +172,7 @@ if (availabilityRes.error) throw new Error(availabilityRes.error.message);
 const availableDays = availabilityRes.data?.availableDays ?? [];
 ```
 
-#### Create Booking (legacy endpoint)
+#### Create Booking
 
 Use: `booking.createBooking(...)`.
 

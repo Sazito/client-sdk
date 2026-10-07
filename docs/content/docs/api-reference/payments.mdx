@@ -11,17 +11,12 @@ description: Checkout payment APIs for gateway selection, payment creation, veri
 - Supports redirect/post gateways and manual step-based flows like card-to-card upload/code verification.
 - When payment reaches `show_order`, SDK runs checkout finalization automatically.
 
-## Contract notes
+## Usage notes
 
-- `payments.getMethods` sends the current invoice identifier to the payment-list endpoint.
-- Payment creation can return `id: 0`; the payment endpoint then resolves the payment by
-  `payment_identifier` at the payment process-step endpoint.
-- Gateway-return verification uses the real positive payment ID embedded in
-  the callback URL; zero is not accepted as a callback payment ID.
-- Payment process-step behavior depends on the exact `Content-Type`.
-- JSON mode uses exact `application/json`. The SDK sends the wire field as `payment_identifier`.
-- Use form mode for gateways that post callback/form payloads.
-- Action values are preserved exactly and are case-sensitive; the SDK does not rename them.
+- Create an invoice before loading payment methods.
+- Gateway-return verification requires the positive payment ID from the callback URL.
+- Use `processStep()` for JSON payloads and `processStepForm()` for form payloads.
+- Action values are case-sensitive; use the exported `PaymentAction` type.
 
 ## Methods
 
@@ -62,7 +57,7 @@ Initializes current payment and returns next action.
 Returns: `SazitoResponse<PaymentAction>`.
 
 When payment verification succeeds (`action === 'show_order'`), the SDK automatically
-calls `POST /api/v1/pinch/order` and clears the completed cart, invoice,
+finalizes the checkout and clears the completed cart, invoice,
 shipping-address, payment, and discount credentials from browser storage.
 
 ```ts
@@ -82,7 +77,7 @@ Use this for JSON-mode step requests (commonly `cardtocardpayment`) after `creat
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `input.paymentIdentifier` | `string` | Optional | With `input.id`, restores callback payment credentials; otherwise overrides the stored identifier. |
-| `input.id` | `number` | Optional | With `input.paymentIdentifier`, selects the callback payment endpoint and persists both values. |
+| `input.id` | `number` | Optional | With `input.paymentIdentifier`, restores callback payment credentials. |
 | `input.payload` | `Record<string, any>` | Optional | Gateway-specific JSON payload. |
 | `input.tatoken` | `string` | Optional | Gateway/session token. |
 | `input.trackingData` | `Record<string, any>` | Optional | Tracking payload. |
@@ -98,26 +93,12 @@ const cardToCardStep = await client.payments.processStep({
 });
 ```
 
-This produces the exact endpoint body:
-
-```json
-{
-  "payment_identifier": "<current-payment-identifier>",
-  "image_url": "https://cdn.example.com/payment-proof.png",
-  "code": "894512"
-}
-```
-
 ### Verify
 
 Use: `payments.verify(input?, options?)`.
 
-Verifies a returning gateway payment with Sazito's URL-encoded form contract.
-Gateway values retain their original names and casing under `payload[field]`;
-`payment_identifier` is the sole top-level credential.
-When both callback credential fields are provided, the SDK restores them before making
-the request, so verification also works when no payment credentials remain in
-browser storage:
+Verifies a returning gateway payment. Provide the callback payment ID and
+identifier to restore payment credentials when browser storage is empty:
 
 ```ts
 const result = await client.payments.verify({
@@ -127,12 +108,11 @@ const result = await client.payments.verify({
 ```
 
 If `id` and `paymentIdentifier` are omitted, `verify` uses the payment created
-earlier on the same SDK client and performs one JSON status request.
+earlier on the same SDK client and checks its status once.
 
 For server adapters that receive GET and POST callback data separately, use
 `verifyPaymentCallback`. Body fields are copied first and query fields second,
-so query values win when a field appears in both places. Gateway fields are
-sent as `payload[field]`, matching Sazito's server-rendered checkout contract:
+so query values win when a field appears in both places:
 
 ```ts
 const result = await client.payments.verifyPaymentCallback({
@@ -143,15 +123,13 @@ const result = await client.payments.verifyPaymentCallback({
 });
 ```
 
-Use `getPaymentStep()` for one JSON status request. Callback verification and
-pending status polling intentionally use different encodings.
+Use `getPaymentStep()` to check payment status once.
 
 ### Process Step (Form Mode)
 
 Use: `payments.processStepForm(input, options?)`.
 
-Use this when gateway flow requires non-JSON form payload handling for
-the payment process-step endpoint.
+Use this when the gateway flow requires form data.
 
 This callback branch requires the positive payment ID from the gateway-return
 URL; the temporary initialization ID `0` is rejected.
@@ -201,7 +179,7 @@ client.payments.clearPayment();
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `id` | `number` | Required | Payment method ID. |
-| `code` | `PaymentGateway` | Required | Gateway code enum (from `reference_code`). |
+| `code` | `PaymentGateway` | Required | Gateway code enum. |
 | `title` | `string` | Required | Display title (English). |
 | `titleFa` | `string` | Required | Display title (Persian). |
 | `description` | `string \| null` | Required | Method description; often `null`. |
@@ -216,16 +194,16 @@ client.payments.clearPayment();
 | `action` | `'POST' \| 'REDIRECT' \| 'UPLOAD' \| 'show_otp_modal' \| 'show_order' \| 'pending' \| 'payment_fail_error' \| 'show_error' \| 'FAIL' \| 'StockViolated'` | Required | Exact, case-sensitive next action type returned by the API. |
 | `address` | `string` | Optional | Redirect/post URL. |
 | `payload` | `Record<string, string \| number>` | Optional | Hidden form fields for `POST`. |
-| `order` | `CheckoutOrder` | Optional | Required for `pending`; terminal `show_order` success may omit details on deployments that finalize the order before serializing it. Response keys inside the order are camel-cased once by the SDK. |
+| `order` | `CheckoutOrder` | Optional | Required for `pending`; optional for `show_order`. Use camelCase field names. |
 | `time` | `number` | Optional | Upload or OTP window in minutes. |
 | `message` | `string` | Optional | Error/action message. |
-| `raw` | `JsonObject` | Optional | Complete unnormalized backend result for forward compatibility. |
+| `raw` | `JsonObject` | Optional | Original result for unrecognized actions. |
 
 For `pending`, call `pollUntilSettled()` (15 seconds by default). Polling stops
 when the action changes to `show_order` or a failure/unknown action, when it is
 cancelled, or when its configured limit is reached.
 
-`CheckoutOrder` describes the payment endpoint's final order, independently of
+`CheckoutOrder` describes the final checkout order, independently of
 the account `Order` returned by `orders.get()` and `orders.list()`.
 Its invoice can omit `netTotal` and `finalTotal` in verification responses.
 Items use `variantAttributes`,
@@ -236,9 +214,7 @@ is invented when the payment response does not provide one.
 `variantAttributes` uses the shared `ProductAttribute` shape. Its `value` may
 be a string or a `ProductAttributeValueObject`; for color attributes,
 `fieldType: 'color'` identifies the field and `value.extra` contains the hex
-payload used for a swatch. If the payment response returns an empty `variant_attributes` array,
-the SDK falls back to `product_variant.product_attributes` before normalizing
-the result.
+value used for a swatch.
 
 ## Known errors
 

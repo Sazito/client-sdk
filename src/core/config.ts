@@ -14,7 +14,7 @@ export interface RetryConfig {
 }
 
 export interface SazitoConfig {
-  domain: string;                    // Without https (e.g., 'mystore.sazito.com')
+  domain: string;                    // Store domain without protocol
   /** API key sent in the Sazito-API-Key header when provided. */
   apiKey?: string;
   /** Payments collection path for deployments with a custom API version map. */

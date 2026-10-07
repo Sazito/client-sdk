@@ -21,8 +21,7 @@ Use: `search.query(query, filters?, options?)`.
 
 Returns: `SazitoResponse<SearchResponse>`.
 
-Calls `GET /api/v1/storefront/search`; `products.search()` uses this endpoint
-too. Product hits are `ProductListItem` objects for product cards, with a two-image default
+`products.search()` provides product search too. Product hits are `ProductListItem` objects for product cards, with a two-image default
 plus variant-referenced images.
 Use `imageCount` for the total image count and `products.get()` for categories,
 custom page configuration, description, SEO attributes, or variant SKUs.

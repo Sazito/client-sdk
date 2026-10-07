@@ -24,8 +24,7 @@ Use: `products.get(slugOrPath, options?)`.
 
 Returns: `SazitoResponse<Product>`.
 
-Calls `GET /api/v1/storefront/products/details?url_part=<slug>`. A full product
-path is converted to its decoded slug. The SDK returns the detail product.
+Accepts a slug or full product path and returns the detail product.
 All images and attributes (including description and SEO) are available here.
 `themeConfig` is absent when the product has no custom page. Images, variants,
 and categories preserve the API's `null` versus `[]` values.
@@ -50,7 +49,7 @@ Use: `products.list(filters?, options?)`.
 
 Returns: `SazitoResponse<PaginatedResponse<ProductListItem>>`.
 
-Calls `GET /api/v1/storefront/products`. `items` contains `ProductListItem`
+`items` contains `ProductListItem`
 objects intended for product cards. Fetch `products.get()` for categories,
 custom page configuration, description and SEO attributes, and variant SKUs.
 
@@ -66,7 +65,7 @@ Use: `products.search(query, filters?, options?)`.
 
 Returns: `SazitoResponse<SearchResponse>`.
 
-Calls `GET /api/v1/storefront/search`. Product hits use the same
+Product hits use the same
 `ProductListItem` shape as lists, with a two-image default. See
 [Search](/docs/api-reference/search) for the other result groups.
 
@@ -107,10 +106,7 @@ variants, in the original order. A list item can return more than two images.
 Use `imageCount` for the total number of product images. Details return all
 images; count their `images` collection when it is present.
 
-The raw list endpoint accepts `image_limit` (default 2, maximum 10).
-`ProductFilters` does not expose this parameter, so `products.list()` uses the
-API default. Direct API list requests can set `image_limit` when their cards
-need more images. The API caps list `page_size` at 100.
+`pageSize` is capped at 100.
 
 ```ts
 import type { ProductListItem } from '@sazito/client-sdk';
@@ -173,36 +169,13 @@ const formResponse = await loadProductForm('shoe-123', 12001);
 
 See [Dynamic Forms](/docs/api-reference/dynamic-forms) for form fields and uploads.
 
-### Raw API fields and SDK names
+### SDK response fields
 
-| Raw API field | SDK field |
-| --- | --- |
-| `result.products` in a list | `data.items` |
-| `result.product` in details | `data` |
-| `product_type` | `productType` |
-| `image_count` | `imageCount` |
-| `product_attributes` | `attributes` |
-| `product_variants` | `variants` |
-| `product_categories` on details | `categories` |
-| `theme_config` | `themeConfig` |
-| `dynamic_form_id` | `dynamicFormId` |
-| `raw_price` on a variant | `originalPrice` |
-| `stock_number` | `stockQuantity` |
-| `is_stock_managed` | `isStockManaged` |
-| `image_id` | `imageId` |
-| `min_order_count` | `minOrderQuantity` |
-| `max_no_of_order` | `maxOrderQuantity` |
-| `has_max_order` | `hasMaxOrder` |
-
-The SDK list wrapper returns `items`, `total`, `page`, `pageSize`, and
-`totalPages`. Raw list envelope fields such as `total_count_raw`, `min_price`,
-`max_price`, `sub_categories`, and `stock_alert_limit` are not exposed by this wrapper.
-
-The raw details envelope includes `metafields` and `success_taxonomy`, and raw
-detail variants include `title` and `sku`. `products.get()` returns the product
-alone, without taxonomy envelope fields or variant titles. `sku` is available
-on SDK detail variants. Consume the storefront details endpoint directly when
-your integration needs taxonomy metadata or raw variant titles.
+Product lists return `items`, `total`, `page`, `pageSize`, and `totalPages`
+inside `data`.
+`products.get()` returns the detail product as `data`, including variant SKUs
+when present. Use the exported SDK types and camelCase field names when
+rendering product data.
 
 ### Attribute values and colors
 

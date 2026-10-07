@@ -17,7 +17,7 @@ description: Drop-in multi-step checkout UI for Next.js apps built on the Sazito
 
 Steps run in order: **cart → shipping → payment → result**
 
-The payment step is the last interactive step: its CTA (**انجام پرداخت** / "Pay now") finalizes the order directly — there is no separate review step. Payment methods show the backend default first, online methods next, and non-default pay-on-delivery/card-to-card choices last. The order-details action on a successful result opens in a new tab.
+The payment step is the last interactive step: its CTA (**انجام پرداخت** / "Pay now") finalizes the order directly — there is no separate review step. Payment methods show the default method first, online methods next, and non-default pay-on-delivery/card-to-card choices last. The order-details action on a successful result opens in a new tab.
 
 ## Installation
 
@@ -358,13 +358,13 @@ You can also change **Payment result** in the demo toolbar:
 | Scenario | Expected result |
 |---|---|
 | `success-minimal` | Success with only the required order identifiers. This protects against the former `Invalid payment step result` failure when totals are absent. |
-| `success-full` | Sanitized real payment-in-place `show_order` response with product, shipping, totals, receipt, and nullable backend fields. |
+| `success-full` | Sanitized real payment-in-place `show_order` response with product, shipping, totals, receipt, and nullable fields. |
 | `pending-success` | Pending callback followed by a successful JSON status poll. |
 | `failure` | Gateway-declared payment failure. |
 | `malformed` | Incomplete `show_order` payload; this should remain a compact success instead of displaying a false failure. |
 | `live` | Normal checkout using the configured domain and cart identifier. |
 
-Mock mode intercepts only the payment verification and post-success pinch calls.
+Mock mode simulates payment verification and checkout finalization.
 It also asserts that the initial callback is sent as
 `application/x-www-form-urlencoded` with `payment_identifier` and
 `payload[RefId]`; the pending poll must remain JSON. No real payment, cart, or
@@ -528,7 +528,7 @@ success may omit it while the order is still being finalized server-side.
 
 | Prop | Type | Description |
 |---|---|---|
-| `result` | `CheckoutResult \| null` | Complete engine result. Includes the backend `message` and finalized `order` when available. It can be `null` during the initial resolving render. |
+| `result` | `CheckoutResult \| null` | Complete engine result. Includes the returned `message` and finalized `order` when available. It can be `null` during the initial resolving render. |
 | `status` | `'success' \| 'failed' \| 'pending' \| 'stock_violated'` | Normalized status. Defaults to `pending` until a result is resolved. |
 | `order` | `CheckoutOrder \| undefined` | Convenience reference to `result.order`. Available for valid `show_order` and `pending` responses. |
 | `continueShoppingUrl` | `string \| undefined` | Value configured through `config.continueShoppingUrl`. The custom renderer decides whether and how to navigate to it. |

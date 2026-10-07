@@ -9,7 +9,7 @@ async function proxyRequest(request: Request, context: ProxyContext): Promise<Re
   const incomingUrl = new URL(request.url);
   const upstreamUrl = new URL(`/${path.join('/')}${incomingUrl.search}`, SAZITO_API_ORIGIN);
   const shopDomain = request.headers.get('x-sazito-shop-domain')
-    ?? request.headers.get('x-forwarded-host');
+    ?? request.headers.get('x-domain');
 
   if (!shopDomain) {
     return Response.json({ message: 'Shop domain is required.' }, { status: 400 });
@@ -17,7 +17,7 @@ async function proxyRequest(request: Request, context: ProxyContext): Promise<Re
 
   const headers = new Headers({
     accept: request.headers.get('accept') ?? 'application/json',
-    'x-forwarded-host': shopDomain,
+    'x-domain': shopDomain,
   });
   const contentType = request.headers.get('content-type');
   const authorization = request.headers.get('authorization');

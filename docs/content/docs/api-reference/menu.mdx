@@ -28,7 +28,7 @@ Returns: `SazitoResponse<MenuItem[]>`.
 
 - Disabled entities are filtered out.
 - Nested nodes are recursively converted.
-- SDK normalizes multiple backend node types into one `MenuItem` shape.
+- Menu entries use the shared `MenuItem` shape.
 - When `details.isTitleDefault` is `true`, the SDK uses `entity.title` for
   CMS/blog pages and `entity.name` for products/categories.
 - When `details.isTitleDefault` is `false`, the SDK prefers the custom

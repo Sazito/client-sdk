@@ -31,7 +31,7 @@ Requires authentication.
 | --- | --- | --- | --- |
 | `filters.pageNumber` | `number` | Optional | Page number (default `1`). |
 | `filters.pageSize` | `number` | Optional | Page size (default `20`). |
-| `filters.filters` | `Array<{ name: string; value: any }>` | Optional | Backend filters payload (for example `self_only`). |
+| `filters.filters` | `Array<{ name: string; value: any }>` | Optional | Order filters (for example `self_only`). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<OrdersListResponse>`.
@@ -48,15 +48,13 @@ const ordersRes = await client.orders.list({
 
 Use: `orders.get(orderId, orderIdentifier, options?)`.
 
-Both credentials are required, including for signed-in users. The request is
-`GET /api/v1/orders/{orderId}?order_identifier={orderIdentifier}`. Treat the identifier
-as a secret: the backend must reject missing or mismatched identifiers to prevent
-access through guessed IDs. SDK validation alone cannot enforce backend access control.
+Both credentials are required, including for signed-in users. Keep the order
+identifier private and pass it with the order ID when retrieving an order.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `orderId` | `number \| string` | Required | Order ID. |
-| `orderIdentifier` | `string` | Required | The order's `orderIdentifier` token, sent as the `order_identifier` query parameter. |
+| `orderIdentifier` | `string` | Required | The order's `orderIdentifier` token. |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
 Returns: `SazitoResponse<Order>`.
