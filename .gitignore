@@ -22,6 +22,10 @@ pnpm-debug.log*
 *.swo
 *~
 
+# Local agent configuration
+/.agents/
+/skills-lock.json
+
 # OS files
 .DS_Store
 Thumbs.db
