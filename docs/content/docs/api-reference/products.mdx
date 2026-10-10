@@ -106,7 +106,8 @@ variants, in the original order. A list item can return more than two images.
 Use `imageCount` for the total number of product images. Details return all
 images; count their `images` collection when it is present.
 
-`pageSize` is capped at 100.
+`products.list()` always uses this default; `ProductFilters` has no image-limit
+option. The server returns at most 100 items per page, regardless of `pageSize`.
 
 ```ts
 import type { ProductListItem } from '@sazito/client-sdk';

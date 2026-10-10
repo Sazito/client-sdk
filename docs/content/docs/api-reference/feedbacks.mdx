@@ -176,7 +176,7 @@ Wait for uploads to complete, then pass `images.map(image => image.serveKey)` to
 the review request. Disable submission while uploads or requests are pending.
 The SDK rejects empty files, empty upload lists, and responses without completed
 serve keys. Pass `File` or `Blob` objects to `uploadReviewImages()`; the SDK
-handles the upload request. Ratings, inputs, error messages, RTL layout, and
+handles the upload request. Do not set a `Content-Type` header yourself. Ratings, inputs, error messages, RTL layout, and
 accessible controls belong to the host UI.
 
 ## Example: End-to-end review submission

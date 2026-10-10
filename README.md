@@ -191,6 +191,7 @@ const sazito = createSazitoClient({
 |---|---|---|---|
 | `domain` | `string` | Yes | Store domain without protocol |
 | `apiKey` | `string` | No | Sazito API key |
+| `paymentsBasePath` | `string` | No | Payments path override for custom deployments |
 | `timeout` | `number` | No | Global request timeout in ms (default `30000`) |
 | `retry` | object | No | Retry policy for 5xx responses on idempotent requests |
 | `cache` | object | No | Per-module cache strategy |
@@ -544,7 +545,7 @@ Usually means prerequisite state is missing (for example no cart/invoice credent
 Check connectivity, runtime `fetch` support, and request timeout.
 
 ### Authentication issues
-Set the token with `setAuthToken` before calling methods that require authentication.
+Set the token with `setAuthToken` before calling methods that require authentication. Pass the raw JWT, without a `Bearer` prefix.
 
 ### CMS helpers may throw
 `cms.getPage` / `cms.getBlogPost` validate entity type and can throw when URL resolves to another entity type. Wrap these calls in `try/catch`.

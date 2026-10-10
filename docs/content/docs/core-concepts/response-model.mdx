@@ -50,7 +50,9 @@ console.log(res.data);
 ## Error type semantics
 
 - `validation`: local precondition failed before request execution.
-- `network`: transport/runtime failure.
+- `network`: transport/runtime failure. `details` contains the error `name`,
+  `message`, and `code` when available, plus its underlying `cause` (for
+  example a TLS or DNS failure).
 - `api`: request reached server and failed with non-2xx status.
 
 <Callout type="info">

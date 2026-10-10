@@ -194,7 +194,7 @@ client.payments.clearPayment();
 | `action` | `'POST' \| 'REDIRECT' \| 'UPLOAD' \| 'show_otp_modal' \| 'show_order' \| 'pending' \| 'payment_fail_error' \| 'show_error' \| 'FAIL' \| 'StockViolated'` | Required | Exact, case-sensitive next action type returned by the API. |
 | `address` | `string` | Optional | Redirect/post URL. |
 | `payload` | `Record<string, string \| number>` | Optional | Hidden form fields for `POST`. |
-| `order` | `CheckoutOrder` | Optional | Required for `pending`; optional for `show_order`. Use camelCase field names. |
+| `order` | `CheckoutOrder` | Optional | Required for `pending`; optional for `show_order`. Fields are camelCased by the SDK. |
 | `time` | `number` | Optional | Upload or OTP window in minutes. |
 | `message` | `string` | Optional | Error/action message. |
 | `raw` | `JsonObject` | Optional | Original result for unrecognized actions. |

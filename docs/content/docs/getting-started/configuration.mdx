@@ -37,7 +37,7 @@ const client = createSazitoClient({
 | --- | --- | --- | --- |
 | `domain` | `string` | Yes | Store domain without protocol |
 | `apiKey` | `string` | No | Sazito API key |
-| `paymentsBasePath` | `string` | No | Payments collection path, including its API version |
+| `paymentsBasePath` | `string` | No | Payments path override for custom deployments |
 | `timeout` | `number` | No | Global request timeout in ms |
 | `customFetchApi` | `typeof fetch` | No | Override runtime fetch implementation |
 | `debug` | `boolean` | No | Enables request logging |
@@ -84,7 +84,6 @@ If a field is omitted, SDK defaults are used:
 | Field | Default |
 | --- | --- |
 | `apiKey` | `''` |
-| `paymentsBasePath` | `/api/v2/payments` |
 | `timeout` | `30000` |
 | `retry.enabled` | `true` |
 | `retry.retries` | `3` |

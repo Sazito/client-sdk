@@ -19,10 +19,19 @@ Check:
 - timeout is high enough
 - environment can reach Sazito APIs from your deployment network
 
+Inspect `res.error.details.cause` for the underlying failure:
+
+```ts
+if (res.error?.type === 'network') {
+  const cause = res.error.details?.cause;
+  console.error(cause?.code, cause?.message); // e.g. ENOTFOUND, UNABLE_TO_VERIFY_LEAF_SIGNATURE
+}
+```
+
 ## Authentication failures
 
-- Confirm `setAuthToken` has been called.
-- Set the token before calling methods that require authentication.
+- Call `setAuthToken` before methods that require authentication.
+- Pass the raw JWT, without a `Bearer` prefix.
 
 ## Debug mode
 
