@@ -78,15 +78,46 @@ test('list uses storefront filters and keeps the existing response wrapper', asy
   }
 });
 
-test('get sends a slug to storefront details without merging envelope metadata', async () => {
-  const metafields = [{ name: 'Material', value: 'Metal' }];
-  const { client, requests } = fixtureClient({ product: detailProduct, metafields, success_taxonomy: false });
+const taxonomyEnvelope = {
+  metafields: [
+    {
+      attribute: { id: 'attr-material', fa_name: 'جنس', en_name: 'Material' },
+      values: [{ id: 'val-metal', fa_name: 'فلز', en_name: 'Metal' }, { id: 'val-glass', fa_name: 'شیشه' }]
+    },
+    { attribute: { id: 'attr-empty', fa_name: 'بدون مقدار' }, values: [] }
+  ],
+  category: { id: 'cat-phone', fa_name: 'گوشی موبایل', en_name: 'Mobile Phone' },
+  category_id: 'cat-phone',
+  breadcrumb: [{ id: 'cat-electronics', fa_name: 'الکترونیک', en_name: 'Electronics' }],
+  success_taxonomy: false
+};
+const expectedTaxonomy = {
+  category: { id: 'cat-phone', name: 'گوشی موبایل', enName: 'Mobile Phone' },
+  breadcrumb: [
+    { id: 'cat-electronics', name: 'الکترونیک', enName: 'Electronics' },
+    { id: 'cat-phone', name: 'گوشی موبایل', enName: 'Mobile Phone' }
+  ],
+  categoryPath: 'الکترونیک > گوشی موبایل',
+  metafields: [
+    {
+      attribute: { id: 'attr-material', name: 'جنس', enName: 'Material' },
+      values: [{ id: 'val-metal', name: 'فلز', enName: 'Metal' }, { id: 'val-glass', name: 'شیشه' }]
+    },
+    { attribute: { id: 'attr-empty', name: 'بدون مقدار' }, values: [] }
+  ],
+  features: [{ label: 'جنس', value: 'فلز، شیشه' }]
+};
+
+test('get sends a slug to storefront details and normalizes the taxonomy envelope', async () => {
+  const { client, requests } = fixtureClient({ product: detailProduct, ...taxonomyEnvelope });
   for (const input of ['phone', '/product/phone', '/product/%D9%81%D9%88%D9%86?ref=card#photos']) {
     const { data, error } = await client.products.get(input, { cache: false });
     assert.equal(error, undefined);
     assert.equal(data.id, 56);
     assert.equal(Object.hasOwn(data, 'metafields'), false);
     assert.equal(Object.hasOwn(data, 'successTaxonomy'), false);
+    assert.equal(Object.hasOwn(data, 'category'), false);
+    assert.deepEqual(data.taxonomy, expectedTaxonomy);
     assert.equal(Object.hasOwn(data.variants[0], 'title'), false);
     assert.equal(data.variants[0].sku, 'PHONE-SILVER');
     assert.deepEqual(data.attributes, [{ name: 'description', value: 'Phone description' }]);
@@ -108,6 +139,53 @@ test('get handles a single-key detail envelope and preserves null versus empty c
     assert.deepEqual(data.categories, collection);
     assert.deepEqual(data.variants, collection);
   }
+});
+
+test('get omits taxonomy without taxonomy data and reads category-level breadcrumbs', async () => {
+  for (const body of [
+    { product: detailProduct },
+    { product: detailProduct, success_taxonomy: true },
+    { product: { ...detailProduct, metafields: 'invalid' } }
+  ]) {
+    const { client } = fixtureClient(body);
+    const { data, error } = await client.products.get('phone');
+    assert.equal(error, undefined);
+    assert.equal(Object.hasOwn(data, 'taxonomy'), false);
+    assert.equal(Object.hasOwn(data, 'metafields'), false);
+  }
+
+  const { client } = fixtureClient({
+    product: detailProduct,
+    metafields: [
+      { attribute: { id: 'attr-color', fa_name: 'رنگ' }, values: [{ id: 'val-red', fa_name: 'قرمز' }] },
+      { attribute: { id: 'attr-color-dup', fa_name: 'رنگ' }, values: [{ id: 'val-red-dup', fa_name: 'قرمز' }] },
+      { attribute: { id: 'attr-nameless' }, values: [{ id: 'val-x', fa_name: 'ایکس' }] },
+      { attribute: null, values: [{ id: 'val-orphan', fa_name: 'بدون ویژگی' }] }
+    ],
+    category: {
+      id: 'cat-watch', fa_name: 'ساعت',
+      breadcrumb: [{ id: 'cat-accessories', fa_name: 'اکسسوری' }, { id: 'cat-watch', fa_name: 'ساعت' }]
+    }
+  });
+  const { data } = await client.products.get('phone');
+  assert.deepEqual(data.taxonomy.breadcrumb, [
+    { id: 'cat-accessories', name: 'اکسسوری' }, { id: 'cat-watch', name: 'ساعت' }
+  ]);
+  assert.equal(data.taxonomy.categoryPath, 'اکسسوری > ساعت');
+  assert.equal(data.taxonomy.metafields.length, 3);
+  assert.deepEqual(data.taxonomy.features, [{ label: 'رنگ', value: 'قرمز' }]);
+});
+
+test('get keeps uncategorized products that only have metafields', async () => {
+  const { client } = fixtureClient({
+    product: detailProduct,
+    metafields: [{ attribute: { id: 'attr-weight', fa_name: 'وزن' }, values: [{ id: 'val-100', fa_name: '۱۰۰ گرم' }] }]
+  });
+  const { data } = await client.products.get('phone');
+  assert.equal(data.taxonomy.category, null);
+  assert.deepEqual(data.taxonomy.breadcrumb, []);
+  assert.equal(data.taxonomy.categoryPath, '');
+  assert.deepEqual(data.taxonomy.features, [{ label: 'وزن', value: '۱۰۰ گرم' }]);
 });
 
 test('missing details and API errors return errors without endpoint fallback', async () => {
@@ -176,4 +254,5 @@ test('entity routes use storefront routing and preserve the detail variant contr
   assert.equal(data.entity.id, undefined);
   assert.equal(Object.hasOwn(data.entity.variants[0], 'title'), false);
   assert.equal(data.entity.variants[0].sku, 'PHONE-SILVER');
+  assert.equal(Object.hasOwn(data.entity, 'taxonomy'), false);
 });

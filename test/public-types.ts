@@ -5,6 +5,8 @@ import type {
   ProductVariant,
   ProductAttribute,
   ProductAttributeValueObject,
+  ProductTaxonomy,
+  ProductTaxonomyFeature,
   ProductsAPI,
   CategoryListResponse,
   AddItemAttributesInput,
@@ -64,6 +66,11 @@ if (card.variants) {
   void card.variants[0].title;
 }
 declare const detail: Product;
+const taxonomy: ProductTaxonomy | undefined = detail.taxonomy;
+const specificationRows: ProductTaxonomyFeature[] = taxonomy?.features ?? [];
+const taxonomyCategoryId: string | undefined = taxonomy?.category?.id;
+void specificationRows;
+void taxonomyCategoryId;
 if (detail.variants) {
   const sku: string | undefined = detail.variants[0].sku;
   void sku;

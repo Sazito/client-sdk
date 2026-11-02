@@ -21,7 +21,8 @@ places the resolved entity ID in `entityId` and omits it from `entity`.
 
 Use `products.get()` for product pages and this method to resolve category,
 CMS, and blog paths. Pass a full path to `entityRoutes.resolve()`.
-`products.get()` accepts a slug or product path and returns the product alone.
+`products.get()` accepts a slug or product path and returns the product alone,
+including `taxonomy` when the store assigned one. Product routes omit `taxonomy`.
 
 Narrow the response by `entityType` before reading entity-specific fields:
 

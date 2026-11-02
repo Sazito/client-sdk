@@ -1708,8 +1708,10 @@ function transformCheckoutProduct(source: TransformValue): TransformObject {
 function cleanProduct(product: TransformValue): TransformObject {
   if (!isPlainObject(product)) return {};
 
-  // Fields to remove from product
-  const cleanedProduct = removeKeys(product, ['staticUrl', 'summary', 'tags', 'slug']) as TransformObject;
+  // Fields to remove from product (taxonomy keys are normalized into `taxonomy` by the details transformer)
+  const cleanedProduct = removeKeys(product, [
+    'staticUrl', 'summary', 'tags', 'slug', 'metafields', 'category', 'categoryId', 'breadcrumb'
+  ]) as TransformObject;
 
   if (Array.isArray(cleanedProduct.attributes)) {
     cleanedProduct.attributes = normalizeProductAttributes(cleanedProduct.attributes);
@@ -1769,22 +1771,150 @@ function cleanProductListItem(product: TransformValue): TransformObject {
   return removeKeys(cleaned, ['themeConfig', 'categories']);
 }
 
+/** Separator used by the storefront when joining several selected taxonomy values. */
+const TAXONOMY_VALUE_SEPARATOR = '، ';
+
+function taxonomyText(value: TransformValue | undefined): string {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+}
+
+/** Taxonomy terms arrive as { id, fa_name, en_name }; the Persian name is the storefront label. */
+function normalizeTaxonomyTerm(term: TransformValue | undefined): TransformObject | null {
+  if (!isPlainObject(term)) return null;
+  const id = taxonomyText(term.id);
+  const name = taxonomyText(term.faName) || taxonomyText(term.name) || taxonomyText(term.label);
+  if (!id && !name) return null;
+  const enName = taxonomyText(term.enName);
+  return { id, name, ...(enName ? { enName } : {}) };
+}
+
+function normalizeTaxonomyTerms(terms: TransformValue | undefined): TransformObject[] {
+  if (!Array.isArray(terms)) return [];
+  return terms.reduce<TransformObject[]>((normalized, term) => {
+    const normalizedTerm = normalizeTaxonomyTerm(term);
+    if (normalizedTerm) normalized.push(normalizedTerm);
+    return normalized;
+  }, []);
+}
+
+function normalizeTaxonomyMetafield(metafield: TransformValue): TransformObject | null {
+  if (!isPlainObject(metafield)) return null;
+
+  const attribute = normalizeTaxonomyTerm(metafield.attribute)
+    ?? normalizeTaxonomyTerm({ id: metafield.attributeId, faName: metafield.faName, name: metafield.name });
+  if (!attribute) return null;
+
+  const rawValues = Array.isArray(metafield.values)
+    ? metafield.values
+    : metafield.value !== undefined && metafield.value !== null
+      ? [metafield.value]
+      : [];
+  const values = rawValues.reduce<TransformObject[]>((normalized, value) => {
+    const term = isPlainObject(value)
+      ? normalizeTaxonomyTerm(value)
+      : taxonomyText(value)
+        ? { id: '', name: taxonomyText(value) }
+        : null;
+    if (term) normalized.push(term);
+    return normalized;
+  }, []);
+
+  return { attribute, values };
+}
+
+function isSameTaxonomyTerm(first: TransformObject | undefined, second: TransformObject | undefined): boolean {
+  if (!first || !second) return false;
+  if (first.id && second.id) return first.id === second.id;
+  return first.name === second.name;
+}
+
+const TAXONOMY_SOURCE_KEYS = ['metafields', 'category', 'categoryId', 'breadcrumb'];
+
+function hasTaxonomyData(source: TransformObject): boolean {
+  return Array.isArray(source.metafields) || isPlainObject(source.category);
+}
+
+/**
+ * Normalize the taxonomy sidecar of the product details envelope
+ * ({ metafields, category, category_id, breadcrumb }) into `ProductTaxonomy`.
+ * Returns undefined when the source carries no taxonomy data.
+ */
+export function normalizeProductTaxonomy(source: TransformValue | undefined): TransformObject | undefined {
+  if (!isPlainObject(source) || !hasTaxonomyData(source)) return undefined;
+
+  const metafields = Array.isArray(source.metafields)
+    ? source.metafields.reduce<TransformObject[]>((normalized, metafield) => {
+        const normalizedMetafield = normalizeTaxonomyMetafield(metafield);
+        if (normalizedMetafield) normalized.push(normalizedMetafield);
+        return normalized;
+      }, [])
+    : [];
+
+  const rawCategory = isPlainObject(source.category) ? source.category : undefined;
+  let category = normalizeTaxonomyTerm(rawCategory);
+  const categoryId = taxonomyText(source.categoryId);
+  if (category && !category.id && categoryId) category = { ...category, id: categoryId };
+
+  const rawBreadcrumb = Array.isArray(source.breadcrumb)
+    ? source.breadcrumb
+    : rawCategory && Array.isArray(rawCategory.breadcrumb)
+      ? rawCategory.breadcrumb
+      : rawCategory && Array.isArray(rawCategory.path)
+        ? rawCategory.path
+        : [];
+  const breadcrumb = normalizeTaxonomyTerms(rawBreadcrumb);
+  if (category && !isSameTaxonomyTerm(breadcrumb[breadcrumb.length - 1], category)) {
+    breadcrumb.push(category);
+  }
+
+  const categoryPath = breadcrumb
+    .map((term) => taxonomyText(term.name))
+    .filter(Boolean)
+    .join(' > ');
+
+  const seenFeatures = new Set<string>();
+  const features = metafields.reduce<TransformObject[]>((rows, metafield) => {
+    const attribute = metafield.attribute as TransformObject;
+    const values = metafield.values as TransformObject[];
+    const label = taxonomyText(attribute.name);
+    const value = values.map((term) => taxonomyText(term.name)).filter(Boolean).join(TAXONOMY_VALUE_SEPARATOR);
+    const key = `${label}:${value}`;
+    if (label && value && !seenFeatures.has(key)) {
+      seenFeatures.add(key);
+      rows.push({ label, value });
+    }
+    return rows;
+  }, []);
+
+  return { category: category ?? null, breadcrumb, categoryPath, metafields, features };
+}
+
 /**
  * Extract the storefront detail product.
  * Accepts both the detail envelope and the HTTP client's single-product unwrap.
+ * Taxonomy sidecar fields of the envelope are normalized into `product.taxonomy`.
  */
 export function transformProductDetailsResponse<T = TransformObject>(response: TransformValue | ApiResponseEnvelope | object): T | null {
   const transformed = transformApiResponse<TransformObject>(response);
   if (!isPlainObject(transformed)) return null;
 
-  const product = isPlainObject(transformed.product)
-    ? transformed.product
+  const envelope = isPlainObject(transformed.product) ? transformed : null;
+  const product = envelope
+    ? (envelope.product as TransformObject)
     : typeof transformed.name === 'string' && transformed.id !== undefined
       ? transformed
       : null;
   if (!product) return null;
 
-  return cleanProduct(product) as T;
+  const taxonomySource = envelope && TAXONOMY_SOURCE_KEYS.some((key) => envelope[key] !== undefined)
+    ? envelope
+    : product;
+  const taxonomy = normalizeProductTaxonomy(taxonomySource);
+  const cleanedProduct = cleanProduct(product);
+
+  return (taxonomy ? { ...cleanedProduct, taxonomy } : cleanedProduct) as T;
 }
 
 /**

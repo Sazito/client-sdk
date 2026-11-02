@@ -27,7 +27,9 @@ Returns: `SazitoResponse<Product>`.
 Accepts a slug or full product path and returns the detail product.
 All images and attributes (including description and SEO) are available here.
 `themeConfig` is absent when the product has no custom page. Images, variants,
-and categories preserve the API's `null` versus `[]` values.
+and categories preserve the API's `null` versus `[]` values. `taxonomy` is
+present when the store assigned a taxonomy category or specification metafields
+to the product; see [Taxonomy and specification table](#taxonomy-and-specification-table).
 
 ### List
 
@@ -98,6 +100,7 @@ These attributes are available on the detail product.
 | `images` | `ProductImage[] \| null` | Required | All images: `id`, `alt`, `url`, `width`, `height`. |
 | `categories` | `ProductBreadcrumbCategory[] \| null` | Required | Breadcrumb categories with only `id`, `name`, `url`. |
 | `attributes` | `ProductAttribute[]` | Optional | Additional attributes. |
+| `taxonomy` | `ProductTaxonomy` | Optional | Taxonomy category path and specification table rows. |
 
 ### Images and optional fields
 
@@ -143,6 +146,43 @@ Detail categories provide `id`, `name`, and `url` for breadcrumbs. To get a
 category's description or product count, resolve its URL through
 [Entity Routes](/docs/api-reference/entity-routes).
 
+### Taxonomy and specification table
+
+`product.taxonomy` carries the store's taxonomy assignment for the product: the
+taxonomy category path and the specification table ("ویژگی‌ها") shown on
+product pages. It is absent when the product has neither a taxonomy category
+nor specification metafields. Product lists, search hits, and entity routes
+never include it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `category` | `ProductTaxonomyTerm \| null` | Assigned taxonomy category; `null` when uncategorized. |
+| `breadcrumb` | `ProductTaxonomyTerm[]` | Category ancestors followed by the category itself, root first. |
+| `categoryPath` | `string` | Breadcrumb names joined with ` > `; empty when there is no category. |
+| `metafields` | `ProductTaxonomyMetafield[]` | Specification rows with attribute and value identifiers. |
+| `features` | `ProductTaxonomyFeature[]` | Table rows: `label` is the attribute name and `value` joins the value names. |
+
+Taxonomy terms expose a string `id`, a Persian `name`, and `enName` when the
+taxonomy provides an English name. Taxonomy identifiers are separate from
+storefront category IDs, and breadcrumb entries carry no storefront URL.
+`features` skips metafields without an attribute name or without values, joins
+several values with `، `, and drops duplicate rows. Read `metafields` when you
+need the identifiers, for example to build filters or structured data.
+
+```ts
+import type { Product } from '@sazito/client-sdk';
+
+function specificationTable(product: Product) {
+  const taxonomy = product.taxonomy;
+  if (!taxonomy || taxonomy.features.length === 0) return null;
+
+  return {
+    categoryPath: taxonomy.categoryPath,
+    rows: taxonomy.features.map(({ label, value }) => ({ label, value })),
+  };
+}
+```
+
 ### Dynamic forms
 
 Fetch the form definition when rendering a product form. Use the selected
@@ -175,7 +215,7 @@ See [Dynamic Forms](/docs/api-reference/dynamic-forms) for form fields and uploa
 Product lists return `items`, `total`, `page`, `pageSize`, and `totalPages`
 inside `data`.
 `products.get()` returns the detail product as `data`, including variant SKUs
-when present. Use the exported SDK types and camelCase field names when
+and `taxonomy` when present. Use the exported SDK types and camelCase field names when
 rendering product data.
 
 ### Attribute values and colors
@@ -193,6 +233,7 @@ import type {
   Product,
   ProductListItem,
   ProductVariant,
+  ProductTaxonomy,
   ProductAttribute,
   ProductAttributeValueObject
 } from '@sazito/client-sdk';
@@ -472,6 +513,7 @@ Source: `src/types/product.ts`
 | `images` | `ProductImage[] \| null` | Required |
 | `variants` | `ProductVariant[] \| null` | Required |
 | `categories` | `ProductBreadcrumbCategory[] \| null` | Required |
+| `taxonomy` | `ProductTaxonomy` | Optional |
 
 #### ProductVariant
 
@@ -503,6 +545,46 @@ Source: `src/types/product.ts`
 | `id` | `number` | Required |
 | `name` | `string` | Required |
 | `url` | `string` | Required |
+
+#### ProductTaxonomy
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `category` | `ProductTaxonomyTerm \| null` | Required |
+| `breadcrumb` | `ProductTaxonomyTerm[]` | Required |
+| `categoryPath` | `string` | Required |
+| `metafields` | `ProductTaxonomyMetafield[]` | Required |
+| `features` | `ProductTaxonomyFeature[]` | Required |
+
+#### ProductTaxonomyTerm
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `string` | Required |
+| `name` | `string` | Required |
+| `enName` | `string` | Optional |
+
+#### ProductTaxonomyMetafield
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `attribute` | `ProductTaxonomyTerm` | Required |
+| `values` | `ProductTaxonomyTerm[]` | Required |
+
+#### ProductTaxonomyFeature
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `label` | `string` | Required |
+| `value` | `string` | Required |
 
 #### ProductCategory
 

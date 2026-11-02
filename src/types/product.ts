@@ -58,6 +58,42 @@ export interface ProductBreadcrumbCategory {
   url: string;
 }
 
+/** Taxonomy term (category, attribute, or attribute value) with its display name. */
+export interface ProductTaxonomyTerm {
+  /** Taxonomy identifier; distinct from storefront category IDs. */
+  id: string;
+  /** Persian display name. */
+  name: string;
+  /** English name when the taxonomy provides one. */
+  enName?: string;
+}
+
+/** Specification row: a taxonomy attribute and its selected values. */
+export interface ProductTaxonomyMetafield {
+  attribute: ProductTaxonomyTerm;
+  values: ProductTaxonomyTerm[];
+}
+
+/** Display-ready specification row: attribute name and joined value names. */
+export interface ProductTaxonomyFeature {
+  label: string;
+  value: string;
+}
+
+/** Taxonomy category path and specification table returned with product details. */
+export interface ProductTaxonomy {
+  /** Assigned taxonomy category; null when the product is uncategorized. */
+  category: ProductTaxonomyTerm | null;
+  /** Category ancestors followed by the category itself, root first. */
+  breadcrumb: ProductTaxonomyTerm[];
+  /** Breadcrumb names joined with " > "; empty when there is no category. */
+  categoryPath: string;
+  /** Specification rows with attribute and value identifiers. */
+  metafields: ProductTaxonomyMetafield[];
+  /** Specification table rows, one per metafield with a name and at least one value. */
+  features: ProductTaxonomyFeature[];
+}
+
 /** Storefront detail product; entity routes move id to entityId. */
 export interface Product {
   id?: number;  // Optional: removed in entity routes (available as entityId at root)
@@ -72,6 +108,8 @@ export interface Product {
   images: ProductImage[] | null;
   variants: ProductVariant[] | null;
   categories: ProductBreadcrumbCategory[] | null;
+  /** Present on `products.get()` when the API returns taxonomy data; absent on entity routes. */
+  taxonomy?: ProductTaxonomy;
 }
 
 export interface ProductCategory {
