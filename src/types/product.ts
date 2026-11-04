@@ -94,6 +94,22 @@ export interface ProductTaxonomy {
   features: ProductTaxonomyFeature[];
 }
 
+/** Selectable taxonomy value inside a product-list facet. */
+export interface ProductTaxonomyFacetValue extends ProductTaxonomyTerm {
+  /** Swatch color (usually a hex value) when the API provides one. */
+  color?: string;
+}
+
+/** Taxonomy attribute facet returned with product lists for building filters. */
+export interface ProductTaxonomyFacet {
+  /** Attribute identity; `attribute.id` is the key for `ProductFilters.taxonomy`. */
+  attribute: ProductTaxonomyTerm;
+  /** True when the storefront renders this attribute as color swatches. */
+  isColor: boolean;
+  /** Values available in the current result set; `id` is the value for `ProductFilters.taxonomy`. */
+  values: ProductTaxonomyFacetValue[];
+}
+
 /** Storefront detail product; entity routes move id to entityId. */
 export interface Product {
   id?: number;  // Optional: removed in entity routes (available as entityId at root)
@@ -163,4 +179,22 @@ export interface ProductFilters {
 
   // Similar products
   similarTo?: number;          // Find products similar to this product ID
+
+  // Taxonomy filtering
+  /** Taxonomy attribute ID mapped to the selected value ID(s); read both from `taxonomyFacets`. */
+  taxonomy?: Record<string, string | string[]>;
+}
+
+/** Product list page returned by `products.list()`; assignable to `PaginatedResponse<ProductListItem>`. */
+export interface ProductListResponse {
+  items: ProductListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  /**
+   * Taxonomy facets for the current result set.
+   * Absent when the API returns none or reports taxonomy filtering as unsupported for the store.
+   */
+  taxonomyFacets?: ProductTaxonomyFacet[];
 }

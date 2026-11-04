@@ -34,6 +34,7 @@ const SOURCE_FILES = [
 const PAGE_TYPE_MAP = {
   'docs/content/docs/api-reference/products.mdx': [
     'src/types/product.ts:ProductFilters',
+    'src/types/product.ts:ProductListResponse',
     'src/types/product.ts:ProductListItem',
     'src/types/product.ts:ProductListVariant',
     'src/types/product.ts:Product',
@@ -43,6 +44,8 @@ const PAGE_TYPE_MAP = {
     'src/types/product.ts:ProductTaxonomyTerm',
     'src/types/product.ts:ProductTaxonomyMetafield',
     'src/types/product.ts:ProductTaxonomyFeature',
+    'src/types/product.ts:ProductTaxonomyFacet',
+    'src/types/product.ts:ProductTaxonomyFacetValue',
     'src/types/product.ts:ProductCategory',
     'src/types/common.ts:ProductAttribute',
     'src/types/common.ts:ProductAttributeValueObject',

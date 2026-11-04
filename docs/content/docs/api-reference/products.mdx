@@ -7,7 +7,7 @@ Use this module for product grids, product pages, and product discovery.
 
 | Use case | Method | Response data |
 | --- | --- | --- |
-| Product grid | `products.list(filters?)` | `PaginatedResponse<ProductListItem>` |
+| Product grid | `products.list(filters?)` | `ProductListResponse` |
 | Product detail page | `products.get(slugOrPath)` | `Product` |
 | Cross-entity search | `products.search(query, filters?)` | `SearchResponse` |
 
@@ -47,13 +47,16 @@ Use: `products.list(filters?, options?)`.
 | `filters.discountedOnly` | `boolean` | Optional | Discounted products only. |
 | `filters.pinnedIds` | `number[]` | Optional | Pin products on top. |
 | `filters.similarTo` | `number` | Optional | Similar-to product ID. |
+| `filters.taxonomy` | `Record<string, string \| string[]>` | Optional | Taxonomy attribute ID mapped to selected value ID(s); see [Taxonomy filters and facets](#taxonomy-filters-and-facets). |
 | `options` | `RequestOptions` | Optional | Per-request controls. |
 
-Returns: `SazitoResponse<PaginatedResponse<ProductListItem>>`.
+Returns: `SazitoResponse<ProductListResponse>`.
 
 `items` contains `ProductListItem`
 objects intended for product cards. Fetch `products.get()` for categories,
 custom page configuration, description and SEO attributes, and variant SKUs.
+`taxonomyFacets` lists the taxonomy attributes and values available for
+filtering the current result set when the store supports taxonomy filtering.
 
 ### Search
 
@@ -152,7 +155,8 @@ category's description or product count, resolve its URL through
 taxonomy category path and the specification table ("ویژگی‌ها") shown on
 product pages. It is absent when the product has neither a taxonomy category
 nor specification metafields. Product lists, search hits, and entity routes
-never include it.
+never include it; lists return [`taxonomyFacets`](#taxonomy-filters-and-facets)
+for filtering instead.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -180,6 +184,47 @@ function specificationTable(product: Product) {
     categoryPath: taxonomy.categoryPath,
     rows: taxonomy.features.map(({ label, value }) => ({ label, value })),
   };
+}
+```
+
+### Taxonomy filters and facets
+
+`products.list()` returns `taxonomyFacets` next to the page: one
+`ProductTaxonomyFacet` per taxonomy attribute, listing the values available in
+the current result set. Pass the selected value IDs back through
+`filters.taxonomy`, keyed by `attribute.id`, to narrow the list. The SDK sends
+one filter per attribute with its value IDs joined by commas, the same request
+the Sazito storefront makes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `attribute` | `ProductTaxonomyTerm` | Attribute identity; `attribute.id` is the key for `filters.taxonomy`. |
+| `isColor` | `boolean` | `true` when the storefront renders the attribute as color swatches (name `رنگ` or `color`, or a color type flag). |
+| `values` | `ProductTaxonomyFacetValue[]` | Selectable values; `id` goes into `filters.taxonomy` and `color` is the swatch color when the API provides one. |
+
+`taxonomyFacets` is absent when the API returns no facets or reports that the
+store cannot filter by taxonomy; render no taxonomy filters in that case. It is
+an empty array when filtering is supported but the result set has no facets.
+The response does not echo the applied selection, so keep the selected value
+IDs in your own state, for example the URL query.
+
+```ts
+import { createSazitoClient } from '@sazito/client-sdk';
+
+const client = createSazitoClient({ domain: 'mystore.sazito.com' });
+
+async function filterByFirstFacet(categoryId: number) {
+  const page = await client.products.list({ categories: categoryId });
+  if (page.error) return page;
+
+  const facet = page.data.taxonomyFacets?.[0];
+  const selected = facet?.values.slice(0, 2).map((value) => value.id) ?? [];
+  if (!facet || selected.length === 0) return page;
+
+  return client.products.list({
+    categories: categoryId,
+    taxonomy: { [facet.attribute.id]: selected },
+  });
 }
 ```
 
@@ -212,8 +257,8 @@ See [Dynamic Forms](/docs/api-reference/dynamic-forms) for form fields and uploa
 
 ### SDK response fields
 
-Product lists return `items`, `total`, `page`, `pageSize`, and `totalPages`
-inside `data`.
+Product lists return `items`, `total`, `page`, `pageSize`, `totalPages`, and
+`taxonomyFacets` when available inside `data`.
 `products.get()` returns the detail product as `data`, including variant SKUs
 and `taxonomy` when present. Use the exported SDK types and camelCase field names when
 rendering product data.
@@ -233,7 +278,9 @@ import type {
   Product,
   ProductListItem,
   ProductVariant,
+  ProductListResponse,
   ProductTaxonomy,
+  ProductTaxonomyFacet,
   ProductAttribute,
   ProductAttributeValueObject
 } from '@sazito/client-sdk';
@@ -456,6 +503,20 @@ Source: `src/types/product.ts`
 | `discountedOnly` | `boolean` | Optional |
 | `pinnedIds` | `number[]` | Optional |
 | `similarTo` | `number` | Optional |
+| `taxonomy` | `Record<string, string \| string[]>` | Optional |
+
+#### ProductListResponse
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `items` | `ProductListItem[]` | Required |
+| `total` | `number` | Required |
+| `page` | `number` | Required |
+| `pageSize` | `number` | Required |
+| `totalPages` | `number` | Required |
+| `taxonomyFacets` | `ProductTaxonomyFacet[]` | Optional |
 
 #### ProductListItem
 
@@ -585,6 +646,27 @@ Source: `src/types/product.ts`
 | --- | --- | --- |
 | `label` | `string` | Required |
 | `value` | `string` | Required |
+
+#### ProductTaxonomyFacet
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `attribute` | `ProductTaxonomyTerm` | Required |
+| `isColor` | `boolean` | Required |
+| `values` | `ProductTaxonomyFacetValue[]` | Required |
+
+#### ProductTaxonomyFacetValue
+
+Source: `src/types/product.ts`
+
+| Field | Type | Required |
+| --- | --- | --- |
+| `id` | `string` | Required |
+| `name` | `string` | Required |
+| `enName` | `string` | Optional |
+| `color` | `string` | Optional |
 
 #### ProductCategory
 

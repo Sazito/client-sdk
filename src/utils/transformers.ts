@@ -1891,6 +1891,62 @@ export function normalizeProductTaxonomy(source: TransformValue | undefined): Tr
   return { category: category ?? null, breadcrumb, categoryPath, metafields, features };
 }
 
+/** `source` value the list API reports when the store cannot filter by taxonomy. */
+const TAXONOMY_UNSUPPORTED_SOURCE = 'db_refused_taxonomy_unsupported';
+
+/** Mirrors the storefront's color-attribute detection for facet rendering. */
+function isColorTaxonomyAttribute(attribute: TransformObject, raw: TransformObject): boolean {
+  const name = taxonomyText(attribute.name).toLowerCase();
+  const enName = taxonomyText(attribute.enName).toLowerCase();
+  const id = taxonomyText(attribute.id).toLowerCase();
+  return name === 'رنگ' || name === 'color' || enName === 'color' || id === 'color'
+    || raw.type === 'color' || Boolean(raw.isColor);
+}
+
+/** Facet values arrive as { value_id, fa_name, en_name?, hex? | color? }. */
+function normalizeTaxonomyFacetValue(value: TransformValue): TransformObject | null {
+  if (!isPlainObject(value)) return null;
+  const term = normalizeTaxonomyTerm({ ...value, id: value.valueId ?? value.id });
+  if (!term) return null;
+  const color = taxonomyText(value.hex) || taxonomyText(value.color);
+  return color ? { ...term, color } : term;
+}
+
+/** Facets arrive as { attribute_id, fa_name, en_name?, values: [...] }. */
+function normalizeTaxonomyFacet(facet: TransformValue): TransformObject | null {
+  if (!isPlainObject(facet)) return null;
+  const attribute = normalizeTaxonomyTerm(
+    isPlainObject(facet.attribute) ? facet.attribute : { ...facet, id: facet.attributeId ?? facet.id }
+  );
+  if (!attribute) return null;
+
+  const values = Array.isArray(facet.values)
+    ? facet.values.reduce<TransformObject[]>((normalized, value) => {
+        const normalizedValue = normalizeTaxonomyFacetValue(value);
+        if (normalizedValue) normalized.push(normalizedValue);
+        return normalized;
+      }, [])
+    : [];
+
+  return { attribute, isColor: isColorTaxonomyAttribute(attribute, facet), values };
+}
+
+/**
+ * Normalize the `taxonomy_facets` collection of a product list response.
+ * Returns undefined when the API sent no facets or marked taxonomy filtering as unsupported.
+ */
+export function normalizeTaxonomyFacets(
+  facets: TransformValue | undefined,
+  source: TransformValue | undefined
+): TransformObject[] | undefined {
+  if (source === TAXONOMY_UNSUPPORTED_SOURCE || !Array.isArray(facets)) return undefined;
+  return facets.reduce<TransformObject[]>((normalized, facet) => {
+    const normalizedFacet = normalizeTaxonomyFacet(facet);
+    if (normalizedFacet) normalized.push(normalizedFacet);
+    return normalized;
+  }, []);
+}
+
 /**
  * Extract the storefront detail product.
  * Accepts both the detail envelope and the HTTP client's single-product unwrap.
@@ -1930,13 +1986,15 @@ export function transformProductListResponse<T = TransformObject>(response: Tran
     const pageSize = toNumber(transformed.pageSize) ?? transformed.items.length;
     const page = toNumber(transformed.page) ?? 1;
     const totalPages = toNumber(transformed.totalPages) ?? Math.ceil(total / pageSize);
+    const taxonomyFacets = normalizeTaxonomyFacets(transformed.taxonomyFacets, transformed.source);
 
     return {
       items: transformed.items.map((item: TransformValue) => cleanProductListItem(item)),
       total,
       page,
       pageSize,
-      totalPages
+      totalPages,
+      ...(taxonomyFacets ? { taxonomyFacets } : {})
     } as T;
   }
 

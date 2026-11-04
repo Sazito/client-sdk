@@ -317,6 +317,8 @@ const list = await sazito.products.list({
   priceMax: 900000,
   availableOnly: true,
   discountedOnly: true,
+  // Taxonomy attribute ID -> value IDs, both read from list.data.taxonomyFacets
+  taxonomy: { 'attr-color': ['val-red', 'val-blue'] },
   sort: '!price',
   page: 1,
   pageSize: 12

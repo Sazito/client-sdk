@@ -5,8 +5,7 @@
 import { HttpClient } from '../core/http-client';
 import {
   SazitoResponse,
-  PaginatedResponse,
-  ProductListItem,
+  ProductListResponse,
   Product,
   ProductFilters,
   RequestOptions,
@@ -77,6 +76,20 @@ export class ProductsAPI {
           entity_id: filters.similarTo
         }
       });
+    }
+
+    // Taxonomy attribute filters: one entry per attribute, value IDs joined with commas
+    if (filters.taxonomy) {
+      for (const [attributeId, selected] of Object.entries(filters.taxonomy)) {
+        const values = (Array.isArray(selected) ? selected : [selected])
+          .map((value) => String(value ?? '').trim())
+          .filter(Boolean);
+        if (!attributeId || values.length === 0) continue;
+        filterArray.push({
+          name: `taxonomy[${attributeId}]`,
+          value: { [attributeId]: values.join(',') }
+        });
+      }
     }
 
     if (filterArray.length > 0) {
@@ -156,16 +169,16 @@ export class ProductsAPI {
   async list(
     filters?: ProductFilters,
     options?: RequestOptions
-  ): Promise<SazitoResponse<PaginatedResponse<ProductListItem>>> {
+  ): Promise<SazitoResponse<ProductListResponse>> {
     const params = this.transformFilters(filters);
 
-    const response = await this.http.get<PaginatedResponse<ProductListItem>>(PRODUCTS_API, {
+    const response = await this.http.get<JsonObject>(PRODUCTS_API, {
       ...options,
       params
     });
 
     if (response.data) {
-      const transformed = transformProductListResponse<PaginatedResponse<ProductListItem>>(response.data);
+      const transformed = transformProductListResponse<ProductListResponse>(response.data);
       return { data: transformed };
     }
 

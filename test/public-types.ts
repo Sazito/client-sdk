@@ -7,6 +7,9 @@ import type {
   ProductAttributeValueObject,
   ProductTaxonomy,
   ProductTaxonomyFeature,
+  ProductTaxonomyFacet,
+  ProductListResponse,
+  ProductFilters,
   ProductsAPI,
   CategoryListResponse,
   AddItemAttributesInput,
@@ -53,6 +56,18 @@ void variantAttributes;
 declare const products: ProductsAPI;
 const listResult: Promise<import('@sazito/client-sdk').SazitoResponse<import('@sazito/client-sdk').PaginatedResponse<ProductListItem>>> = products.list();
 void listResult;
+const taxonomyFilters: ProductFilters = {
+  taxonomy: { 'attr-material': ['val-metal', 'val-glass'], 'attr-color': 'val-red' }
+};
+void taxonomyFilters;
+declare const listPage: ProductListResponse;
+const listTotalPages: number = listPage.totalPages;
+const facets: ProductTaxonomyFacet[] | undefined = listPage.taxonomyFacets;
+const facetAttributeId: string | undefined = facets?.[0]?.attribute.id;
+const facetSwatch: string | undefined = facets?.[0]?.values[0]?.color;
+void listTotalPages;
+void facetAttributeId;
+void facetSwatch;
 
 declare const card: ProductListItem;
 const imageCount: number = card.imageCount;

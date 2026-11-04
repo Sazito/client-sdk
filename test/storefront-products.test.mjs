@@ -45,7 +45,11 @@ test('list uses storefront filters and keeps the existing response wrapper', asy
   });
   const result = await client.products.list({
     page: 2, pageSize: 20, categories: [10, 20], sort: '!price',
-    priceMin: 10, priceMax: 100, discountedOnly: true, pinnedIds: [56], similarTo: 57
+    priceMin: 10, priceMax: 100, discountedOnly: true, pinnedIds: [56], similarTo: 57,
+    taxonomy: {
+      'attr-material': ['val-metal', ' val-glass '], 'attr-color': 'val-red',
+      'attr-empty': [], 'attr-blank': ['', ' ']
+    }
   });
   assert.equal(result.error, undefined);
   const url = requests[0];
@@ -59,7 +63,9 @@ test('list uses storefront filters and keeps the existing response wrapper', asy
   assert.deepEqual(JSON.parse(url.searchParams.get('filters[]')), [
     { name: 'product_categories', value: '10,20' },
     { name: 'has_raw_price', value: true },
-    { name: 'similar_to', value: { entity_name: 'product', entity_id: 57 } }
+    { name: 'similar_to', value: { entity_name: 'product', entity_id: 57 } },
+    { name: 'taxonomy[attr-material]', value: { 'attr-material': 'val-metal,val-glass' } },
+    { name: 'taxonomy[attr-color]', value: { 'attr-color': 'val-red' } }
   ]);
   assert.equal(url.searchParams.get('pinned_ids'), '[56]');
   const { data } = result;
@@ -76,6 +82,50 @@ test('list uses storefront filters and keeps the existing response wrapper', asy
   for (const field of ['categories', 'themeConfig', 'createdAt', 'updatedAt']) {
     assert.equal(Object.hasOwn(product, field), false);
   }
+});
+
+const taxonomyFacets = [
+  {
+    attribute_id: 'attr-color', fa_name: 'رنگ', en_name: 'Color',
+    values: [
+      { value_id: 'val-red', fa_name: 'قرمز', en_name: 'Red', hex: '#ff0000' },
+      { value_id: 'val-blue', fa_name: 'آبی' },
+      { fa_name: '' }
+    ]
+  },
+  { attribute_id: 'attr-material', fa_name: 'جنس', values: [{ value_id: 'val-metal', fa_name: 'فلز' }] },
+  { attribute_id: 'attr-no-values', fa_name: 'بدون مقدار' },
+  { attribute_id: '', fa_name: '' },
+  'not-a-facet'
+];
+
+test('list exposes taxonomy facets and omits them when the store cannot filter by taxonomy', async () => {
+  const listResult = { products: [listProduct], total_count: 1, page_number: 1, page_size: 20 };
+  const { client } = fixtureClient({ ...listResult, taxonomy_facets: taxonomyFacets, source: 'db' });
+  const result = await client.products.list({ categories: 10 });
+  assert.equal(result.error, undefined);
+  assert.deepEqual(result.data.taxonomyFacets, [
+    {
+      attribute: { id: 'attr-color', name: 'رنگ', enName: 'Color' },
+      isColor: true,
+      values: [
+        { id: 'val-red', name: 'قرمز', enName: 'Red', color: '#ff0000' },
+        { id: 'val-blue', name: 'آبی' }
+      ]
+    },
+    { attribute: { id: 'attr-material', name: 'جنس' }, isColor: false, values: [{ id: 'val-metal', name: 'فلز' }] },
+    { attribute: { id: 'attr-no-values', name: 'بدون مقدار' }, isColor: false, values: [] }
+  ]);
+
+  const empty = fixtureClient({ ...listResult, taxonomy_facets: [] });
+  assert.deepEqual((await empty.client.products.list()).data.taxonomyFacets, []);
+
+  const unsupported = fixtureClient({
+    ...listResult, taxonomy_facets: taxonomyFacets, source: 'db_refused_taxonomy_unsupported'
+  });
+  const refused = await unsupported.client.products.list();
+  assert.equal(refused.error, undefined);
+  assert.equal(Object.hasOwn(refused.data, 'taxonomyFacets'), false);
 });
 
 const taxonomyEnvelope = {
